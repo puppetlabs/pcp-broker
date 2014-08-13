@@ -1,0 +1,30 @@
+(ns puppetlabs.cthun-core
+  (:require [clojure.tools.logging :as log]
+            [puppetlabs.websockets.websockets :as websockets]
+            [ring.adapter.jetty9 :as jetty-adapter]
+            [compojure.core :as compojure]
+            [compojure.route :as route]))
+
+(def ws-handler {:on-connect websockets/on-connect
+                 :on-error websockets/on-error
+                 :on-close websockets/on-close
+                 :on-text websockets/on-text
+                 :on-bytes websockets/on-bytes})
+
+(defn- app
+  [conf]
+  (log/info "App initiated"))
+
+(defn initialize
+  [get-in-config]
+  (let [url-prefix (get-in-config [:cthun :url-prefix])
+        host (get-in-config [:cthun :host])
+        port (get-in-config [:cthun :port])]
+  (jetty-adapter/run-jetty app {:websockets {url-prefix ws-handler}
+                                :port port
+                                :host host})))
+
+(defn state
+  "Return the service state"
+  [caller]
+  (@websockets/websocket-state))
