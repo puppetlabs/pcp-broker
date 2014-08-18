@@ -11,6 +11,8 @@
                  [compojure "1.1.8"]
                  [org.clojure/tools.logging "0.3.0"]
                  [puppetlabs/trapperkeeper ~tk-version]
+                 [cheshire "5.3.1"]
+                 [prismatic/schema "0.2.6"]
 
 		 ;; we need version 9.2.2
                  [org.eclipse.jetty/jetty-server "9.2.2.v20140723"
