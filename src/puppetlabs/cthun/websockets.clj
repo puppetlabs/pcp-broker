@@ -21,8 +21,8 @@
   (log/info "Received message from client")
   (log/info "Validating Message...")
   (if (validation/validate-message message)
-    (log/info "Message is valid JSON")
-    (log/info "Message is invalid JSON")))
+    (log/info "Message is valid")
+    (log/info "Message is invalid")))
 
 (defn- on-bytes
   "OnMessage (binary) websocket event handler"
