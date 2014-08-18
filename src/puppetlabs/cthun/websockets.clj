@@ -1,6 +1,7 @@
 (ns puppetlabs.cthun.websockets
   (:require  [clojure.tools.logging :as log]
-             [ring.adapter.jetty9 :as jetty-adapter]))
+             [ring.adapter.jetty9 :as jetty-adapter]
+             [puppetlabs.cthun.validation :as validation]))
 
 ; TODO(ploubser): This doesn't feel very idiomatic.
 (def websocket-state (atom{}))
@@ -13,14 +14,15 @@
     (swap! websocket-state conj {host  "active"})
     (jetty-adapter/send! ws "connect ack")))
 
-; TODO(ploubser): Message validation
-;                 Action on valid message
+; TODO(ploubser): Action on valid message
 (defn- on-text
   "OnMessage (text) websocket event handler"
   [ws message]
   (log/info "Received message from client")
-  (log/info message)
-  (jetty-adapter/send! ws "message ack"))
+  (log/info "Validating Message...")
+  (if (validation/validate-message message)
+    (log/info "Message is valid JSON")
+    (log/info "Message is invalid JSON")))
 
 (defn- on-bytes
   "OnMessage (binary) websocket event handler"
@@ -45,7 +47,6 @@
    :on-close on-close
    :on-text on-text
    :on-bytes on-bytes})
-  
 
 (defn start-jetty
   [app prefix host port]
