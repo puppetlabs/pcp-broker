@@ -1,30 +1,40 @@
 (ns puppetlabs.cthun.websockets
   (:require  [clojure.tools.logging :as log]
              [ring.adapter.jetty9 :as jetty-adapter]
-             [puppetlabs.cthun.validation :as validation]))
+             [cheshire.core :as cheshire]
+             [puppetlabs.cthun.validation :as validation]
+             [puppetlabs.cthun.connection-states :as cs]))
 
-; TODO(ploubser): This doesn't feel very idiomatic.
-(def websocket-state (atom{}))
+(defn- get-hostname*
+  "Get the hostname from a websocket"
+  [ws]
+  (.getHostString (jetty-adapter/remote-addr ws)))
 
-(defn- on-connect
+(def get-hostname (memoize get-hostname*))
+
+; Websocket event handlers
+
+(defn- on-connect!
   "OnConnect websocket event handler"
   [ws]
-  (let [host (.getHostString (jetty-adapter/remote-addr ws))]
-    (log/info "Connection established from host:" host)
-    (swap! websocket-state conj {host  "active"})
-    (jetty-adapter/send! ws "connect ack")))
+  (let [host (get-hostname ws)
+        idle-timeout (* 1000 60 15)]
+    (log/debug "Connection established from host:" host)
+    (jetty-adapter/idle-timeout! ws idle-timeout)
+    (cs/add-connection host ws)))
 
 ; TODO(ploubser): Action on valid message
-(defn- on-text
+; Forward non server messages to intended destination
+(defn- on-text!
   "OnMessage (text) websocket event handler"
   [ws message]
   (log/info "Received message from client")
   (log/info "Validating Message...")
-  (if (validation/validate-message message)
-    (log/info "Message is valid")
-    (log/info "Message is invalid")))
+  (if-let [message-body (validation/validate-message message)]
+    (cs/process-message (get-hostname ws) ws message-body)
+    (log/warn "Received message does not match valid message schema. Dropping.")))
 
-(defn- on-bytes
+(defn- on-bytes!
   "OnMessage (binary) websocket event handler"
   [ws bytes offset len]
   (log/error "Binary transmission not supported yet. Send me a text message"))
@@ -34,19 +44,23 @@
   [ws e]
   (log/error e))
 
-(defn- on-close
+(defn- on-close!
   "OnClose websocket event handler"
   [ws status-code reason]
-  (log/info "Connection terminated with statuscode: " status-code ". Reason: " reason))
+  (log/info "Connection terminated with statuscode: " status-code ". Reason: " reason)
+  (log/debug "Removing connection from connection-map")
+  (cs/remove-connection (get-hostname ws) ws))
+
+; Public Interface
 
 (defn websocket-handlers
   "Return a map of websocket event handler functions"
   []
-  {:on-connect on-connect
+  {:on-connect on-connect!
    :on-error on-error
-   :on-close on-close
-   :on-text on-text
-   :on-bytes on-bytes})
+   :on-close on-close!
+   :on-text on-text!
+   :on-bytes on-bytes!})
 
 (defn start-jetty
   [app prefix host port]
