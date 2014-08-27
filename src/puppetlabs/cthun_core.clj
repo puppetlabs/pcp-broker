@@ -18,4 +18,4 @@
 (defn state
   "Return the service state"
   [caller]
-  (@websockets/websocket-state))
+  (log/info "Not yet implemented"))
