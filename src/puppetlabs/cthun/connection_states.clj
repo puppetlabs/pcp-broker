@@ -1,5 +1,6 @@
 (ns puppetlabs.cthun.connection-states
   (:require [clojure.tools.logging :as log]
+            [clojure.string :as str]
             [puppetlabs.cthun.validation :as validation]
             [puppetlabs.kitchensink.core :as ks]
             [cheshire.core :as cheshire]
@@ -8,13 +9,55 @@
 (def connection-map (atom {}))
 (def endpoint-map (atom {}))
 
-; TODO(ploubser): Some of the functions defined here don't feel
-; like they fit with the name you've currently got for the namespace.
+(defn- find-websockets
+  "Find all websockets matching and endpoint array"
+  [points sub-map]
+  (if (> (count points) 0)
+    (let [point (first points)
+          rest-of-points (subvec points 1)]
+      (if (= point "*")
+        (flatten (map #(find-websockets rest-of-points (get sub-map %)) (keys sub-map)))
+        (when-let [new-sub-map (get sub-map point)]
+          (find-websockets rest-of-points new-sub-map))))
+    sub-map))
+
+(defn- parse-endpoints
+  "Return a lazy sequence of websockets derived from the endpoint key in a message"
+  [endpoints e-map]
+  (remove nil? 
+          (flatten (map (fn [endpoint]
+                          (let [protocol (subs endpoint 0 6)
+                                points (str/split (subs endpoint 6) #"/")]
+                            (when-not (= protocol "cth://")
+                              (throw (Exception. (str "Invalid protocol: " protocol))))
+                            (let [websockets (find-websockets points e-map)]
+                              (if (nil? websockets)
+                                (log/info "No endpoints registered matching: " endpoint " - Discarding message")
+                                websockets))))
+                        endpoints))))
 
 (defn- get-endpoint-string
   "Create a new endpoint string"
   [host type]
   (str "cth://" host "/" type "/" (str (java.util.UUID/randomUUID))))
+
+; TODO(ploubser): This seems ever so janky. I'm willing to bet money that there
+; is a more lispy way of doing this.
+(defn- insert-endpoint!
+  "Create a map from an endpoint string and websocket object"
+  [endpoint ws]
+  (let [points (str/split (subs endpoint 6) #"/")
+        host (get points 0)
+        type (get points 1)
+        uid (get points 2)]
+    (swap! endpoint-map (fn [e-map]
+                          (if-let [found-host (get @endpoint-map host)]
+                            (if-let [found-type (get found-host type)]
+                              (if-let [found-uid (get found-type uid)]
+                                (throw (Exception. (str "Endpoint already exists: " endpoint)))
+                                (assoc-in e-map [host type] (conj (get (get e-map host) type) {uid ws})))
+                              (assoc-in e-map [host] (conj (get e-map host) {type {uid ws}})))
+                            (merge e-map {host {type {uid ws}}}))))))
 
 (defn- new-socket
   "Return a new, unconfigured connection map"
@@ -43,11 +86,12 @@
             user (:user data)
             endpoint (get-endpoint-string host type)]
         (swap! connection-map assoc-in [host ws]
-               (-> (assoc (new-socket) :socket-type type)
+               (-> (new-socket)
+                   (assoc :socket-type type)
                    (assoc :status "ready")
                    (assoc :endpoint endpoint)
                    (assoc :user user)))
-        (swap! endpoint-map assoc endpoint ws)
+        (insert-endpoint! endpoint ws)
         (log/info "Successfully logged in user: " user " of type: " type
                   " on websocket: " ws)))))
 
@@ -64,25 +108,18 @@
       "http://puppetlabs.com/loginschema" (process-login-message host ws message-body)
       (log/warn "Invalid server message type received: " data-schema))))
 
-
+; Forwards a message to the defined endpoints. Getting the endpoints is left as an exercise
+; to the reader.
 (defn- process-client-message
   "Process a message directed at a connected client"
   [host ws message-body]
-  (map (fn [endpoint]
-  (doseq [endpoints (message-body "endpoints")]
-                (fn [endpoint]
-        (if (contains? @endpoint-map endpoint)
-          (jetty-adapter/send! (@endpoint-map endpoint) 
-                               (cheshire/generate-string message-body))
-          (println "Message directed at non existing endpoint: " endpoint
-                   ". Ignoring message.")))
-             (message-body "endpoints")))))
-
-(defn- logged-in?
+  (doseq [websocket (parse-endpoints (:endpoints message-body) @endpoint-map)]
+    (jetty-adapter/send! websocket (cheshire/generate-string message-body))))
+ 
+ (defn- logged-in?
   "Determine if host/websocket combination has logged in"
   [host ws]
   (= (:status (get (get @connection-map host) ws)) "ready"))
-
 
 (defn- login-message?
   "Return true if message is a login type message"
