@@ -5,6 +5,8 @@ pom.xml
 pom.xml.asc
 *.jar
 *.class
+*.pyc
 /.lein-*
 /.nrepl-port
 *~
+/.idea
