@@ -108,13 +108,13 @@
       "http://puppetlabs.com/loginschema" (process-login-message host ws message-body)
       (log/warn "Invalid server message type received: " data-schema))))
 
-; Forwards a message to the defined endpoints. Getting the endpoints is left as an exercise
-; to the reader.
+; Forwards a message to the defined endpoints. 
 (defn- process-client-message
   "Process a message directed at a connected client"
   [host ws message-body]
   (doseq [websocket (parse-endpoints (:endpoints message-body) @endpoint-map)]
-    (jetty-adapter/send! websocket (cheshire/generate-string message-body))))
+    (let [modified-body (assoc message-body :sender (:endpoint (get (get @connection-map host) ws)))]
+      (jetty-adapter/send! websocket (cheshire/generate-string modified-body))))
  
  (defn- logged-in?
   "Determine if host/websocket combination has logged in"
