@@ -113,8 +113,12 @@
   "Process a message directed at a connected client"
   [host ws message-body]
   (doseq [websocket (parse-endpoints (:endpoints message-body) @endpoint-map)]
-    (let [modified-body (assoc message-body :sender (:endpoint (get (get @connection-map host) ws)))]
-      (jetty-adapter/send! websocket (cheshire/generate-string modified-body))))
+    (try
+      (let [modified-body (assoc message-body :sender (:endpoint (get (get @connection-map host) ws)))]
+        (jetty-adapter/send! websocket (cheshire/generate-string modified-body)))
+      (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
+                              (.getMessage e)
+                              ". Dropping message"))))))
  
  (defn- logged-in?
   "Determine if host/websocket combination has logged in"
