@@ -11,6 +11,52 @@
 (def process-server-message  #'puppetlabs.cthun.connection-states/process-server-message)
 (def logged-in?  #'puppetlabs.cthun.connection-states/logged-in?)
 (def login-message?  #'puppetlabs.cthun.connection-states/login-message?)
+(def find-websockets #'puppetlabs.cthun.connection-states/find-websockets)
+(def parse-endpoints #'puppetlabs.cthun.connection-states/parse-endpoints)
+(def insert-endpoint! #'puppetlabs.cthun.connection-states/insert-endpoint!)
+
+(def websocket {"localhost" {"test" {"1" "ws1" "2" "ws2"}}})
+
+(deftest find-websockets-test
+  (testing "It returns a lazy sequence of websockets on a wildcard search"
+    (is (= '("ws1" "ws2")
+           (find-websockets ["*" "*" "*"] websocket))))
+  (testing "It returns the websocket when passed a full qualified endpoint"
+    (is (= "ws1"
+           (find-websockets ["localhost" "test" "1"] websocket))))
+  (testing "It returns nil when the endpoint cannot be found"
+    (is (nil? (find-websockets ["localhost" "not-a-type" "1"] websocket)))))
+
+(deftest parse-endpoints-test
+  (testing "It throws an exception on an invalid protocol"
+    (is (thrown? Exception (parse-endpoints ["test://*/*/*"] websocket))))
+  (testing "It should return a flat sequence"
+    (is (= '("ws1" "ws2") 
+           (parse-endpoints ["cth://*/*/*"] websocket))))
+  (testing "It should remove all nil's from the sequence"
+    (is (= '() 
+           (parse-endpoints ["cth://localhost/not-a-type/*"] websocket)))))
+
+(deftest insert-endpoint!-test
+  (swap! endpoint-map {})
+  (testing "It correctly inserts a new host"
+    (insert-endpoint! "cth://localhost/type1/1" "ws1")
+    (is (= @endpoint-map
+           {"localhost" {"type1" {"1" "ws1"}}})))
+  (testing "It correctly inserts a new type"
+    (insert-endpoint! "cth://localhost/type2/1" "ws2")
+    (is (= @endpoint-map
+           {"localhost" {"type1" {"1" "ws1"}
+                         "type2" {"1" "ws2"}}})))
+  (testing "It correctly inserts a new uid"
+    (insert-endpoint! "cth://localhost/type2/2" "ws3")
+    (is (= @endpoint-map
+           {"localhost" {"type1" {"1" "ws1"}
+                         "type2" {"1" "ws2"
+                                  "2" "ws3"}}})))
+  (testing "It raises an exception if the endpoint already exists"
+    (is (thrown? Exception (insert-endpoint! "cth://localhost/type2/2" "ws3"))))
+  (swap! endpoint-map {}))
 
 (deftest get-endpoint-string-test
   (testing "It creates a correct endpoint string"
