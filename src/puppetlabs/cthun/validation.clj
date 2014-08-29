@@ -18,7 +18,7 @@
    (s/required-key :sender) s/Str
    (s/required-key :expires) ISO8601
    (s/required-key :hops) [{s/Keyword ISO8601}]
-   (s/optional-key :data) {s/Keyword s/Str}})
+   (s/optional-key :data) {s/Keyword s/Any}})
 
 ; Server message data types
 (def LoginMessageData
