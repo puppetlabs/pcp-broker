@@ -3,7 +3,9 @@
              [ring.adapter.jetty9 :as jetty-adapter]
              [cheshire.core :as cheshire]
              [puppetlabs.cthun.validation :as validation]
-             [puppetlabs.cthun.connection-states :as cs]))
+             [puppetlabs.cthun.connection-states :as cs]
+             [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]
+             ))
 
 (defn- get-hostname*
   "Get the hostname from a websocket"
@@ -62,8 +64,21 @@
    :on-text on-text!
    :on-bytes on-bytes!})
 
+;; TODO(richardc): ring-jetty9-adapter doesn't provide a way to *not*
+;; bind http, or to bind it to a different hostname than the ssl service.
+(defn- maybe-ssl-config
+  [config]
+  (if-let [ssl-port (:ssl-port config)]
+    (merge {:ssl-port ssl-port
+            :client-auth :need}
+           (jetty9-config/pem-ssl-config->keystore-ssl-config
+            (select-keys config [:ssl-key :ssl-cert :ssl-ca-cert])))
+    {}))
+
 (defn start-jetty
-  [app prefix host port]
-  (jetty-adapter/run-jetty app {:websockets {prefix (websocket-handlers)}
-                                :port port
-                                :host host}))
+  [app prefix host port config]
+  (jetty-adapter/run-jetty app (merge
+                                {:websockets {prefix (websocket-handlers)}
+                                 :port port
+                                 :host host}
+                                (maybe-ssl-config config))))

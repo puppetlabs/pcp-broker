@@ -12,8 +12,9 @@
   [get-in-config]
   (let [url-prefix (get-in-config [:cthun :url-prefix])
         host (get-in-config [:cthun :host])
-        port (get-in-config [:cthun :port])]
-    (websockets/start-jetty app url-prefix host port)))
+        port (get-in-config [:cthun :port])
+        config (get-in-config [:cthun])]
+    (websockets/start-jetty app url-prefix host port config)))
 
 (defn state
   "Return the service state"

@@ -31,7 +31,7 @@
 
 (deftest on-error-test
   (println "on-error-test *** Pending ***"))
-    
+
 (deftest on-close!-test
   (with-redefs [get-hostname (fn [ws] "localhost")
               ring.adapter.jetty9/idle-timeout! (fn [ws timeout] true)]
@@ -55,4 +55,4 @@
 (deftest start-jetty-test
   (with-redefs [ring.adapter.jetty9/run-jetty (fn [app arg-map] true)]
     (testing "It starts Jetty"
-      (is (= (start-jetty "app" "/cthun" "localhost" 8080) true)))))
+      (is (= (start-jetty "app" "/cthun" "localhost" 8080 {}) true)))))
