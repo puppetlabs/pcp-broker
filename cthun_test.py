@@ -50,9 +50,12 @@ class RequestError(Exception):
 # Client
 
 class EchoClient(WebSocketBaseClient):
-    def __init__(self, url, mgr):
+    def __init__(self, url, mgr, ca_certs = None, keyfile = None, certfile = None):
         self._mgr = mgr
-        WebSocketBaseClient.__init__(self, url)
+        WebSocketBaseClient.__init__(self, url, ssl_options = {
+            "ca_certs" : ca_certs,
+            "keyfile"  : keyfile,
+            "certfile" : certfile })
 
     def handshake_ok(self):
         logger.info("Opening %s" % format_addresses(self))
@@ -71,7 +74,10 @@ ScriptOptions = namedtuple('ScriptOptions', ['url',
                                              'verbose',
                                              'message',
                                              'json_file',
-                                             'num'])
+                                             'num',
+                                             'ca',
+                                             'key',
+                                             'cert'])
 
 SCRIPT_DESCRIPTION = '''WebSocket client to execute load tests.'''
 
@@ -95,6 +101,15 @@ def parseCommandLine(argv):
                         help = "connection check interval; default: %d s"
                                % CONNECTION_CHECK_INTERVAL,
                         default = CONNECTION_CHECK_INTERVAL)
+    parser.add_argument("--ca",
+                        help = "ca pem",
+                        default = None)
+    parser.add_argument("--key",
+                        help = "client key",
+                        default = None)
+    parser.add_argument("--cert",
+                        help = "client cert",
+                        default = None)
     parser.add_argument("-v", "--verbose",
                         help = "verbose",
                         action = "store_true")
@@ -137,14 +152,13 @@ def parseCommandLine(argv):
         num = 0
 
     return ScriptOptions(args.url, concurrency, interval, args.verbose,
-                         args.message, abs_json_file, num)
+                         args.message, abs_json_file, num, args.ca, args.key, args.cert)
 
 
 def getJsonFromFile(file_path):
     with open(file_path) as f:
         json_content = f.read()
     return json.read(json_content.strip())
-
 
 def getMessage(script_options):
     if script_options.json_file is not None:
@@ -167,7 +181,8 @@ def run(script_options):
 
         # Connect
         for connection_idx in range(script_options.concurrency):
-            client = EchoClient(script_options.url, mgr)
+            client = EchoClient(script_options.url, mgr,
+                                script_options.ca, script_options.key, script_options.cert)
             client.connect()
             clients.append(client)
 
