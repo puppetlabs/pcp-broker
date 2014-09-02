@@ -11,12 +11,13 @@
                  [compojure "1.1.8"]
                  [org.clojure/tools.logging "0.3.0"]
                  [puppetlabs/trapperkeeper ~tk-version]
+                 [puppetlabs/kitchensink ~ks-version]
                  [cheshire "5.3.1"]
                  [prismatic/schema "0.2.6"]
 
-		 ;; we need version 9.2.2
+		 ;; we need version 9.2.2 for ring-jetty9-adapter
                  [org.eclipse.jetty/jetty-server "9.2.2.v20140723"
-                 :exclusions [org.eclipse.jetty.orbit/javax.servlet]]
+                  :exclusions [org.eclipse.jetty.orbit/javax.servlet]]
 		 [org.eclipse.jetty/jetty-util "9.2.2.v20140723"]
                  [org.eclipse.jetty/jetty-servlet "9.2.2.v20140723"]
                  [org.eclipse.jetty/jetty-servlets "9.2.2.v20140723"]
