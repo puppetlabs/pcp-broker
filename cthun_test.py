@@ -10,7 +10,9 @@ Another library Autobahn worth checking:
 http://autobahn.ws/python/
 '''
 
+import json
 
+import os
 import sys
 import time
 import logging
@@ -68,6 +70,7 @@ ScriptOptions = namedtuple('ScriptOptions', ['url',
                                              'interval',
                                              'verbose',
                                              'message',
+                                             'json_file',
                                              'num'])
 
 SCRIPT_DESCRIPTION = '''WebSocket client to execute load tests.'''
@@ -82,6 +85,9 @@ def parseCommandLine(argv):
     parser.add_argument("-m", "--message",
                         help = "message to be sent to the server",
                         default = None)
+    parser.add_argument("-j", "--json_file",
+                        help = "file containing the json message to be sent",
+                        default = None)
     parser.add_argument("-n", "--num",
                         help = "number of messages to be sent",
                         default = 1)
@@ -94,7 +100,7 @@ def parseCommandLine(argv):
                         action = "store_true")
 
     # Parse and validate
-    args = parser.parse_args()
+    args = parser.parse_args(argv[1:])
 
     try:
         concurrency = int(args.concurrency)
@@ -113,8 +119,14 @@ def parseCommandLine(argv):
     except ValueError:
         raise RequestError('interval must be a positive integer')
 
+    abs_json_file = None
+    if args.json_file:
+        abs_json_file = os.path.abspath(args.json_file)
+        if not os.path.isfile(abs_json_file):
+            raise RequestError("%s does not exist" % abs_json_file)
+
     num = None
-    if args.message:
+    if any([args.message, args.json_file]):
         try:
             num = int(args.num)
             if num < 0:
@@ -125,8 +137,19 @@ def parseCommandLine(argv):
         num = 0
 
     return ScriptOptions(args.url, concurrency, interval, args.verbose,
-                         args.message, num)
+                         args.message, abs_json_file, num)
 
+
+def getJsonFromFile(file_path):
+    with open(file_path) as f:
+        json_content = f.read()
+    return json.read(json_content.strip())
+
+
+def getMessage(script_options):
+    if script_options.json_file is not None:
+        return getJsonFromFile(script_options.json_file)
+    return script_options.message
 
 
 # The actual script
@@ -151,21 +174,27 @@ def run(script_options):
         logger.info("%d clients are connected" % (connection_idx + 1))
 
         # Send
-        if script_options.message is not None:
-            logger.info("Sending messages")
+        msg = getMessage(script_options)
+        if msg:
+            msg = json.write(msg)
+            logger.info("Sending messages (num=%d):\n%s", script_options.num, msg)
             for client in clients:
                 for _ in range(script_options.num):
-                    client.send(script_options.message)
+                    client.send(msg)
                     time.sleep(SEND_INTERVAL)
+            logger.info("Done sending")
 
         # Sleep before disconnecting
+        logger.info("Sleeping for %d s before disconnecting",
+                    script_options.interval)
         time.sleep(script_options.interval)
 
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
     finally:
         logger.info("Disconnecting!")
-        mgr.close_all()
+        mgr.close_all(code    = 1000,
+                      message = "Client is closing the connection")
         mgr.stop()
         mgr.join()
 
