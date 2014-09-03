@@ -20,11 +20,12 @@
   (with-redefs [puppetlabs.cthun.validation/validate-message (fn [message] true)
                 puppetlabs.cthun.connection-states/process-message (fn [hostname ws message] true)
                 get-hostname (fn [ws] "localhost")]
-  (testing "It processes a client message if the message body is valid"
-    (is (= (#'puppetlabs.cthun.websockets/on-text! "ws" "message") true))))
-  (with-redefs [puppetlabs.cthun.validation/validate-message (fn [message] false)]
-  (testing "It does not process a client message if the message body is invalid"
-    (is (= (#'puppetlabs.cthun.websockets/on-text! "ws" "message") nil)))))
+    (testing "It processes a client message if the message body is valid"
+      (is (= (#'puppetlabs.cthun.websockets/on-text! "ws" "message") true))))
+  (with-redefs [puppetlabs.cthun.validation/validate-message (fn [message] false)
+                get-hostname (fn [ws] "localhost")]
+    (testing "It does not process a client message if the message body is invalid"
+      (is (= (#'puppetlabs.cthun.websockets/on-text! "ws" "message") nil)))))
 
 (deftest on-bytes!-test
   (println "on-bytes!-test *** Pending ***"))
@@ -34,7 +35,7 @@
 
 (deftest on-close!-test
   (with-redefs [get-hostname (fn [ws] "localhost")
-              ring.adapter.jetty9/idle-timeout! (fn [ws timeout] true)]
+                ring.adapter.jetty9/idle-timeout! (fn [ws timeout] true)]
     (testing "It removes the closed connection from the connection-map and endpoint-map"
       (swap! puppetlabs.cthun.connection-states/connection-map {})
       (#'puppetlabs.cthun.websockets/on-connect! "ws")
