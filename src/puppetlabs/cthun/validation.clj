@@ -27,12 +27,17 @@
    (s/required-key :user) s/Str})
 
 (defn check-schema
-  "Check if the JSON matches the schema"
+  "Check if the JSON matches the ClientMessage schema.
+  Returns message on success.
+  Throws on failure."
   [json]
   (s/validate ClientMessage json))
 
 (defn validate-message
-  "Validate the structure of a message"
+  "Validates the structure of a message.
+  Returns message on success.
+  Returns false on invalid json.
+  Throws on valid json with an invalid schema"
   [message]
   (let [json (try (cheshire/parse-string message true)
                   (catch Exception e false))]
