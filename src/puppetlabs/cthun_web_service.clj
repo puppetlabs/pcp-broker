@@ -2,6 +2,7 @@
   (:require [clojure.tools.logging :as log]
             [compojure.core :as compojure]
             [puppetlabs.cthun-web-core :as core]
+            [puppetlabs.trapperkeeper.app :refer [get-service]]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]))
 
 (trapperkeeper/defservice cthun-web-service
@@ -12,6 +13,6 @@
         (log/info "Initializing cthun webservice")
         (let [url-prefix (get-in-config [:cthun :debug-url-prefix])]
           (compojure/context url-prefix []
-                             (core/app (get-service :CthunService))
+                             (core/app (get-service this :CthunService))
                              url-prefix)
           (assoc context :url-prefix url-prefix))))
