@@ -78,18 +78,23 @@
    :user "undefined"
    :created-at (ks/timestamp)})
 
+ (defn- logged-in?
+  "Determine if host/websocket combination has logged in"
+  [host ws]
+  (= (get-in @connection-map [host ws :status]) "ready"))
+
 (defn- process-login-message
   "Process a login message from a client"
   [host ws message-body]
   (log/info "Processing login message")
   (when (validation/validate-login-data (:data message-body))
     (log/info "Valid login message received")
-    (if (= (:status (get (get @connection-map host) ws)) "ready")
-      ;There has already been a login even on the websocket
+    (if (logged-in? host ws)
       (throw (Exception. (str "Received login attempt from host '" host "' on socket '"
-                         ws "' but already logged in at " (:create-at (get (get @connection-map host) ws))
+                         ws "' but already logged in at "
+                         (get-in @connection-map [host ws :created-at])
                          " as "
-                         (:user (get (get @connection-map host) ws))
+                         (get-in @connection-map [host ws :user])
                          ". Ignoring")))
       (let [data (:data message-body)
             type (:type data)
@@ -120,25 +125,21 @@
 
 ; Forwards a message to the defined endpoints.
 (defn- process-client-message
-  "Process a message directed at a connected client"
+  "Process a message directed at a connected client(s)"
   [host ws message-body]
   (doseq [websocket (parse-endpoints (:endpoints message-body) @endpoint-map)]
     (try
-      (let [modified-body (assoc message-body :sender (:endpoint (get (get @connection-map host) ws)))]
+      (let [sender (get-in @connection-map [host ws :endpoint])
+            modified-body (assoc message-body :sender sender)]
         (jetty-adapter/send! websocket (cheshire/generate-string modified-body)))
       (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
                               (.getMessage e)
                               ". Dropping message"))))))
 
- (defn- logged-in?
-  "Determine if host/websocket combination has logged in"
-  [host ws]
-  (= (:status (get (get @connection-map host) ws)) "ready"))
-
 (defn- login-message?
   "Return true if message is a login type message"
   [message]
-  (and (= (get (:endpoints message) 0) "cth://server")
+  (and (= (first (:endpoints message)) "cth://server")
        (= (:data_schema message) "http://puppetlabs.com/loginschema")))
 
 (defn add-connection
