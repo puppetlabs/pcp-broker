@@ -1,5 +1,6 @@
 (ns puppetlabs.cthun.connection-states
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.core.incubator :refer [dissoc-in]]
+            [clojure.tools.logging :as log]
             [clojure.string :as str]
             [puppetlabs.cthun.validation :as validation]
             [puppetlabs.kitchensink.core :as ks]
@@ -24,7 +25,7 @@
 (defn- parse-endpoints
   "Return a lazy sequence of websockets derived from the endpoint key in a message"
   [endpoints e-map]
-  (remove nil? 
+  (remove nil?
           (flatten (map (fn [endpoint]
                           (let [protocol (subs endpoint 0 6)
                                 points (str/split (subs endpoint 6) #"/")]
@@ -108,7 +109,7 @@
       "http://puppetlabs.com/loginschema" (process-login-message host ws message-body)
       (log/warn "Invalid server message type received: " data-schema))))
 
-; Forwards a message to the defined endpoints. 
+; Forwards a message to the defined endpoints.
 (defn- process-client-message
   "Process a message directed at a connected client"
   [host ws message-body]
@@ -119,7 +120,7 @@
       (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
                               (.getMessage e)
                               ". Dropping message"))))))
- 
+
  (defn- logged-in?
   "Determine if host/websocket combination has logged in"
   [host ws]
@@ -128,7 +129,7 @@
 (defn- login-message?
   "Return true if message is a login type message"
   [message]
-  (and (= (get (:endpoints message) 0) "cth://server") 
+  (and (= (get (:endpoints message) 0) "cth://server")
        (= (:data_schema message) "http://puppetlabs.com/loginschema")))
 
 (defn add-connection
@@ -139,12 +140,13 @@
 (defn remove-connection
   "Remove a connection from the connection state map"
   [host ws]
-  ; Remove the endpoint
-  (swap! endpoint-map dissoc (:endpoint (get ws (get host @connection-map)))
-  ; Remove the connection
-  (swap! connection-map update-in [host] dissoc ws))
-  (when (empty? (@connection-map host))
-    (swap! connection-map dissoc host)))
+  (let [endpoint (get-in @connection-map [host ws :endpoint])]
+    ; Remove the endpoint - TODO(richardc): after relaying this I
+    ; don't think it works, as endpoint-map has the structure
+    ;    { host: { type: { id: ws } } }
+    (swap! endpoint-map dissoc endpoint)
+    ; Remove the connection
+    (swap! connection-map dissoc-in [host ws])))
 
 (defn process-message
   "Process an incoming message from a websocket"
@@ -160,4 +162,3 @@
       (process-server-message host ws message-body)
       (log/warn "Connection cannot accept messages until login message has been "
                  "processed. Dropping message."))))
-

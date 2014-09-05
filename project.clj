@@ -10,6 +10,7 @@
 		 [info.sunng/ring-jetty9-adapter "0.7.1"]
                  [compojure "1.1.8"]
                  [org.clojure/tools.logging "0.3.0"]
+                 [org.clojure/core.incubator "0.1.3"]
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/kitchensink ~ks-version]
                  [cheshire "5.3.1"]
