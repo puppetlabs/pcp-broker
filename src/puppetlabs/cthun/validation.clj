@@ -8,16 +8,20 @@
   "Schema validates if string conforms to ISO8601"
   (s/pred ks/datetime? 'datetime?))
 
+(def Endpoint
+  "Pattern that matches valid endpoints"
+  (s/pred (partial re-matches #"cth://.*") 'endpoint?))
+
 ; Message types
 (def ClientMessage
   "Defines the message format expected from a client"
   {(s/required-key :version) s/Str
    (s/required-key :id) s/Int
-   (s/required-key :endpoints) [s/Str]
+   (s/required-key :endpoints) [Endpoint]
    (s/required-key :data_schema) s/Str
-   (s/required-key :sender) s/Str
+   (s/required-key :sender) Endpoint
    (s/required-key :expires) ISO8601
-   (s/required-key :hops) [{s/Keyword ISO8601}]
+   (s/required-key :hops) [{s/Keyword ISO8601}] ;; TODO(richardc): should be in terms of Endpoint
    (s/optional-key :data) {s/Keyword s/Any}})
 
 ; Server message data types
