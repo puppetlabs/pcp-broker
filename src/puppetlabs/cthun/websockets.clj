@@ -34,8 +34,6 @@
     (jetty-adapter/idle-timeout! ws idle-timeout)
     (cs/add-connection host ws)))
 
-; TODO(ploubser): Action on valid message
-; Forward non server messages to intended destination
 (defn- on-text!
   "OnMessage (text) websocket event handler"
   [ws message]
