@@ -51,23 +51,17 @@
   [host type]
   (str "cth://" host "/" type "/" (str (java.util.UUID/randomUUID))))
 
-; TODO(ploubser): This seems ever so janky. I'm willing to bet money that there
-; is a more lispy way of doing this.
 (defn- insert-endpoint!
   "Create a map from an endpoint string and websocket object"
   [endpoint ws]
   (let [points (str/split (subs endpoint 6) #"/")
         host (get points 0)
         type (get points 1)
-        uid (get points 2)]
-    (swap! endpoint-map (fn [e-map]
-                          (if-let [found-host (get @endpoint-map host)]
-                            (if-let [found-type (get found-host type)]
-                              (if-let [found-uid (get found-type uid)]
-                                (throw (Exception. (str "Endpoint already exists: " endpoint)))
-                                (assoc-in e-map [host type] (conj (get (get e-map host) type) {uid ws})))
-                              (assoc-in e-map [host] (conj (get e-map host) {type {uid ws}})))
-                            (merge e-map {host {type {uid ws}}}))))))
+        uid  (get points 2)]
+    (swap! endpoint-map (fn [map]
+                          (if-let [existing (get-in map [host type uid])]
+                            (throw (Exception. (str "Endpoint already exists: " endpoint)))
+                            (assoc-in map [host type uid] ws))))))
 
 (s/defn ^:always-validate
   new-socket :- ConnectionMap
