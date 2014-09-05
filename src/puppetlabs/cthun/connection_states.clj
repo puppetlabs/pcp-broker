@@ -52,7 +52,9 @@
   (str "cth://" host "/" type "/" (str (java.util.UUID/randomUUID))))
 
 (defn- insert-endpoint!
-  "Create a map from an endpoint string and websocket object"
+  "Record the websocket for an endpoint into the endpoint map.
+  Returns new version of the endpoint map.  Raises if endpoint already
+  exists"
   [endpoint ws]
   (let [points (str/split (subs endpoint 6) #"/")
         host (get points 0)
