@@ -19,6 +19,21 @@
 (def connection-map (atom {})) ;; Nested map of host -> websocket -> ConnectionState
 (def endpoint-map (atom {})) ;; Nested map of host -> type -> id -> websocket
 
+
+(defn- make-endpoint-string
+  "Make a new endpoint string for a host and type"
+  [host type]
+  (str "cth://" host "/" type "/" (str (java.util.UUID/randomUUID))))
+
+(s/defn ^:always-validate
+  explode-endpoint :- [s/Str]
+  "Parse an endpoint string into its component parts.  Raises if incomplete"
+  [endpoint :- validation/Endpoint]
+  (let [points (str/split (subs endpoint 6) #"/")]
+    (when-not (= (count points) 3)
+      (throw (Exception. (str "Endpoints should have 3 parts"))))
+    points))
+
 (defn- find-websockets
   "Find all websockets matching and endpoint array"
   [points sub-map]
@@ -36,27 +51,19 @@
   [endpoints e-map]
   (remove nil?
           (flatten (map (fn [endpoint]
-                          (let [protocol (subs endpoint 0 6)
-                                points (str/split (subs endpoint 6) #"/")]
-                            (when-not (= protocol "cth://")
-                              (throw (Exception. (str "Invalid protocol: " protocol))))
-                            (let [websockets (find-websockets points e-map)]
-                              (if (nil? websockets)
-                                (log/info "No endpoints registered matching: " endpoint " - Discarding message")
-                                websockets))))
+                          (let [points     (explode-endpoint endpoint)
+                                websockets (find-websockets points e-map)]
+                            (when-not websockets
+                              (log/info "No endpoints registered matching: " endpoint " - Discarding message"))
+                            websockets))
                         endpoints))))
-
-(defn- get-endpoint-string
-  "Create a new endpoint string"
-  [host type]
-  (str "cth://" host "/" type "/" (str (java.util.UUID/randomUUID))))
 
 (defn- insert-endpoint!
   "Record the websocket for an endpoint into the endpoint map.
   Returns new version of the endpoint map.  Raises if endpoint already
   exists"
   [endpoint ws]
-  (let [points (str/split (subs endpoint 6) #"/")
+  (let [points (explode-endpoint endpoint)
         host (get points 0)
         type (get points 1)
         uid  (get points 2)]
@@ -95,7 +102,7 @@
       (let [data (:data message-body)
             type (:type data)
             user (:user data)
-            endpoint (get-endpoint-string host type)]
+            endpoint (make-endpoint-string host type)]
         (swap! connection-map assoc-in [host ws]
                (-> (new-socket)
                    (assoc :socket-type type)

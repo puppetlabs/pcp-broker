@@ -5,7 +5,7 @@
 
 
 ; private symbols
-(def get-endpoint-string #'puppetlabs.cthun.connection-states/get-endpoint-string)
+(def make-endpoint-string #'puppetlabs.cthun.connection-states/make-endpoint-string)
 ;(def new-socket #'puppetlabs.cthun.connection-states/new-socket)
 (def process-login-message #'puppetlabs.cthun.connection-states/process-login-message)
 (def process-server-message  #'puppetlabs.cthun.connection-states/process-server-message)
@@ -58,9 +58,20 @@
     (is (thrown? Exception (insert-endpoint! "cth://localhost/type2/2" "ws3"))))
   (swap! endpoint-map {}))
 
-(deftest get-endpoint-string-test
+(deftest make-endpoint-string-test
   (testing "It creates a correct endpoint string"
-    (is (re-matches #"cth://localhost/controller/.*" (get-endpoint-string "localhost" "controller")))))
+    (is (re-matches #"cth://localhost/controller/.*" (make-endpoint-string "localhost" "controller")))))
+
+(deftest explode-endpoint-test
+  (testing "It raises on invalid endpoints"
+    (is (thrown? Exception (explode-endpoint "")))
+    (is (thrown? Exception (explode-endpoint "cth://not/enough_parts")))
+    (is (thrown? Exception (explode-endpoint "cth://just/too/many/parts")))
+    (is (thrown? Exception (explode-endpoint "cth://too/many/parts/by/far"))))
+  (testing "It returns component chunks"
+    (is (= [ "localhost" "agent" "1" ] (explode-endpoint "cth://localhost/agent/1")))
+    (is (= [ "localhost" "*" "*" ] (explode-endpoint "cth://localhost/*/*")))
+    (is (= [ "*" "agent" "*" ] (explode-endpoint "cth://*/agent/*")))))
 
 (deftest new-socket-test
   (testing "It returns a map that matches represents a new socket"
