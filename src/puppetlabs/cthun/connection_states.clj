@@ -5,10 +5,19 @@
             [puppetlabs.cthun.validation :as validation]
             [puppetlabs.kitchensink.core :as ks]
             [cheshire.core :as cheshire]
+            [schema.core :as s]
             [ring.adapter.jetty9 :as jetty-adapter]))
 
-(def connection-map (atom {}))
-(def endpoint-map (atom {}))
+(def ConnectionMap
+  "The state of a websocket in the connection-map"
+  {:socket-type s/Str
+   :status s/Str
+   :user s/Str
+   (s/optional-key :endpoint) validation/Endpoint
+   :created-at validation/ISO8601})
+
+(def connection-map (atom {})) ;; Nested map of host -> websocket -> ConnectionState
+(def endpoint-map (atom {})) ;; Nested map of host -> type -> id -> websocket
 
 (defn- find-websockets
   "Find all websockets matching and endpoint array"
@@ -60,13 +69,13 @@
                               (assoc-in e-map [host] (conj (get e-map host) {type {uid ws}})))
                             (merge e-map {host {type {uid ws}}}))))))
 
-(defn- new-socket
+(s/defn ^:always-validate
+  new-socket :- ConnectionMap
   "Return a new, unconfigured connection map"
   []
   {:socket-type "undefined"
    :status "connected"
    :user "undefined"
-   :endpoint "undefined"
    :created-at (ks/timestamp)})
 
 (defn- process-login-message

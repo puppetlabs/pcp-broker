@@ -6,7 +6,7 @@
 
 ; private symbols
 (def get-endpoint-string #'puppetlabs.cthun.connection-states/get-endpoint-string)
-(def new-socket #'puppetlabs.cthun.connection-states/new-socket)
+;(def new-socket #'puppetlabs.cthun.connection-states/new-socket)
 (def process-login-message #'puppetlabs.cthun.connection-states/process-login-message)
 (def process-server-message  #'puppetlabs.cthun.connection-states/process-server-message)
 (def logged-in?  #'puppetlabs.cthun.connection-states/logged-in?)
@@ -31,10 +31,10 @@
   (testing "It throws an exception on an invalid protocol"
     (is (thrown? Exception (parse-endpoints ["test://*/*/*"] websocket))))
   (testing "It should return a flat sequence"
-    (is (= '("ws1" "ws2") 
+    (is (= '("ws1" "ws2")
            (parse-endpoints ["cth://*/*/*"] websocket))))
   (testing "It should remove all nil's from the sequence"
-    (is (= '() 
+    (is (= '()
            (parse-endpoints ["cth://localhost/not-a-type/*"] websocket)))))
 
 (deftest insert-endpoint!-test
@@ -68,14 +68,14 @@
       (is (= (:socket-type socket) "undefined"))
       (is (= (:status socket) "connected"))
       (is (= (:user socket) "undefined"))
-      (is (= (:endpoint socket) "undefined"))
+      (is (= nil (:endpoint socket)))
       (is (not= nil (ks/datetime? (:created-at socket)))))))
 
 (deftest process-login-message-test
   (with-redefs [puppetlabs.cthun.validation/validate-login-data (fn [data] true)]
     (testing "It should perform a login"
       (add-connection "ws" "localhost")
-      (process-login-message "localhost" 
+      (process-login-message "localhost"
                              "ws"
                                {:data {
                                         :type "controller"
@@ -91,13 +91,13 @@
   (testing "It does not allow a login to happen twice on the same socket"
     (with-redefs [puppetlabs.cthun.validation/validate-login-data (fn [data] true)]
       (add-connection "localhost" "ws")
-      (process-login-message "localhost" 
+      (process-login-message "localhost"
                              "ws"
                              {:data {
                                      :type "controller"
                                      :user "testing"
                                      }}))
-      (is (thrown? Exception  (process-login-message "localhost" 
+      (is (thrown? Exception  (process-login-message "localhost"
                                                      "ws"
                                                      {:data {
                                                              :type "controller"
@@ -150,4 +150,3 @@
     (with-redefs [puppetlabs.cthun.connection-states/logged-in? (fn [host ws] true)
                   puppetlabs.cthun.connection-states/process-server-message (fn [host ws message-body] "server")]
       (is (= (process-message "localhost" "ws" {:endpoints ["cth://server"]}) "server")))))
-        

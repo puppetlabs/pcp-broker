@@ -4,6 +4,10 @@
 
 ; Private websocket event handler tests
 
+
+;; TODO(richardc): this feels like the wrong place to test this.  Here
+;; we should at most be testing that on-connect! called into
+;; cd/add-connection
 (deftest on-connect!-test
   (with-redefs [get-hostname (fn [ws] "localhost")
                 ring.adapter.jetty9/idle-timeout! (fn [ws timeout] true)]
@@ -14,7 +18,7 @@
         (is (= (socket-map :socket-type) "undefined"))
         (is (= (socket-map :status) "connected"))
         (is (= (socket-map :user) "undefined"))
-        (is (= (socket-map :endpoint) "undefined"))))))
+        (is (= nil (socket-map :endpoint)))))))
 
 (deftest on-text!-test
   (with-redefs [puppetlabs.cthun.validation/validate-message (fn [message] true)
