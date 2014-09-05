@@ -35,7 +35,7 @@
     points))
 
 (defn- find-websockets
-  "Find all websockets matching and endpoint array"
+  "Find all websockets matching an endpoint array"
   [points sub-map]
   (if (> (count points) 0)
     (let [point (first points)
@@ -153,13 +153,9 @@
 (defn remove-connection
   "Remove a connection from the connection state map"
   [host ws]
-  (let [endpoint (get-in @connection-map [host ws :endpoint])]
-    ; Remove the endpoint - TODO(richardc): after relaying this I
-    ; don't think it works, as endpoint-map has the structure
-    ;    { host: { type: { id: ws } } }
-    (swap! endpoint-map dissoc endpoint)
-    ; Remove the connection
-    (swap! connection-map dissoc-in [host ws])))
+  (when-let [endpoint (get-in @connection-map [host ws :endpoint])]
+    (swap! endpoint-map dissoc-in (explode-endpoint endpoint)))
+  (swap! connection-map dissoc-in [host ws]))
 
 (defn process-message
   "Process an incoming message from a websocket"

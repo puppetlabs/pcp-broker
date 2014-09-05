@@ -92,7 +92,7 @@
                                         :type "controller"
                                         :user "testing"
                                         }})
-      (let [connection (get (get @connection-map "localhost") "ws")]
+      (let [connection (get-in @connection-map ["localhost" "ws"])]
         (is (= (:socket-type connection) "controller"))
         (is (= (:status connection) "ready"))
         (is (= (:user connection) "testing"))
@@ -138,13 +138,27 @@
 (deftest add-connection-test
   (testing "It should add a connection to the connection map"
     (add-connection "localhost" "ws")
-    (is (= (:status (get  (get @connection-map "localhost") "ws")) "connected"))))
+    (is (= (get-in @connection-map ["localhost" "ws" :status]) "connected"))))
 
 (deftest remove-connection-test
+  (reset! connection-map {})
+  (reset! endpoint-map {})
   (testing "It should remove a connection from the connection map"
     (add-connection "localhost" "ws")
     (remove-connection "localhost" "ws")
-    (is (= (get @connection-map "localhost") nil))))
+    (is (= {} @connection-map)))
+
+  (reset! connection-map {})
+  (reset! endpoint-map {})
+  (testing "It should remove the connector from the connection map"
+    (add-connection "localhost" "ws")
+    (insert-endpoint! "cth://localhost/agent/1" "ws")
+    ;; should this swap be in insert-endpoint?  It's done as part of
+    ;; processs-login-message currently, am only doing it here to
+    ;; allow remove-connection to find the endpoint
+    (swap! connection-map assoc-in ["localhost" "ws" :endpoint] "cth://localhost/agent/1")
+    (remove-connection "localhost" "ws")
+    (is (= {} @endpoint-map))))
 
 (deftest process-message-test
   (testing "It will ignore messages until the the client is logged in"
