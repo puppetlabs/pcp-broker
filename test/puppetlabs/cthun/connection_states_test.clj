@@ -85,17 +85,19 @@
 (deftest process-login-message-test
   (with-redefs [puppetlabs.cthun.validation/validate-login-data (fn [data] true)]
     (testing "It should perform a login"
-      (add-connection "ws" "localhost")
+      (add-connection "localhost" "ws")
+      (swap! connection-map assoc-in ["localhost" "ws" :created-at] "squirrel")
       (process-login-message "localhost"
                              "ws"
-                               {:data {
-                                        :type "controller"
-                                        :user "testing"
-                                        }})
+                             {:data {
+                                     :type "controller"
+                                     :user "testing"
+                                     }})
       (let [connection (get-in @connection-map ["localhost" "ws"])]
         (is (= (:socket-type connection) "controller"))
         (is (= (:status connection) "ready"))
         (is (= (:user connection) "testing"))
+        (is (= (:created-at connection) "squirrel"))
         (is (re-matches #"cth://localhost/controller/.*" (:endpoint connection))))))
 
 

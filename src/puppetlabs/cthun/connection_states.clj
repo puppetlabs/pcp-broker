@@ -103,12 +103,10 @@
             type (:type data)
             user (:user data)
             endpoint (make-endpoint-string host type)]
-        (swap! connection-map assoc-in [host ws]
-               (-> (new-socket)
-                   (assoc :socket-type type)
-                   (assoc :status "ready")
-                   (assoc :endpoint endpoint)
-                   (assoc :user user)))
+        (swap! connection-map update-in [host ws] merge {:socket-type type
+                                                         :status "ready"
+                                                         :endpoint endpoint
+                                                         :user user})
         (insert-endpoint! endpoint ws)
         (log/info "Successfully logged in user: " user " of type: " type
                   " on websocket: " ws)))))
