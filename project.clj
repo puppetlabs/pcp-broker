@@ -11,6 +11,7 @@
                  [compojure "1.1.8"]
                  [org.clojure/tools.logging "0.3.0"]
                  [org.clojure/core.incubator "0.1.3"]
+                 [org.clojure/core.async "0.1.338.0-5c5012-alpha"]
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/kitchensink ~ks-version]
                  [cheshire "5.3.1"]
