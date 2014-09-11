@@ -133,9 +133,11 @@
 
 (deftest login-message?-test
   (testing "It returns true when passed a login type messge"
-    (is (= (login-message? {:endpoints ["cth://server"] :data_schema "http://puppetlabs.com/loginschema"}))))
+    (is (= true (login-message? {:endpoints ["cth://server"] :data_schema "http://puppetlabs.com/loginschema"}))))
   (testing "It returns false when passed a message of an unknown type"
-    (is (= (login-message? {:endpoints ["cth://otherserver"] :data_schema "http://puppetlabs.com/loginschema"})))))
+    (is (= false (login-message? {:endpoints ["cth://server"] :data_schema "http://puppetlabs.com/kennylogginsschema"}))))
+  (testing "It returns false when passed a message not aimed to the server target"
+    (is (= false (login-message? {:endpoints ["cth://otherserver"] :data_schema "http://puppetlabs.com/loginschema"})))))
 
 (deftest add-connection-test
   (testing "It should add a connection to the connection map"
