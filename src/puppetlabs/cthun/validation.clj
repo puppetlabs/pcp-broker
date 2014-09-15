@@ -27,8 +27,7 @@
 ; Server message data types
 (def LoginMessageData
   "Defines the data field in a login message body"
-  {(s/required-key :type) s/Str
-   (s/required-key :user) s/Str})
+  {(s/required-key :type) s/Str})
 
 (defn check-schema
   "Check if the JSON matches the ClientMessage schema.
