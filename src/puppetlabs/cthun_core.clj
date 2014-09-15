@@ -1,6 +1,5 @@
 (ns puppetlabs.cthun-core
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.cthun.connection-states :as connection-states]
             [puppetlabs.cthun.websockets :as websockets]
             [compojure.core :as compojure]
             [compojure.route :as route]))
@@ -15,7 +14,6 @@
         host (get-in-config [:cthun :host])
         port (get-in-config [:cthun :port])
         config (get-in-config [:cthun])]
-    (connection-states/run-the-queue)
     (websockets/start-jetty app url-prefix host port config)))
 
 (defn state

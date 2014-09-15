@@ -173,7 +173,7 @@
       (is (= (process-message "localhost" "ws" {}) "login"))))
   (testing "It will process a client message"
     (with-redefs [puppetlabs.cthun.connection-states/logged-in? (fn [host ws] true)
-                  puppetlabs.cthun.connection-states/enqueue-client-message (fn [host ws message-body] "client")]
+                  puppetlabs.cthun.connection-states/process-client-message (fn [host ws message-body] "client")]
       (is (= (process-message "localhost" "ws" {:endpoints ["cth://client1.com"]}) "client"))))
   (testing "It will process a server message"
     (with-redefs [puppetlabs.cthun.connection-states/logged-in? (fn [host ws] true)

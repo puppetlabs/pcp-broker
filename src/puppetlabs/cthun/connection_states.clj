@@ -137,29 +137,6 @@
                               (.getMessage e)
                               ". Dropping message"))))))
 
-(def queue (async/chan))
-
-(defn- enqueue-client-message
-  "Take a client message, queue it for later dispatch"
-  [host ws message]
-  (log/info "enqueuing message")
-  (async/>!! queue {:host host :ws ws :message message}))
-
-(defn- deliver-from-queue
-  "Consume a client message from there queue, ship it out"
-  []
-  (let [envelope (async/<!! queue)
-        host     (:host envelope)
-        ws       (:ws envelope)
-        message  (:message envelope)]
-    (log/info "dequeued message")
-    (process-client-message host ws message)))
-
-(defn run-the-queue
-  "loop around deliver-from-queue"
-  []
-  (async/thread (while true (deliver-from-queue))))
-
 (defn- login-message?
   "Return true if message is a login type message"
   [message]
@@ -187,7 +164,7 @@
   ; check if this is a message directed at the middleware
     (if (= (get (:endpoints message-body) 0) "cth://server")
       (process-server-message host ws message-body)
-      (enqueue-client-message host ws message-body))
+      (process-client-message host ws message-body))
     (if (login-message? message-body)
       (process-server-message host ws message-body)
       (log/warn "Connection cannot accept messages until login message has been "
