@@ -13,9 +13,9 @@
                 ring.adapter.jetty9/idle-timeout! (fn [ws timeout] true)]
     (testing "It adds the fresh connection to the connection-map"
       (let [connection-map (#'puppetlabs.cthun.websockets/on-connect! "ws")
-            host-map (connection-map "localhost")
-            socket-map (host-map "ws")]
-        (is (= (socket-map :socket-type) "undefined"))
+            socket-map (get connection-map "ws")]
+        (is (= (socket-map :client) "localhost"))
+        (is (= (socket-map :type) "undefined"))
         (is (= (socket-map :status) "connected"))
         (is (= nil (socket-map :endpoint)))))))
 

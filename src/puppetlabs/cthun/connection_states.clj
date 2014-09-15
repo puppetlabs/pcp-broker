@@ -9,15 +9,16 @@
             [schema.core :as s]
             [ring.adapter.jetty9 :as jetty-adapter]))
 
-(def ConnectionMap
+(def ConnectionState
   "The state of a websocket in the connection-map"
-  {:socket-type s/Str
+  {:client s/Str
+   :type s/Str
    :status s/Str
    (s/optional-key :endpoint) validation/Endpoint
    :created-at validation/ISO8601})
 
-(def connection-map (atom {})) ;; Nested map of host -> websocket -> ConnectionState
-(def endpoint-map (atom {})) ;; Nested map of host -> type -> id -> websocket
+(def connection-map (atom {})) ;; Map of ws -> ConnectionState
+
 
 (defn- make-endpoint-string
   "Make a new endpoint string for a host and type"
@@ -28,61 +29,36 @@
   explode-endpoint :- [s/Str]
   "Parse an endpoint string into its component parts.  Raises if incomplete"
   [endpoint :- validation/Endpoint]
-  (let [points (str/split (subs endpoint 6) #"/")]
-    (when-not (= (count points) 3)
-      (throw (Exception. (str "Endpoints should have 3 parts"))))
-    points))
+  (str/split (subs endpoint 6) #"/"))
 
-(defn- find-websockets
-  "Find all websockets matching an endpoint array"
-  [points sub-map]
-  (if (> (count points) 0)
-    (let [point (first points)
-          rest-of-points (subvec points 1)]
-      (if (= point "*")
-        (flatten (map #(find-websockets rest-of-points (get sub-map %)) (keys sub-map)))
-        (when-let [new-sub-map (get sub-map point)]
-          (find-websockets rest-of-points new-sub-map))))
-    sub-map))
-
-(defn- parse-endpoints
-  "Return a lazy sequence of websockets derived from the endpoint key in a message"
-  [endpoints e-map]
-  (remove nil?
-          (flatten (map (fn [endpoint]
-                          (let [points     (explode-endpoint endpoint)
-                                websockets (find-websockets points e-map)]
-                            (when-not websockets
-                              (log/info "No endpoints registered matching: " endpoint " - Discarding message"))
-                            websockets))
-                        endpoints))))
-
-(defn- insert-endpoint!
-  "Record the websocket for an endpoint into the endpoint map.
-  Returns new version of the endpoint map.  Raises if endpoint already
-  exists"
-  [endpoint ws]
-  (let [points (explode-endpoint endpoint)
-        host (get points 0)
-        type (get points 1)
-        uid  (get points 2)]
-    (swap! endpoint-map (fn [map]
-                          (if-let [existing (get-in map [host type uid])]
-                            (throw (Exception. (str "Endpoint already exists: " endpoint)))
-                            (assoc-in map [host type uid] ws))))))
+(defn websockets-for-endpoints
+  "return list of ws given endpoints name"
+  [endpoints]
+  (sort
+   (flatten
+    (map (fn [endpoint]
+           (let [[client type] (explode-endpoint endpoint)]
+             (sort (keys (filter (fn [[ws state]]
+                                   (and (or (= "*" client)
+                                            (= client (:client state)))
+                                        (or (= "*" type)
+                                            (= type   (:type state)))))
+                                 @connection-map)))))
+         endpoints))))
 
 (s/defn ^:always-validate
-  new-socket :- ConnectionMap
+  new-socket :- ConnectionState
   "Return a new, unconfigured connection map"
-  []
-  {:socket-type "undefined"
+  [client]
+  {:client client
+   :type "undefined"
    :status "connected"
    :created-at (ks/timestamp)})
 
  (defn- logged-in?
   "Determine if host/websocket combination has logged in"
   [host ws]
-  (= (get-in @connection-map [host ws :status]) "ready"))
+  (= (get-in @connection-map [ws :status]) "ready"))
 
 (defn- process-login-message
   "Process a login message from a client"
@@ -92,16 +68,15 @@
     (log/info "Valid login message received")
     (if (logged-in? host ws)
       (throw (Exception. (str "Received login attempt for '" host "/" (get-in message-body [:data :type]) "' on socket '"
-                         ws "'.  Socket was already logged in as " host / (get-in @connection-map [host ws :type])
-                         " connected since " (get-in @connection-map [host ws :created-at])
+                         ws "'.  Socket was already logged in as " host / (get-in @connection-map [ws :type])
+                         " connected since " (get-in @connection-map [ws :created-at])
                          ". Ignoring")))
       (let [data (:data message-body)
             type (:type data)
             endpoint (make-endpoint-string host type)]
-        (swap! connection-map update-in [host ws] merge {:socket-type type
-                                                         :status "ready"
-                                                         :endpoint endpoint})
-        (insert-endpoint! endpoint ws)
+        (swap! connection-map update-in [ws] merge {:type type
+                                                    :status "ready"
+                                                    :endpoint endpoint})
         (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))
 
 (defn- process-server-message
@@ -121,9 +96,9 @@
 (defn- process-client-message
   "Process a message directed at a connected client(s)"
   [host ws message-body]
-  (doseq [websocket (parse-endpoints (:endpoints message-body) @endpoint-map)]
+  (doseq [websocket (websockets-for-endpoints (:endpoints message-body))]
     (try
-      (let [sender (get-in @connection-map [host ws :endpoint])
+      (let [sender (get-in @connection-map [ws :endpoint])
             modified-body (assoc message-body :sender sender)]
         (jetty-adapter/send! websocket (cheshire/generate-string modified-body)))
       (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
@@ -139,14 +114,12 @@
 (defn add-connection
   "Add a connection to the connection state map"
   [host ws]
-  (swap! connection-map assoc-in [host ws] (new-socket)))
+  (swap! connection-map assoc ws (new-socket host)))
 
 (defn remove-connection
   "Remove a connection from the connection state map"
   [host ws]
-  (when-let [endpoint (get-in @connection-map [host ws :endpoint])]
-    (swap! endpoint-map dissoc-in (explode-endpoint endpoint)))
-  (swap! connection-map dissoc-in [host ws]))
+  (swap! connection-map dissoc ws))
 
 (defn process-message
   "Process an incoming message from a websocket"
