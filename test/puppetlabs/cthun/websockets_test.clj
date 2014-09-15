@@ -7,7 +7,7 @@
 
 ;; TODO(richardc): this feels like the wrong place to test this.  Here
 ;; we should at most be testing that on-connect! called into
-;; cd/add-connection
+;; cs/add-connection
 (deftest on-connect!-test
   (with-redefs [get-hostname (fn [ws] "localhost")
                 ring.adapter.jetty9/idle-timeout! (fn [ws timeout] true)]
@@ -17,7 +17,6 @@
             socket-map (host-map "ws")]
         (is (= (socket-map :socket-type) "undefined"))
         (is (= (socket-map :status) "connected"))
-        (is (= (socket-map :user) "undefined"))
         (is (= nil (socket-map :endpoint)))))))
 
 (deftest on-text!-test

@@ -13,7 +13,6 @@
   "The state of a websocket in the connection-map"
   {:socket-type s/Str
    :status s/Str
-   :user s/Str
    (s/optional-key :endpoint) validation/Endpoint
    :created-at validation/ISO8601})
 
@@ -78,7 +77,6 @@
   []
   {:socket-type "undefined"
    :status "connected"
-   :user "undefined"
    :created-at (ks/timestamp)})
 
  (defn- logged-in?
@@ -93,23 +91,18 @@
   (when (validation/validate-login-data (:data message-body))
     (log/info "Valid login message received")
     (if (logged-in? host ws)
-      (throw (Exception. (str "Received login attempt from host '" host "' on socket '"
-                         ws "' but already logged in at "
-                         (get-in @connection-map [host ws :created-at])
-                         " as "
-                         (get-in @connection-map [host ws :user])
+      (throw (Exception. (str "Received login attempt for '" host "/" (get-in message-body [:data :type]) "' on socket '"
+                         ws "'.  Socket was already logged in as " host / (get-in @connection-map [host ws :type])
+                         " connected since " (get-in @connection-map [host ws :created-at])
                          ". Ignoring")))
       (let [data (:data message-body)
             type (:type data)
-            user (:user data)
             endpoint (make-endpoint-string host type)]
         (swap! connection-map update-in [host ws] merge {:socket-type type
                                                          :status "ready"
-                                                         :endpoint endpoint
-                                                         :user user})
+                                                         :endpoint endpoint})
         (insert-endpoint! endpoint ws)
-        (log/info "Successfully logged in user: " user " of type: " type
-                  " on websocket: " ws)))))
+        (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))
 
 (defn- process-server-message
   "Process a message directed at the middleware"

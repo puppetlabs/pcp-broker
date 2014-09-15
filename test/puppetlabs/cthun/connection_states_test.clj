@@ -78,7 +78,6 @@
     (let [socket (new-socket)]
       (is (= (:socket-type socket) "undefined"))
       (is (= (:status socket) "connected"))
-      (is (= (:user socket) "undefined"))
       (is (= nil (:endpoint socket)))
       (is (not= nil (ks/datetime? (:created-at socket)))))))
 
@@ -89,14 +88,10 @@
       (swap! connection-map assoc-in ["localhost" "ws" :created-at] "squirrel")
       (process-login-message "localhost"
                              "ws"
-                             {:data {
-                                     :type "controller"
-                                     :user "testing"
-                                     }})
+                             {:data { :type "controller" }})
       (let [connection (get-in @connection-map ["localhost" "ws"])]
         (is (= (:socket-type connection) "controller"))
         (is (= (:status connection) "ready"))
-        (is (= (:user connection) "testing"))
         (is (= (:created-at connection) "squirrel"))
         (is (re-matches #"cth://localhost/controller/.*" (:endpoint connection))))))
 
@@ -106,16 +101,10 @@
       (add-connection "localhost" "ws")
       (process-login-message "localhost"
                              "ws"
-                             {:data {
-                                     :type "controller"
-                                     :user "testing"
-                                     }}))
+                             {:data {:type "controller"}}))
       (is (thrown? Exception  (process-login-message "localhost"
                                                      "ws"
-                                                     {:data {
-                                                             :type "controller"
-                                                             :user "testing"
-                                                             }})))))
+                                                     {:data {:type "controller"}})))))
 
 (deftest process-server-message-test
   (with-redefs [puppetlabs.cthun.connection-states/process-login-message (fn [host ws message-body] true)]
