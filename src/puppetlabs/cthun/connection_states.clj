@@ -39,10 +39,8 @@
     (map (fn [endpoint]
            (let [[client type] (explode-endpoint endpoint)]
              (sort (keys (filter (fn [[ws state]]
-                                   (and (or (= "*" client)
-                                            (= client (:client state)))
-                                        (or (= "*" type)
-                                            (= type   (:type state)))))
+                                   (and (some (partial = client) ["*" (:client state)])
+                                        (some (partial = type)   ["*" (:type state)])))
                                  @connection-map)))))
          endpoints))))
 
