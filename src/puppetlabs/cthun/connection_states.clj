@@ -34,15 +34,14 @@
 (defn websockets-for-endpoints
   "return list of ws given endpoints name"
   [endpoints]
-  (sort
-   (flatten
-    (map (fn [endpoint]
-           (let [[client type] (explode-endpoint endpoint)]
-             (sort (keys (filter (fn [[ws state]]
-                                   (and (some (partial = client) ["*" (:client state)])
-                                        (some (partial = type)   ["*" (:type state)])))
-                                 @connection-map)))))
-         endpoints))))
+  (flatten
+   (map (fn [endpoint]
+          (let [[client type] (explode-endpoint endpoint)]
+            (keys (filter (fn [[ws state]]
+                            (and (some (partial = client) ["*" (:client state)])
+                                 (some (partial = type)   ["*" (:type state)])))
+                          @connection-map))))
+        endpoints)))
 
 (s/defn ^:always-validate
   new-socket :- ConnectionState

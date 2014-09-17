@@ -73,15 +73,15 @@
            (websockets-for-endpoints ["cth://bill/agent"]))))
   (testing "it finds a both agents by a client wildcard"
     (is (= '("ws1" "ws2")
-           (websockets-for-endpoints ["cth://*/agent"]))))
+           (sort (websockets-for-endpoints ["cth://*/agent"])))))
   (testing "it finds a both agents by a client wildcard"
     (is (= '("ws1" "ws2" "ws4")
-           (websockets-for-endpoints ["cth://*/agent" "cth://bob/controller"]))))
+           (sort (websockets-for-endpoints ["cth://*/agent" "cth://bob/controller"])))))
   (testing "it finds a both connections by a client by type client"
     (is (= '("ws2" "ws4")
-           (websockets-for-endpoints ["cth://bob/*"]))))
+           (sort (websockets-for-endpoints ["cth://bob/*"])))))
   (testing "It returns an empty list when the endpoint cannot be found"
-    (is (= '() (websockets-for-endpoints ["cth://bob/nonsuch"])))))
+    (is (nil? (websockets-for-endpoints ["cth://bob/nonsuch"])))))
 
 (deftest process-server-message-test
   (with-redefs [puppetlabs.cthun.connection-states/process-login-message (fn [host ws message-body] true)]
