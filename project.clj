@@ -17,6 +17,8 @@
                  [cheshire "5.3.1"]
                  [prismatic/schema "0.2.6"]
 
+                 [com.hazelcast/hazelcast "3.3-EA2"]
+
 		 ;; we need version 9.2.2 for ring-jetty9-adapter
                  [org.eclipse.jetty/jetty-server "9.2.2.v20140723"
                   :exclusions [org.eclipse.jetty.orbit/javax.servlet]]

@@ -7,7 +7,9 @@
             [puppetlabs.kitchensink.core :as ks]
             [cheshire.core :as cheshire]
             [schema.core :as s]
-            [ring.adapter.jetty9 :as jetty-adapter]))
+            [ring.adapter.jetty9 :as jetty-adapter])
+  (:import com.hazelcast.core.Hazelcast)
+  (:import com.hazelcast.core.MessageListener))
 
 (def ConnectionState
   "The state of a websocket in the connection-map"
@@ -18,6 +20,8 @@
    :created-at validation/ISO8601})
 
 (def connection-map (atom {})) ;; Map of ws -> ConnectionState
+
+(def mesh (atom {}))
 
 
 (defn- make-endpoint-string
@@ -53,7 +57,7 @@
    :created-at (ks/timestamp)})
 
  (defn- logged-in?
-  "Determine if host/websocket combination has logged in"
+  "Determine if a websocket combination is logged in"
   [host ws]
   (= (get-in @connection-map [ws :status]) "ready"))
 
@@ -74,6 +78,7 @@
         (swap! connection-map update-in [ws] merge {:type type
                                                     :status "ready"
                                                     :endpoint endpoint})
+        ((:record-client-location @mesh) endpoint)
         (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))
 
 (defn- process-server-message
@@ -89,18 +94,27 @@
       "http://puppetlabs.com/loginschema" (process-login-message host ws message-body)
       (log/warn "Invalid server message type received: " data-schema))))
 
-; Forwards a message to the defined endpoints.
+(defn deliver-message
+  [message]
+  (doseq [websocket (websockets-for-endpoints (:endpoints message))]
+    (try
+      (jetty-adapter/send! websocket (cheshire/generate-string message))
+      (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
+                                        (.getMessage e) ". Dropping message"))))))
+
+(defn use-this-mesh
+  "Specify which mesh to use"
+  [new-mesh]
+  (reset! mesh new-mesh)
+  ((:register-local-delivery @mesh) deliver-message))
+
 (defn- process-client-message
   "Process a message directed at a connected client(s)"
-  [host ws message-body]
-  (doseq [websocket (websockets-for-endpoints (:endpoints message-body))]
-    (try
-      (let [sender (get-in @connection-map [ws :endpoint])
-            modified-body (assoc message-body :sender sender)]
-        (jetty-adapter/send! websocket (cheshire/generate-string modified-body)))
-      (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
-                              (.getMessage e)
-                              ". Dropping message"))))))
+  [host ws message]
+  (let [sender (get-in @connection-map [ws :endpoint])
+        message (assoc message :sender sender)]
+    (doseq [destination (:endpoints message)]
+      ((:deliver-to-client @mesh) destination message))))
 
 (defn- login-message?
   "Return true if message is a login type message"
@@ -116,6 +130,8 @@
 (defn remove-connection
   "Remove a connection from the connection state map"
   [host ws]
+  (if-let [endpoint (get-in @connection-map [ws :endpoint])]
+    ((:forget-client-location @mesh) endpoint))
   (swap! connection-map dissoc ws))
 
 (defn process-message

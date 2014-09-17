@@ -1,6 +1,8 @@
 (ns puppetlabs.cthun-service
   (:require [clojure.tools.logging :as log]
             [puppetlabs.cthun-core :as core]
+            [puppetlabs.cthun.meshing :refer [MeshingService]]
+            [puppetlabs.trapperkeeper.app :as app]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]))
 
 ; TODO(ploubser): Define a protocol
@@ -10,16 +12,17 @@
 
 (trapperkeeper/defservice cthun-service
   CthunService
-  [[:ConfigService get-in-config]]
+  [[:ConfigService get-in-config]
+   MeshingService]
   (init [this context]
-    (log/info "Initializing cthun service")
-    context)
+        (log/info "Initializing cthun service")
+        context)
   (start [this context]
-    (log/info "Starting cthun service")
-    (core/start get-in-config)
-    context)
+         (log/info "Starting cthun service")
+         (core/start get-in-config MeshingService)
+         context)
   (stop [this context]
-    (log/info "Shutting down cthun service")
-    context)
+        (log/info "Shutting down cthun service")
+        context)
   (state [this caller]
          (core/state caller)))
