@@ -27,8 +27,12 @@ your option) any later version.
 In booststrap.cfg (you cannot put comments in bootstrap.cfg) you will
 need one of the following meshing-services
 
-
     puppetlabs.cthun.meshing.hazelcast/meshing-service
 
-
     puppetlabs.cthun.meshing.single/meshing-service
+
+### Choosing queuing
+
+In bootstrap.cfg you will need one queueing-service
+
+    puppetlabs.cthun.queueing.durable-queue/queueing-service

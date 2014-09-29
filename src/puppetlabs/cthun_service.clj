@@ -13,13 +13,14 @@
 (trapperkeeper/defservice cthun-service
   CthunService
   [[:ConfigService get-in-config]
-   MeshingService]
+   MeshingService
+   QueueingService]
   (init [this context]
         (log/info "Initializing cthun service")
         context)
   (start [this context]
          (log/info "Starting cthun service")
-         (core/start get-in-config MeshingService)
+         (core/start get-in-config MeshingService QueueingService)
          context)
   (stop [this context]
         (log/info "Shutting down cthun service")

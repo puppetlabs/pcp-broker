@@ -19,6 +19,8 @@
 
                  [com.hazelcast/hazelcast "3.3-EA2"]
 
+                 [factual/durable-queue "0.1.2"]
+
 		 ;; we need version 9.2.2 for ring-jetty9-adapter
                  [org.eclipse.jetty/jetty-server "9.2.2.v20140723"
                   :exclusions [org.eclipse.jetty.orbit/javax.servlet]]

@@ -23,6 +23,7 @@
 
 (def mesh (atom {}))
 
+(def queueing (atom {}))
 
 (defn- make-endpoint-string
   "Make a new endpoint string for a host and type"
@@ -94,6 +95,14 @@
       "http://puppetlabs.com/loginschema" (process-login-message host ws message-body)
       (log/warn "Invalid server message type received: " data-schema))))
 
+(defn messages-to-destinations
+  "Returns a sequence of messages, each with a single endpoint.  All wildcards should be expanded here."
+  ;; TODO(richardc): expand wildcards - call the InventoryService/MeshingService
+  [message]
+  (map (fn [endpoint]
+         (assoc message :endpoints [ endpoint ]))
+       (:endpoints message)))
+
 (defn deliver-message
   [message]
   (doseq [websocket (websockets-for-endpoints (:endpoints message))]
@@ -102,19 +111,31 @@
       (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
                                         (.getMessage e) ". Dropping message"))))))
 
+(defn deliver-from-accept-queue
+  [message]
+  (doseq [message (messages-to-destinations message)]
+    (log/info "delivering message from accept queue to mesh" message)
+    ((:deliver-to-client @mesh) (first (:endpoints message)) message)))
+
 (defn use-this-mesh
   "Specify which mesh to use"
   [new-mesh]
   (reset! mesh new-mesh)
   ((:register-local-delivery @mesh) deliver-message))
 
+(defn use-this-queueing
+  "Specify which queuing to use"
+  [new-queueing]
+  (reset! queueing new-queueing)
+  ((:subscribe-to-topic @queueing) "accept" deliver-from-accept-queue))
+
+
 (defn- process-client-message
   "Process a message directed at a connected client(s)"
   [host ws message]
   (let [sender (get-in @connection-map [ws :endpoint])
         message (assoc message :sender sender)]
-    (doseq [destination (:endpoints message)]
-      ((:deliver-to-client @mesh) destination message))))
+    ((:queue-message @queueing) "accept" message)))
 
 (defn- login-message?
   "Return true if message is a login type message"
