@@ -37,11 +37,13 @@
 (defservice queueing-service
   "activemq implementation of the queuing service"
   QueueingService
-  []
+  [[:ConfigService get-in-config]]
   (init
    [this context]
    (log/info "Initializing activemq service")
-   (assoc context :broker (mq/build-embedded-broker "tmp/activemq")))
+   (let [spool  (get-in-config [:cthun :activemq-spool] "tmp/activemq")
+         broker (mq/build-embedded-broker spool)]
+     (assoc context :broker broker)))
   (start
    [this context]
    (let [broker (:broker (service-context this))]

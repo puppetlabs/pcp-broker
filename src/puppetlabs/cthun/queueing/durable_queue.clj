@@ -6,9 +6,9 @@
             [puppetlabs.trapperkeeper.core :refer [defservice]]
             [puppetlabs.trapperkeeper.services :refer [service-context]]))
 
-(defn make-queue-context
-  []
-  (let [queues (q/queues "/tmp" {})]
+(defn make-queues
+  [spool]
+  (let [queues (q/queues spool {})]
     queues))
 
 (defn queue-message
@@ -26,14 +26,18 @@
 (defservice queueing-service
   "durable-queue implementation of the queuing service"
   QueueingService
-  []
+  [[:ConfigService get-in-config]]
   (init
    [this context]
    (log/info "Initializing durable-queue service")
-   (assoc context :queues (make-queue-context)))
+   (let [spool  (get-in-config [:cthun :durable-queue-spool] "tmp/durable-queue")
+         queues (make-queues spool)]
+     (assoc context :queues queues)))
+
   (queue-message
    [this topic message]
    (queue-message (:queues (service-context this)) topic message))
+
   (subscribe-to-topic
    [this topic callback-fn]
    (subscribe-to-topic (:queues (service-context this)) topic callback-fn)))
