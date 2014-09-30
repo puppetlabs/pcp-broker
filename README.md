@@ -21,6 +21,13 @@ Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
 
 
+## Message flow
+
+Websocket -> QueueingService (persists to reliable storage) ->
+InventoryService (expands destinations) -> MeshService (magic interbroker
+routing) -> Websocket
+
+
 ### Choosing queuing
 
 In bootstrap.cfg you will need one of the following queueing-services
