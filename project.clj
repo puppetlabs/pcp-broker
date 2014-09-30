@@ -19,7 +19,14 @@
 
                  [com.hazelcast/hazelcast "3.3-EA2"]
 
+                 ;; MQ - durable-queue
                  [factual/durable-queue "0.1.2"]
+
+                 ;; MQ - activemq
+                 [clamq/clamq-activemq "0.4" :exclusions [org.slf4j/slf4j-api]]
+                 [org.apache.activemq/activemq-core "5.6.0" :exclusions [org.slf4j/slf4j-api org.fusesource.fuse-extra/fusemq-leveldb]]
+                 ;; bridge to allow some spring/activemq stuff to log over slf4j
+                 [org.slf4j/jcl-over-slf4j "1.7.5"]
 
 		 ;; we need version 9.2.2 for ring-jetty9-adapter
                  [org.eclipse.jetty/jetty-server "9.2.2.v20140723"

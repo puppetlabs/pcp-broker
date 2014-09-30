@@ -33,6 +33,8 @@ need one of the following meshing-services
 
 ### Choosing queuing
 
-In bootstrap.cfg you will need one queueing-service
+In bootstrap.cfg you will need one of the following queueing-services
 
     puppetlabs.cthun.queueing.durable-queue/queueing-service
+
+    puppetlabs.cthun.queueing.activemq/queueing-service
