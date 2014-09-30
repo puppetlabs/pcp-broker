@@ -41,10 +41,10 @@
   "look up the endpoint in the location-map, return broker names"
   [location-map endpoint]
   (let [[client type] (cs/explode-endpoint endpoint)]
-    ;; This is not terribly efficient
-    (:broker (first (filter (fn [record] ;; XXX HACK to make * work.  should be expanded by now
-                              (and (some (partial = client) ["*" (:client record)])
-                                   (some (partial = type)   ["*" (:type record)])))
+    ;; This is not terribly efficient as we flatten the entire map
+    (:broker (first (filter (fn [record]
+                              (and (= client (:client record))
+                                   (= type   (:type record))))
                             (flatten-location-map location-map))))))
 
 (defn deliver-to-client

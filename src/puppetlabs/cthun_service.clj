@@ -14,13 +14,14 @@
   CthunService
   [[:ConfigService get-in-config]
    MeshingService
-   QueueingService]
+   QueueingService
+   InventoryService]
   (init [this context]
         (log/info "Initializing cthun service")
         context)
   (start [this context]
          (log/info "Starting cthun service")
-         (core/start get-in-config MeshingService QueueingService)
+         (core/start get-in-config MeshingService QueueingService InventoryService)
          context)
   (stop [this context]
         (log/info "Shutting down cthun service")

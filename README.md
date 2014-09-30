@@ -38,3 +38,10 @@ In bootstrap.cfg you will need one of the following queueing-services
     puppetlabs.cthun.queueing.durable-queue/queueing-service
 
     puppetlabs.cthun.queueing.activemq/queueing-service
+
+### Choosing inventory
+
+In bootstrap.cfg you will need one of the following inventory-services
+(it's imagined puppetdb may be an inventory service in future)
+
+    puppetlabs.cthun.inventory.in-memory/inventory-service

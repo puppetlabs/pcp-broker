@@ -25,6 +25,8 @@
 
 (def queueing (atom {}))
 
+(def inventory (atom {}))
+
 (defn- make-endpoint-string
   "Make a new endpoint string for a host and type"
   [host type]
@@ -42,10 +44,10 @@
   (flatten
    (map (fn [endpoint]
           (let [[client type] (explode-endpoint endpoint)]
-            (keys (filter (fn [[ws state]]
-                            (and (some (partial = client) ["*" (:client state)])
-                                 (some (partial = type)   ["*" (:type state)])))
-                          @connection-map))))
+            (remove nil? (keys (filter (fn [[ws state]]
+                                         (and (= client (:client state))
+                                              (= type   (:type state))))
+                                       @connection-map)))))
         endpoints)))
 
 (s/defn ^:always-validate
@@ -80,6 +82,7 @@
                                                     :status "ready"
                                                     :endpoint endpoint})
         ((:record-client-location @mesh) endpoint)
+        ((:record-client @inventory) endpoint)
         (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))
 
 (defn- process-server-message
@@ -96,12 +99,11 @@
       (log/warn "Invalid server message type received: " data-schema))))
 
 (defn messages-to-destinations
-  "Returns a sequence of messages, each with a single endpoint.  All wildcards should be expanded here."
-  ;; TODO(richardc): expand wildcards - call the InventoryService/MeshingService
+  "Returns a sequence of messages, each with a single endpoint.  All wildcards are expanded here by the InventoryService."
   [message]
   (map (fn [endpoint]
          (assoc message :endpoints [ endpoint ]))
-       (:endpoints message)))
+       ((:find-clients @inventory) (:endpoints message))))
 
 (defn deliver-message
   [message]
@@ -128,6 +130,11 @@
   [new-queueing]
   (reset! queueing new-queueing)
   ((:subscribe-to-topic @queueing) "accept" deliver-from-accept-queue))
+
+(defn use-this-inventory
+  "Specify which inventory to use"
+  [new-inventory]
+  (reset! inventory new-inventory))
 
 
 (defn- process-client-message
