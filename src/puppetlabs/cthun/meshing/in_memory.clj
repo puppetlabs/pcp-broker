@@ -1,4 +1,4 @@
-(ns puppetlabs.cthun.meshing.single
+(ns puppetlabs.cthun.meshing.in-memory
   (:require [clojure.tools.logging :as log]
             [puppetlabs.cthun.connection-states :as cs]
             [puppetlabs.cthun.meshing :refer [MeshingService]]
