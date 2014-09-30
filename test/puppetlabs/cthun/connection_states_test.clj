@@ -41,6 +41,8 @@
   (with-redefs [puppetlabs.cthun.validation/validate-login-data (fn [data] true)]
     (testing "It should perform a login"
       (add-connection "localhost" "ws")
+      (reset! mesh {:record-client-location (fn [endpoint])})
+      (reset! inventory {:record-client (fn [endpoint])})
       (swap! connection-map assoc-in ["ws" :created-at] "squirrel")
       (process-login-message "localhost"
                              "ws"
