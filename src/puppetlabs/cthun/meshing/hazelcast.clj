@@ -39,7 +39,8 @@
   [location-map endpoint]
   ;; This is not terribly efficient as we flatten the entire map
   (:broker (first (filter (fn [record]
-                              (= endpoint (:endpoint record)))))))
+                              (= endpoint (:endpoint record)))
+                          (flatten-location-map location-map)))))
 
 (defn deliver-to-client
   [service client message]
@@ -47,9 +48,9 @@
     (log/info "queueing for " client)
     (if-let [broker (broker-for-endpoint location-map client)]
       (let [topic (.getTopic hazelcast broker-id)]
-        (log/info "publishing on" topic)
+        (log/info "publishing to broker" broker-id)
         (.publish topic (cheshire/generate-string message)))
-      (log/warn "didn't find broker for " client))))
+      (log/warn "didn't find broker for" client))))
 
 (defn register-local-delivery
   [service callback]
