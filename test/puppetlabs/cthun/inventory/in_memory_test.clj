@@ -2,6 +2,19 @@
   (require [clojure.test :refer :all]
            [puppetlabs.cthun.inventory.in-memory :refer :all]))
 
+(deftest endpoint-pattern-match?-test
+  (testing "direct matches"
+    (is (endpoint-pattern-match? "cth://pies/agent" "cth://pies/agent"))
+    (is (endpoint-pattern-match? "cth://pies/agent/extra" "cth://pies/agent"))
+    (is (endpoint-pattern-match? "cth://pies/agent/extra_here" "cth://pies/agent/extra_there"))
+    (is (not (endpoint-pattern-match? "cth://pies/agent" "cth://sheep/agent"))))
+  (testing "it can match on a pattern"
+    (is (endpoint-pattern-match? "cth://*/agent" "cth://pies/agent"))
+    (is (endpoint-pattern-match? "cth://pies/*" "cth://pies/agent")))
+  (testing "patterns only on the lhs"
+    (is (not (endpoint-pattern-match? "cth://pies/agent" "cth://*/agent")))
+    (is (not (endpoint-pattern-match? "cth://pies/agent" "cth://pies/*")))))
+
 (deftest find-clients-test
   (let [clients (atom #{ "cth://bill/agent"
                          "cth://bob/agent"
