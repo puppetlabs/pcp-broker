@@ -30,7 +30,7 @@
 (defn- make-endpoint-string
   "Make a new endpoint string for a host and type"
   [host type]
-  (str "cth://" host "/" type "/" (str (java.util.UUID/randomUUID))))
+  (str "cth://" host "/" type))
 
 (s/defn ^:always-validate
   explode-endpoint :- [s/Str]
@@ -43,11 +43,9 @@
   [endpoints]
   (flatten
    (map (fn [endpoint]
-          (let [[client type] (explode-endpoint endpoint)]
-            (remove nil? (keys (filter (fn [[ws state]]
-                                         (and (= client (:client state))
-                                              (= type   (:type state))))
-                                       @connection-map)))))
+          (remove nil? (keys (filter (fn [[ws state]]
+                                       (= endpoint (:endpoint state)))
+                                     @connection-map))))
         endpoints)))
 
 (s/defn ^:always-validate

@@ -17,15 +17,14 @@
 
 (deftest make-endpoint-string-test
   (testing "It creates a correct endpoint string"
-    (is (re-matches #"cth://localhost/controller/.*" (make-endpoint-string "localhost" "controller")))))
+    (is (= "cth://localhost/controller" (make-endpoint-string "localhost" "controller")))))
 
 (deftest explode-endpoint-test
   (testing "It raises on invalid endpoints"
     (is (thrown? Exception (explode-endpoint ""))))
   (testing "It returns component chunks"
-    (is (= [ "localhost" "agent" "1" ] (explode-endpoint "cth://localhost/agent/1")))
-    (is (= [ "localhost" "*" "*" ] (explode-endpoint "cth://localhost/*/*")))
-    (is (= [ "*" "agent" "*" ] (explode-endpoint "cth://*/agent/*")))
+    (is (= [ "localhost" "agent"] (explode-endpoint "cth://localhost/agent")))
+    (is (= [ "localhost" "*" ] (explode-endpoint "cth://localhost/*")))
     (is (= [ "*" "agent" ] (explode-endpoint "cth://*/agent")))))
 
 (deftest new-socket-test
@@ -52,7 +51,7 @@
         (is (= (:type connection) "controller"))
         (is (= (:status connection) "ready"))
         (is (= (:created-at connection) "squirrel"))
-        (is (re-matches #"cth://localhost/controller/.*" (:endpoint connection))))))
+        (is (= "cth://localhost/controller" (:endpoint connection))))))
 
 
   (testing "It does not allow a login to happen twice on the same socket"
@@ -66,10 +65,10 @@
                                                      {:data {:type "controller"}})))))
 
 (deftest websockets-for-endpoints-test
-  (reset! connection-map {"ws1" {:client "bill" :type "agent"}
-                          "ws2" {:client "bob"  :type "agent"}
-                          "ws3" {:client "eric" :type "controller"}
-                          "ws4" {:client "bob"  :type "controller"}})
+  (reset! connection-map {"ws1" {:endpoint "cth://bill/agent"}
+                          "ws2" {:endpoint "cth://bob/agent"}
+                          "ws3" {:endpoint "cth://eric/controller"}
+                          "ws4" {:endpoint "cth://bob/controller"}})
   (testing "it finds a single websocket explictly"
     (is (= '("ws1")
            (websockets-for-endpoints ["cth://bill/agent"]))))

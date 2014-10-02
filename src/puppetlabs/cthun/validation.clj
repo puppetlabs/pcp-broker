@@ -10,7 +10,7 @@
 
 (def Endpoint
   "Pattern that matches valid endpoints"
-  (s/pred (partial re-matches #"cth://.*") 'endpoint?))
+  (s/pred (partial re-matches #"cth://(server|.*/.*)") 'endpoint?))
 
 ; Message types
 (def ClientMessage

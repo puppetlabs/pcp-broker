@@ -1,7 +1,6 @@
 (ns puppetlabs.cthun.meshing.hazelcast
   (:require [cheshire.core :as cheshire]
             [clojure.tools.logging :as log]
-            [puppetlabs.cthun.connection-states :as cs]
             [puppetlabs.cthun.meshing :refer [MeshingService]]
             [puppetlabs.trapperkeeper.core :refer [defservice]]
             [puppetlabs.trapperkeeper.services :refer [service-context]])
@@ -34,18 +33,14 @@
              (for [value (.get location-map key)]
                (let [[client type] (cs/explode-endpoint value)]
                  {:broker key
-                  :client client
-                  :type   type})))))
+                  :endpoint value})))))
 
 (defn broker-for-endpoint
   "look up the endpoint in the location-map, return broker names"
   [location-map endpoint]
-  (let [[client type] (cs/explode-endpoint endpoint)]
-    ;; This is not terribly efficient as we flatten the entire map
-    (:broker (first (filter (fn [record]
-                              (and (= client (:client record))
-                                   (= type   (:type record))))
-                            (flatten-location-map location-map))))))
+  ;; This is not terribly efficient as we flatten the entire map
+  (:broker (first (filter (fn [record]
+                              (= endpoint (:endpoint record)))))))
 
 (defn deliver-to-client
   [service client message]
