@@ -31,9 +31,8 @@
   [location-map]
   (flatten (for [key (.keySet location-map)]
              (for [value (.get location-map key)]
-               (let [[client type] (cs/explode-endpoint value)]
-                 {:broker key
-                  :endpoint value})))))
+               {:broker key
+                :endpoint value}))))
 
 (defn broker-for-endpoint
   "look up the endpoint in the location-map, return broker names"
