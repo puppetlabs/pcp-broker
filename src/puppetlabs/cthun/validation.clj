@@ -29,6 +29,10 @@
   "Defines the data field in a login message body"
   {(s/required-key :type) s/Str})
 
+(def InventoryMessageData
+  "Defines the data field for an inventory message body"
+  {(s/required-key :query) [s/Str]})
+
 (defn check-schema
   "Check if the JSON matches the ClientMessage schema.
   Returns message on success.
@@ -43,7 +47,7 @@
   Throws on valid json with an invalid schema"
   [message]
   (let [json (try (cheshire/parse-string message true)
-                  (catch Exception e false))]
+                  (catch Exception e (log/error (.getMessage e)) false))]
     (when json
       (check-schema json))))
 
@@ -52,3 +56,8 @@
   "Validate the structure of a login message data field"
   [data]
   (s/validate LoginMessageData data))
+
+(defn validate-inventory-data
+  "Validate the structure of a inventory message data field"
+  [data]
+  (s/validate InventoryMessageData data))

@@ -62,47 +62,6 @@
   [host ws]
   (= (get-in @connection-map [ws :status]) "ready"))
 
-(defn- process-login-message
-  "Process a login message from a client"
-  [host ws message-body]
-  (log/info "Processing login message")
-  (when (validation/validate-login-data (:data message-body))
-    (log/info "Valid login message received")
-    (if (logged-in? host ws)
-      (throw (Exception. (str "Received login attempt for '" host "/" (get-in message-body [:data :type]) "' on socket '"
-                         ws "'.  Socket was already logged in as " host / (get-in @connection-map [ws :type])
-                         " connected since " (get-in @connection-map [ws :created-at])
-                         ". Ignoring")))
-      (let [data (:data message-body)
-            type (:type data)
-            endpoint (make-endpoint-string host type)]
-        (swap! connection-map update-in [ws] merge {:type type
-                                                    :status "ready"
-                                                    :endpoint endpoint})
-        ((:record-client-location @mesh) endpoint)
-        ((:record-client @inventory) endpoint)
-        (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))
-
-(defn- process-server-message
-  "Process a message directed at the middleware"
-  [host ws message-body]
-  (log/info "Procesesing server message")
-  ; We've only got one message type at the moment - login
-  ; More will be added as we add server functionality
-  ; To define a new message type add a schema to
-  ; puppetlabs.cthun.validation, check for it here and process it.
-  (let [data-schema (:data_schema message-body)]
-    (case data-schema
-      "http://puppetlabs.com/loginschema" (process-login-message host ws message-body)
-      (log/warn "Invalid server message type received: " data-schema))))
-
-(defn messages-to-destinations
-  "Returns a sequence of messages, each with a single endpoint.  All wildcards are expanded here by the InventoryService."
-  [message]
-  (map (fn [endpoint]
-         (assoc message :endpoints [ endpoint ]))
-       ((:find-clients @inventory) (:endpoints message))))
-
 (defn deliver-message
   [message]
   (doseq [websocket (websockets-for-endpoints (:endpoints message))]
@@ -110,6 +69,13 @@
       (jetty-adapter/send! websocket (cheshire/generate-string message))
       (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
                                         (.getMessage e) ". Dropping message"))))))
+
+(defn messages-to-destinations
+  "Returns a sequence of messages, each with a single endpoint.  All wildcards are expanded here by the InventoryService."
+  [message]
+  (map (fn [endpoint]
+         (assoc message :endpoints [ endpoint ]))
+       ((:find-clients @inventory) (:endpoints message))))
 
 (defn deliver-from-accept-queue
   [message]
@@ -133,7 +99,6 @@
   "Specify which inventory to use"
   [new-inventory]
   (reset! inventory new-inventory))
-
 
 (defn- process-client-message
   "Process a message directed at a connected client(s)"
@@ -159,6 +124,59 @@
   (if-let [endpoint (get-in @connection-map [ws :endpoint])]
     ((:forget-client-location @mesh) endpoint))
   (swap! connection-map dissoc ws))
+
+
+(defn- process-login-message
+  "Process a login message from a client"
+  [host ws message-body]
+  (log/info "Processing login message")
+  (when (validation/validate-login-data (:data message-body))
+    (log/info "Valid login message received")
+    (if (logged-in? host ws)
+      (throw (Exception. (str "Received login attempt for '" host "/" (get-in message-body [:data :type]) "' on socket '"
+                         ws "'.  Socket was already logged in as " host / (get-in @connection-map [ws :type])
+                         " connected since " (get-in @connection-map [ws :created-at])
+                         ". Ignoring")))
+      (let [data (:data message-body)
+            type (:type data)
+            endpoint (make-endpoint-string host type)]
+        (swap! connection-map update-in [ws] merge {:type type
+                                                    :status "ready"
+                                                    :endpoint endpoint})
+        ((:record-client-location @mesh) endpoint)
+        ((:record-client @inventory) endpoint)
+        (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))
+
+(defn- process-inventory-message
+  "Process a request for inventory data"
+  [host ws message-body]
+  (log/info "Processing inventory message")
+  (when (validation/validate-inventory-data (:data message-body))
+    (log/info "Valid inventory message received")
+    (let [data (:data message-body)]
+      (process-client-message host ws  {:version 1
+                                        :id 12345
+                                        :endpoints [(get-in @connection-map [ws :endpoint])]
+                                        :data_schema "http://puppetlabs.com/inventoryresponseschema"
+                                        :sender "cth://server"
+                                        :expires ""
+                                        :hops []
+                                        :data {:response
+                                               {:endpoints ((:find-clients @inventory) (:query data))}}}))))
+
+(defn- process-server-message
+  "Process a message directed at the middleware"
+  [host ws message-body]
+  (log/info "Procesesing server message")
+  ; We've only got two message types at the moment - login and inventory
+  ; More will be added as we add server functionality
+  ; To define a new message type add a schema to
+  ; puppetlabs.cthun.validation, check for it here and process it.
+  (let [data-schema (:data_schema message-body)]
+    (case data-schema
+      "http://puppetlabs.com/loginschema" (process-login-message host ws message-body)
+      "http://puppetlabs.com/inventoryschema" (process-inventory-message host ws message-body)
+      (log/warn "Invalid server message type received: " data-schema))))
 
 (defn process-message
   "Process an incoming message from a websocket"
