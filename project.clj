@@ -16,6 +16,7 @@
                  [puppetlabs/kitchensink ~ks-version]
                  [cheshire "5.3.1"]
                  [prismatic/schema "0.2.6"]
+                 [clj-time "0.8.0"]
 
                  [com.hazelcast/hazelcast "3.3-EA2"]
 

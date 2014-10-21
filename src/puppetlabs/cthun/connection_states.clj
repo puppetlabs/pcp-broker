@@ -7,6 +7,8 @@
             [puppetlabs.kitchensink.core :as ks]
             [cheshire.core :as cheshire]
             [schema.core :as s]
+            [clj-time.core :as time]
+            [clj-time.coerce :as time-coerce]
             [ring.adapter.jetty9 :as jetty-adapter])
   (:import com.hazelcast.core.Hazelcast)
   (:import com.hazelcast.core.MessageListener))
@@ -178,17 +180,26 @@
       "http://puppetlabs.com/inventoryschema" (process-inventory-message host ws message-body)
       (log/warn "Invalid server message type received: " data-schema))))
 
+(defn message-expired?
+  "Check whether a message has expired or not"
+  [message]
+  (let [expires (:expires message)]
+    (time/after? (time/now) (time-coerce/to-date-time expires))))
+
 (defn process-message
   "Process an incoming message from a websocket"
   [host ws message-body]
   (log/info "processing incoming message")
+  ; check if message has expired
+  (if (message-expired? message-body)
+    (log/warn "Expired message with id '" (:id message-body) "' received from '" (:sender message-body) "'. Dropping.")
   ; Check if socket has been logged into
-  (if (logged-in? host ws)
+    (if (logged-in? host ws)
   ; check if this is a message directed at the middleware
-    (if (= (get (:endpoints message-body) 0) "cth://server")
-      (process-server-message host ws message-body)
-      (process-client-message host ws message-body))
-    (if (login-message? message-body)
-      (process-server-message host ws message-body)
-      (log/warn "Connection cannot accept messages until login message has been "
-                 "processed. Dropping message."))))
+      (if (= (get (:endpoints message-body) 0) "cth://server")
+        (process-server-message host ws message-body)
+        (process-client-message host ws message-body))
+      (if (login-message? message-body)
+        (process-server-message host ws message-body)
+        (log/warn "Connection cannot accept messages until login message has been "
+                  "processed. Dropping message.")))))
