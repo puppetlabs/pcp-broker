@@ -81,9 +81,11 @@
 
 (defn deliver-from-accept-queue
   [message]
-  (doseq [message (messages-to-destinations message)]
-    (log/info "delivering message from accept queue to mesh" message)
-    ((:deliver-to-client @mesh) (first (:endpoints message)) message)))
+  (log/info "Delivering")
+  (doall (pmap (fn [message]
+                 (log/info "delivering message from accept queue to mesh" message)
+                 ((:deliver-to-client @mesh) (first (:endpoints message)) message))
+               (messages-to-destinations message))))
 
 (defn use-this-mesh
   "Specify which mesh to use"
