@@ -68,7 +68,10 @@
   [message]
   (doseq [websocket (websockets-for-endpoints (:endpoints message))]
     (try
-      (jetty-adapter/send! websocket (cheshire/generate-string message))
+      ; Lock on the websocket object allowing us to do one write at a time
+      ; down each of the websockets
+      (future (locking websocket
+                (jetty-adapter/send! websocket (cheshire/generate-string message))))
       (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
                                         (.getMessage e) ". Dropping message"))))))
 

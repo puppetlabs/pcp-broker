@@ -22,17 +22,18 @@
       (mq/connect-and-publish! conn mq-endpoint (pr-str message)))))
 
 (defn subscribe-to-topic
-  [queues topic callback-fn]
+  [consumer-count queues topic callback-fn]
   (let [mq-spec "vm://localhost?create=false"]
     (with-open [conn (mq/activemq-connection mq-spec)]
-      (let [consumer (mq-conn/consumer conn
-                                       {:endpoint   topic
-                                        :on-message (fn [message]
-                                                      (log/info "consuming message" (:body message))
-                                                      (callback-fn (edn/read-string (:body message))))
-                                        :transacted true
-                                        :on-failure #(log/error "error consuming message" (:exception %))})]
-        (mq-cons/start consumer)))))
+      (dotimes [i consumer-count]
+        (let [consumer (mq-conn/consumer conn
+                                         {:endpoint   topic
+                                            :on-message (fn [message]
+                                                          (log/info "consuming message" (:body message))
+                                                          (callback-fn (edn/read-string (:body message))))
+                                          :transacted true
+                                          :on-failure #(log/error "error consuming message" (:exception %))})]
+          (mq-cons/start consumer))))))
 
 (defservice queueing-service
   "activemq implementation of the queuing service"
@@ -62,4 +63,5 @@
    (queue-message (:broker (service-context this)) topic message))
   (subscribe-to-topic
    [this topic callback-fn]
-   (subscribe-to-topic (:broker (service-context this)) topic callback-fn)))
+   (let [consumer-count (get-in-config [:cthun :activemq-consumers] 4)]
+   (subscribe-to-topic consumer-count (:broker (service-context this)) topic callback-fn))))
