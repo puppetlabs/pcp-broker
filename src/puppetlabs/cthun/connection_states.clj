@@ -64,16 +64,29 @@
   [host ws]
   (= (get-in @connection-map [ws :status]) "ready"))
 
+(defn- handle-delivery-exception
+  [message]
+  (let [expires (time-coerce/to-date-time (:expires message))
+        now (time/now)
+        difference (time/in-seconds (time/interval now expires))]
+    (if (> difference 0)
+      ((log/info "Failed to deliver message " message)
+       (let [sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))]
+         (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
+         (Thread/sleep (* sleep-duration 1000))
+         ((:queue-message @queueing) "accept" message)))
+      (log/warn "Message " message " has expired. Dropping message"))))
+
 (defn deliver-message
   [message]
   (doseq [websocket (websockets-for-endpoints (:endpoints message))]
     (try
       ; Lock on the websocket object allowing us to do one write at a time
       ; down each of the websockets
-      (future (locking websocket
-                (jetty-adapter/send! websocket (cheshire/generate-string message))))
-      (catch Exception e (log/warn (str "Exception raised while trying to process a client message: "
-                                        (.getMessage e) ". Dropping message"))))))
+      @(future (locking websocket
+                 (jetty-adapter/send! websocket (cheshire/generate-string message))))
+      (catch Exception e 
+        (.start (Thread. (fn [] (handle-delivery-exception message))))))))
 
 (defn messages-to-destinations
   "Returns a sequence of messages, each with a single endpoint.  All wildcards are expanded here by the InventoryService."
@@ -84,7 +97,6 @@
 
 (defn deliver-from-accept-queue
   [message]
-  (log/info "Delivering")
   (doall (pmap (fn [message]
                  (log/info "delivering message from accept queue to mesh" message)
                  ((:deliver-to-client @mesh) (first (:endpoints message)) message))
