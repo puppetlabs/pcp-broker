@@ -4,11 +4,14 @@
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [puppetlabs.cthun.validation :as validation]
+            [puppetlabs.cthun.metrics :as metrics]
             [puppetlabs.kitchensink.core :as ks]
             [cheshire.core :as cheshire]
             [schema.core :as s]
             [clj-time.core :as time]
             [clj-time.coerce :as time-coerce]
+            [metrics.counters :refer [inc!]]
+            [metrics.meters :refer [mark!]]
             [ring.adapter.jetty9 :as jetty-adapter])
   (:import com.hazelcast.core.Hazelcast)
   (:import com.hazelcast.core.MessageListener))
@@ -69,7 +72,7 @@
   (let [expires (time-coerce/to-date-time (:expires message))
         now (time/now)
         difference (time/in-seconds (time/interval now expires))]
-    (if (> difference 0)
+    (if (time/after? expires now)
       ((log/info "Failed to deliver message " message)
        (let [sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))]
          (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
@@ -84,6 +87,8 @@
       ; Lock on the websocket object allowing us to do one write at a time
       ; down each of the websockets
       @(future (locking websocket
+                 (inc! metrics/total-messages-out)
+                 (mark! metrics/rate-messages-out)
                  (jetty-adapter/send! websocket (cheshire/generate-string message))))
       (catch Exception e 
         (.start (Thread. (fn [] (handle-delivery-exception message))))))))

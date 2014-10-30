@@ -18,6 +18,10 @@
                  [prismatic/schema "0.2.6"]
                  [clj-time "0.8.0"]
 
+                 [org.clojure/java.jmx "0.3.0"]
+                 ;[metrics-clojure "2.2.0"]
+                 [metrics-clojure "0.7.0" :exclusions [org.clojure/clojure org.slf4j/slf4j-api]]
+
                  [com.hazelcast/hazelcast "3.3-EA2"]
 
                  ;; MQ - durable-queue

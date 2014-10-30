@@ -8,6 +8,10 @@
              [puppetlabs.cthun.validation :as validation]
              [puppetlabs.cthun.connection-states :as cs]
              [puppetlabs.kitchensink.core :as kitchensink]
+             [metrics.counters :refer [inc! dec!]]
+             [metrics.meters :refer [mark!]]
+             [metrics.timers :refer [time!]]
+             [puppetlabs.cthun.metrics :as metrics]
              [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]))
 
 (def remote-cns (atom {}))
@@ -28,21 +32,26 @@
 (defn- on-connect!
   "OnConnect websocket event handler"
   [ws]
-  (let [host (get-hostname ws)
-        idle-timeout (* 1000 60 15)]
-    (log/debug "Connection established from host:" host)
-    (jetty-adapter/idle-timeout! ws idle-timeout)
-    (cs/add-connection host ws)))
+  (time! metrics/time-in-on-connect
+         ((let [host (get-hostname ws)
+               idle-timeout (* 1000 60 15)]
+            (log/debug "Connection established from host:" host)
+            (jetty-adapter/idle-timeout! ws idle-timeout)
+            (cs/add-connection host ws))
+          (inc! metrics/active-connections))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"
   [ws message]
-  (let [host (get-hostname ws)]
-    (log/info "Received message from client" host)
-    (log/info "Validating Message...")
-    (if-let [message-body (validation/validate-message message)]
-      (cs/process-message host ws message-body)
-      (log/warn "Received message does not match valid message schema. Dropping."))))
+  (inc! metrics/total-messages-in)
+  (mark! metrics/rate-messages-in)
+  (time! metrics/time-in-on-text
+         (let [host (get-hostname ws)]
+           (log/info "Received message from client" host)
+           (log/info "Validating Message...")
+           (if-let [message-body (validation/validate-message message)]
+             (cs/process-message host ws message-body)
+             (log/warn "Received message does not match valid message schema. Dropping.")))))
 
 (defn- on-bytes!
   "OnMessage (binary) websocket event handler"
@@ -52,14 +61,17 @@
 (defn- on-error
   "OnError websocket event handler"
   [ws e]
-  (log/error e))
+  (log/error e)
+  (dec! metrics/active-connections))
 
 (defn- on-close!
   "OnClose websocket event handler"
   [ws status-code reason]
   (log/info "Connection terminated with statuscode: " status-code ". Reason: " reason)
   (log/debug "Removing connection from connection-map")
-  (cs/remove-connection (get-hostname ws) ws))
+  (dec! metrics/active-connections)
+  (time! metrics/time-in-on-close
+         (cs/remove-connection (get-hostname ws) ws)))
 
 ; Public Interface
 
@@ -137,6 +149,11 @@
           config (assoc config :configurator (make-jetty9-configurator config))]
       config)
     {}))
+
+(defn start-metrics
+  [app]
+  (jetty-adapter/run-jetty app {:port 3000
+                                :join? false}))
 
 (defn start-jetty
   [app prefix host port config]

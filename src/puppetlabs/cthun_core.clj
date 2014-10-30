@@ -2,12 +2,22 @@
   (:require [clojure.tools.logging :as log]
             [puppetlabs.cthun.websockets :as websockets]
             [puppetlabs.cthun.connection-states :as cs]
+            [puppetlabs.cthun.metrics :as metrics]
             [compojure.core :as compojure]
+            [cheshire.core :as cheshire]
             [compojure.route :as route]))
 
-(defn- app
+(defn- websocket-app
   [conf]
-  (log/info "App initiated"))
+  (log/info "Websocket App starting"))
+
+(defn- metrics-app
+  [conf]
+  (log/info "Metrics App initiated")
+  {:status 200
+   :headers {"Content-Type" "application/json"}
+   :body (metrics/get-metrics-string)})
+
 
 (defn start
   [get-in-config mesh queueing inventory]
@@ -18,7 +28,9 @@
     (cs/use-this-inventory inventory)
     (cs/use-this-mesh mesh)
     (cs/use-this-queueing queueing)
-    (websockets/start-jetty app url-prefix host port config)))
+    (metrics/enable-cthun-metrics)
+    (websockets/start-metrics metrics-app)
+    (websockets/start-jetty websocket-app url-prefix host port config)))
 
 (defn state
   "Return the service state"
