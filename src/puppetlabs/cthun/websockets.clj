@@ -34,7 +34,7 @@
   [ws]
   (time! metrics/time-in-on-connect
          ((let [host (get-hostname ws)
-               idle-timeout (* 1000 60 15)]
+                idle-timeout (* 1000 60 15)]
             (log/debug "Connection established from host:" host)
             (jetty-adapter/idle-timeout! ws idle-timeout)
             (cs/add-connection host ws))
