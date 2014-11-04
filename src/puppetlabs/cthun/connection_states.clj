@@ -26,6 +26,8 @@
 
 (def connection-map (atom {})) ;; Map of ws -> ConnectionState
 
+(def endpoint-map (atom {})) ;; { endpoint => ws }
+
 (def mesh (atom {}))
 
 (def queueing (atom {}))
@@ -46,12 +48,8 @@
 (defn websockets-for-endpoints
   "return list of ws given endpoints name"
   [endpoints]
-  (flatten
-   (map (fn [endpoint]
-          (remove nil? (keys (filter (fn [[ws state]]
-                                       (= endpoint (:endpoint state)))
-                                     @connection-map))))
-        endpoints)))
+  (flatten (remove nil?
+                   (map (fn [endpoint] (get @endpoint-map endpoint)) endpoints))))
 
 (s/defn ^:always-validate
   new-socket :- ConnectionState
@@ -90,7 +88,7 @@
                  (inc! metrics/total-messages-out)
                  (mark! metrics/rate-messages-out)
                  (jetty-adapter/send! websocket (cheshire/generate-string message))))
-      (catch Exception e 
+      (catch Exception e
         (.start (Thread. (fn [] (handle-delivery-exception message))))))))
 
 (defn messages-to-destinations
@@ -146,7 +144,9 @@
   "Remove a connection from the connection state map"
   [host ws]
   (if-let [endpoint (get-in @connection-map [ws :endpoint])]
-    ((:forget-client-location @mesh) endpoint))
+    (do
+      ((:forget-client-location @mesh) endpoint)
+      (swap! endpoint-map dissoc endpoint)))
   (swap! connection-map dissoc ws))
 
 
@@ -167,6 +167,7 @@
         (swap! connection-map update-in [ws] merge {:type type
                                                     :status "ready"
                                                     :endpoint endpoint})
+        (swap! endpoint-map assoc endpoint ws)
         ((:record-client-location @mesh) endpoint)
         ((:record-client @inventory) endpoint)
         (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))

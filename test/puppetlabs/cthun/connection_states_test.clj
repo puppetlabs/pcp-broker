@@ -65,10 +65,10 @@
                                                      {:data {:type "controller"}})))))
 
 (deftest websockets-for-endpoints-test
-  (reset! connection-map {"ws1" {:endpoint "cth://bill/agent"}
-                          "ws2" {:endpoint "cth://bob/agent"}
-                          "ws3" {:endpoint "cth://eric/controller"}
-                          "ws4" {:endpoint "cth://bob/controller"}})
+  (reset! endpoint-map {"cth://bill/agent" "ws1"
+                        "cth://bob/agent" "ws2"
+                        "cth://eric/controller" "ws3"
+                        "cth://bob/controller" "ws4"})
   (testing "it finds a single websocket explictly"
     (is (= '("ws1")
            (websockets-for-endpoints ["cth://bill/agent"]))))
