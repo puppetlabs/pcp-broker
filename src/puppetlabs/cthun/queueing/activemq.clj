@@ -19,7 +19,7 @@
         mq-endpoint topic]
     (log/info "queueing message" message)
     (with-open [conn (mq/activemq-connection mq-spec)]
-      (mq/connect-and-publish! conn mq-endpoint (pr-str message)))))
+      (mq/connect-and-publish! conn mq-endpoint (json/generate-string message)))))
 
 (defn subscribe-to-topic
   [consumer-count queues topic callback-fn]
@@ -30,7 +30,8 @@
                                          {:endpoint   topic
                                           :on-message (fn [message]
                                                         (log/info "consuming message" (:body message))
-                                                        (callback-fn (edn/read-string (:body message))))
+                                                        ; TODO(ploubser): Take another look at using edn instead
+                                                        (callback-fn (json/parse-string (:body message) true)))
                                           :transacted true
                                           :on-failure #(log/error "error consuming message" (:exception %))})]
           (mq-cons/start consumer))))))
