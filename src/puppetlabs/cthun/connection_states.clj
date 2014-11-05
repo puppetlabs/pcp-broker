@@ -68,14 +68,15 @@
 (defn- handle-delivery-exception
   [message]
   (let [expires (time-coerce/to-date-time (:expires message))
-        now (time/now)
-        difference (time/in-seconds (time/interval now expires))]
+        now     (time/now)]
     (if (time/after? expires now)
-      ((log/info "Failed to deliver message " message)
-       (let [sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))]
-         (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
-         (Thread/sleep (* sleep-duration 1000))
-         ((:queue-message @queueing) "accept" message)))
+      (do
+        (log/info "Failed to deliver message" message)
+        (let [difference     (time/in-seconds (time/interval now expires))
+              sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))]
+          (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
+          (Thread/sleep (* sleep-duration 1000))
+          ((:queue-message @queueing) "accept" message)))
       (log/warn "Message " message " has expired. Dropping message"))))
 
 (defn deliver-message
