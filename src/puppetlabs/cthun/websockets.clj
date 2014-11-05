@@ -48,7 +48,6 @@
   (time! metrics/time-in-on-text
          (let [host (get-hostname ws)]
            (log/info "Received message from client" host)
-           (log/info "Validating Message...")
            (if-let [message-body (validation/validate-message message)]
              (cs/process-message host ws message-body)
              (log/warn "Received message does not match valid message schema. Dropping.")))))
@@ -67,11 +66,11 @@
 (defn- on-close!
   "OnClose websocket event handler"
   [ws status-code reason]
-  (log/info "Connection terminated with statuscode: " status-code ". Reason: " reason)
-  (log/debug "Removing connection from connection-map")
-  (dec! metrics/active-connections)
-  (time! metrics/time-in-on-close
-         (cs/remove-connection (get-hostname ws) ws)))
+  (let [hostname (get-hostname ws)]
+    (log/info "Connection from" hostname "terminated with statuscode:" status-code " Reason:" reason)
+    (dec! metrics/active-connections)
+    (time! metrics/time-in-on-close
+           (cs/remove-connection hostname ws))))
 
 ; Public Interface
 
