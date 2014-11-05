@@ -19,7 +19,7 @@
     (is (thrown? Exception (check-schema "invalid message"))))
   (testing "it returns the json structure when a valid message is passed"
     (let [json {:version "1"
-                :id 1234
+                :id "1234"
                 :endpoints ["cth://host2.example.com/cnc/01"]
                 :data_schema "/location/to/a/schema"
                 :sender "cth://host1.example.com/controller/01",

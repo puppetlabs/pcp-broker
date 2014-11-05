@@ -16,7 +16,7 @@
 (def ClientMessage
   "Defines the message format expected from a client"
   {(s/required-key :version) s/Str
-   (s/required-key :id) s/Int
+   (s/required-key :id) s/Str ;; TODO(richardc) check it looks like a UUID maybe?
    (s/required-key :endpoints) [Endpoint]
    (s/required-key :data_schema) s/Str
    (s/required-key :sender) Endpoint
