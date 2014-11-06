@@ -19,7 +19,7 @@
 (def time-in-on-connect (timer ["puppetlabs.cthun" "handlers" "time-in-on-connect"]))
 (def time-in-on-text (timer ["puppetlabs.cthun" "handlers" "time-in-on-text"]))
 (def time-in-on-close (timer ["puppetlabs.cthun" "handlers" "time-in-on-close"]))
-
+(def time-in-message-queueing (timer ["puppetlabs.cthun" "global" "time-in-message-queueing"]))
 
 (defn- get-cthun-metrics
   "Returns cthun specific metrics as a map"
@@ -58,4 +58,5 @@
   (swap! metrics assoc :rate-messages-out rate-messages-out)
   (swap! metrics assoc :time-in-on-connect time-in-on-connect)
   (swap! metrics assoc :time-in-on-text time-in-on-text)
+  (swap! metrics assoc :time-in-message-queueing time-in-message-queueing)
   (swap! metrics assoc :time-in-on-close time-in-on-close))

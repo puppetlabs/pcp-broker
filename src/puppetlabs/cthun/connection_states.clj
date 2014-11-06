@@ -12,6 +12,7 @@
             [clj-time.coerce :as time-coerce]
             [metrics.counters :refer [inc!]]
             [metrics.meters :refer [mark!]]
+            [metrics.timers :refer [time!]]
             [ring.adapter.jetty9 :as jetty-adapter])
   (:import com.hazelcast.core.Hazelcast)
   (:import com.hazelcast.core.MessageListener))
@@ -128,7 +129,8 @@
   [host ws message]
   (let [sender (get-in @connection-map [ws :endpoint])
         message (assoc message :sender sender)]
-    ((:queue-message @queueing) "accept" message)))
+    (time! metrics/time-in-message-queueing
+           ((:queue-message @queueing) "accept" message))))
 
 (defn- login-message?
   "Return true if message is a login type message"
