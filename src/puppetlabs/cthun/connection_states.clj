@@ -3,6 +3,7 @@
             [clojure.core.incubator :refer [dissoc-in]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
+            [puppetlabs.cthun.message :as message]
             [puppetlabs.cthun.validation :as validation]
             [puppetlabs.cthun.metrics :as metrics]
             [puppetlabs.kitchensink.core :as ks]
@@ -74,7 +75,8 @@
       (do
         (log/info "Failed to deliver message" message)
         (let [difference     (time/in-seconds (time/interval now expires))
-              sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))]
+              sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
+              message        (message/add-hop message "redelivery")]
           (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
           (Thread/sleep (* sleep-duration 1000))
           ((:queue-message @queueing) "accept" message)))
@@ -89,7 +91,8 @@
       @(future (locking websocket
                  (inc! metrics/total-messages-out)
                  (mark! metrics/rate-messages-out)
-                 (jetty-adapter/send! websocket (cheshire/generate-string message))))
+                 (let [message (message/add-hop message "deliver")]
+                   (jetty-adapter/send! websocket (cheshire/generate-string message)))))
       (catch Exception e
         (.start (Thread. (fn [] (handle-delivery-exception message))))))))
 
@@ -104,7 +107,8 @@
   [message]
   (doall (pmap (fn [message]
                  (log/info "delivering message from accept queue to mesh" message)
-                 ((:deliver-to-client @mesh) (first (:endpoints message)) message))
+                 (let [message (message/add-hop message "accept-to-mesh")]
+                   ((:deliver-to-client @mesh) (first (:endpoints message)) message)))
                (messages-to-destinations message))))
 
 (defn use-this-mesh
@@ -128,7 +132,8 @@
   "Process a message directed at a connected client(s)"
   [host ws message]
   (let [sender (get-in @connection-map [ws :endpoint])
-        message (assoc message :sender sender)]
+        message (assoc message :sender sender)
+        message (message/add-hop message "accept-to-queue")]
     (time! metrics/time-in-message-queueing
            ((:queue-message @queueing) "accept" message))))
 

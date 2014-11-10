@@ -12,6 +12,12 @@
   "Pattern that matches valid endpoints"
   (s/pred (partial re-matches #"cth://(server|.*/.*)") 'endpoint?))
 
+(def MessageHop
+  "Map that describes a step in message delivery"
+  {(s/required-key :server) Endpoint
+   (s/optional-key :stage) s/Str
+   (s/required-key :time) ISO8601})
+
 ; Message types
 (def ClientMessage
   "Defines the message format expected from a client"
@@ -21,7 +27,7 @@
    (s/required-key :data_schema) s/Str
    (s/required-key :sender) Endpoint
    (s/required-key :expires) ISO8601
-   (s/required-key :hops) [{s/Keyword ISO8601}] ;; TODO(richardc): should be in terms of Endpoint
+   (s/required-key :hops) [MessageHop]
    (s/optional-key :data) {s/Keyword s/Any}})
 
 ; Server message data types
