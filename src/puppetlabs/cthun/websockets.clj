@@ -6,6 +6,7 @@
              [ring.adapter.jetty9 :as jetty-adapter]
              [cheshire.core :as cheshire]
              [puppetlabs.cthun.validation :as validation]
+             [puppetlabs.cthun.message :as message]
              [puppetlabs.cthun.connection-states :as cs]
              [puppetlabs.kitchensink.core :as kitchensink]
              [metrics.counters :refer [inc! dec!]]
@@ -43,14 +44,16 @@
 (defn- on-text!
   "OnMessage (text) websocket event handler"
   [ws message]
-  (inc! metrics/total-messages-in)
-  (mark! metrics/rate-messages-in)
-  (time! metrics/time-in-on-text
-         (let [host (get-hostname ws)]
-           (log/info "Received message from client" host)
-           (if-let [message-body (validation/validate-message message)]
-             (cs/process-message host ws message-body)
-             (log/warn "Received message does not match valid message schema. Dropping.")))))
+  (let [timestamp (kitchensink/timestamp)]
+    (inc! metrics/total-messages-in)
+    (mark! metrics/rate-messages-in)
+    (time! metrics/time-in-on-text
+           (let [host (get-hostname ws)]
+             (log/info "Received message from client" host)
+             (if-let [message-body (validation/validate-message message)]
+               (let [message-body (message/add-hop message-body "accepted" timestamp)]
+                 (cs/process-message host ws message-body))
+               (log/warn "Received message does not match valid message schema. Dropping."))))))
 
 (defn- on-bytes!
   "OnMessage (binary) websocket event handler"

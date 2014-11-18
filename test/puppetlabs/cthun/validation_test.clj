@@ -24,7 +24,8 @@
                 :data_schema "/location/to/a/schema"
                 :sender "cth://host1.example.com/controller/01",
                 :expires  "2014-07-14T11:51:03+00:00"
-                :hops [{:hop1 "2014-07-14T11:51:03+00:00"}]}]
+                :hops [{:server "cth://hop1/server"
+                        :time "2014-07-14T11:51:03+00:00"}]}]
       (is (= json (check-schema json))))))
 
 (deftest validate-message-test
