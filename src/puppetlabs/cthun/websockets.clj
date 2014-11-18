@@ -1,7 +1,7 @@
 (ns puppetlabs.cthun.websockets
   (:import (org.eclipse.jetty.server
             Server ServerConnector ConnectionFactory HttpConnectionFactory
-            Connector HttpConfiguration Request)
+            Connector HttpConfiguration Request))
   (:require  [clojure.tools.logging :as log]
              [ring.adapter.jetty9 :as jetty-adapter]
              [cheshire.core :as cheshire]
