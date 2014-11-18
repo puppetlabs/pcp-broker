@@ -1,7 +1,7 @@
 (ns puppetlabs.cthun.websockets
   (:import (org.eclipse.jetty.server
             Server ServerConnector ConnectionFactory HttpConnectionFactory
-            Connector HttpConfiguration Request))
+            Connector HttpConfiguration Request)
   (:require  [clojure.tools.logging :as log]
              [ring.adapter.jetty9 :as jetty-adapter]
              [cheshire.core :as cheshire]
@@ -55,7 +55,15 @@
 (defn- on-bytes!
   "OnMessage (binary) websocket event handler"
   [ws bytes offset len]
-  (log/error "Binary transmission not supported yet. Send me a text message"))
+  (inc! metrics/total-messages-in)
+  (mark! metrics/rate-messages-in)
+  (time! metrics/time-in-on-text
+         (let [host (get-hostname ws)
+               message (String. bytes)]
+           (log/info "Received message from client" host)
+           (if-let [message-body (validation/validate-message message)]
+             (cs/process-message host ws message-body)
+             (log/warn "Received message does not match valid message schema. Dropping.")))))
 
 (defn- on-error
   "OnError websocket event handler"
