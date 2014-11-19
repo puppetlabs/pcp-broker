@@ -92,7 +92,7 @@
                  (inc! metrics/total-messages-out)
                  (mark! metrics/rate-messages-out)
                  (let [message (message/add-hop message "deliver")]
-                   (jetty-adapter/send! websocket (cheshire/generate-string message)))))
+                   (jetty-adapter/send! websocket (byte-array (map byte (cheshire/generate-string message)))))))
       (catch Exception e
         (.start (Thread. (fn [] (handle-delivery-exception message))))))))
 
