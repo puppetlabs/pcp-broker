@@ -131,12 +131,9 @@
 (defn- process-client-message
   "Process a message directed at a connected client(s)"
   [host ws message]
-  (let [sender (get-in @connection-map [ws :endpoint])
-        message (assoc message :sender sender)
-        message (message/add-hop message "accept-to-queue")]
-    (time! metrics/time-in-message-queueing
-           ((:queue-message @queueing) "accept" message))))
-
+  (message (message/add-hop message "accept-to-queue"))
+  (time! metrics/time-in-message-queueing
+         ((:queue-message @queueing) "accept" message)))
 (defn- login-message?
   "Return true if message is a login type message"
   [message]
