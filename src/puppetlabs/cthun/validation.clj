@@ -46,17 +46,26 @@
   [json]
   (s/validate ClientMessage json))
 
+(defn- check-certname
+  "Validate that the cert name advertised by the client matches the cert name in the certificate"
+  [endpoint certname]
+  (if-not (re-matches (re-pattern (str "cth://" certname "/.*")) endpoint)
+    (log/warn "Certifcate name used in sender " endpoint " doesn't match the certname in certificate "certname)
+    true))
+
 (defn validate-message
   "Validates the structure of a message.
   Returns message on success.
   Returns false on invalid json.
-  Throws on valid json with an invalid schema"
-  [message]
+  Throws on valid json with an invalid schema
+  Returns false if certname used in endpoint doesn't match certname in certificate"
+  [message certname]
   (let [json (try (cheshire/parse-string message true)
                   (catch Exception e (log/error (.getMessage e)) false))]
     (when json
-      (check-schema json))))
-
+      (check-schema json)
+      (when (check-certname (:sender json) certname)
+        json))))
 
 (defn validate-login-data
   "Validate the structure of a login message data field"
