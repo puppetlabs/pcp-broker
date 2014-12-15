@@ -30,4 +30,4 @@
 
 (deftest validate-message-test
   (testing "it returns nil if message is invalid json"
-    (is (= nil (validate-message "foo :")))))
+    (is (= nil (validate-message "foo :" "lolcathost")))))
