@@ -1,5 +1,6 @@
 (ns puppetlabs.cthun.validation
   (:require [clojure.tools.logging :as log]
+            [clojure.string :as str]
             [puppetlabs.kitchensink.core :as ks]
             [cheshire.core :as cheshire]
             [schema.core :as s]))
@@ -38,6 +39,12 @@
 (def InventoryMessageData
   "Defines the data field for an inventory message body"
   {(s/required-key :query) [s/Str]})
+
+(s/defn ^:always-validate
+  explode-endpoint :- [s/Str]
+  "Parse an endpoint string into its component parts.  Raises if incomplete"
+  [endpoint :- Endpoint]
+  (str/split (subs endpoint 6) #"/"))
 
 (defn check-schema
   "Check if the JSON matches the ClientMessage schema.
