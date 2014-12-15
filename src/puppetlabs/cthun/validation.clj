@@ -53,12 +53,13 @@
   [json]
   (s/validate ClientMessage json))
 
-(defn- check-certname
+(defn check-certname
   "Validate that the cert name advertised by the client matches the cert name in the certificate"
   [endpoint certname]
-  (if-not (re-matches (re-pattern (str "cth://" certname "/.*")) endpoint)
-    (log/warn "Certifcate name used in sender " endpoint " doesn't match the certname in certificate "certname)
-    true))
+  (let [[client] (explode-endpoint endpoint)]
+    (if-not (= client certname)
+      (log/warn "Certifcate name used in sender " endpoint " doesn't match the certname in certificate " certname)
+      true)))
 
 (defn validate-message
   "Validates the structure of a message.

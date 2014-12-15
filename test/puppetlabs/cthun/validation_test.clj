@@ -39,3 +39,11 @@
     (is (= [ "localhost" "agent"] (explode-endpoint "cth://localhost/agent")))
     (is (= [ "localhost" "*" ] (explode-endpoint "cth://localhost/*")))
     (is (= [ "*" "agent" ] (explode-endpoint "cth://*/agent")))))
+
+(deftest check-certname-test
+  (testing "simple match"
+    (is (check-certname "cth://lolcathost/agent" "lolcathost")))
+  (testing "simple mismatch"
+    (is (not (check-certname "cth://lolcathost/agent" "remotecat"))))
+  (testing "accidental regex collisions"
+    (is (not (check-certname "cth://lolcathost/agent" "lol.athost")))))
