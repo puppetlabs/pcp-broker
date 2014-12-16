@@ -41,12 +41,6 @@
   [host type]
   (str "cth://" host "/" type))
 
-(s/defn ^:always-validate
-  explode-endpoint :- [s/Str]
-  "Parse an endpoint string into its component parts.  Raises if incomplete"
-  [endpoint :- validation/Endpoint]
-  (str/split (subs endpoint 6) #"/"))
-
 (defn websockets-for-endpoints
   "return list of ws given endpoints name"
   [endpoints]

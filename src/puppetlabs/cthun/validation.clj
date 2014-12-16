@@ -1,5 +1,6 @@
 (ns puppetlabs.cthun.validation
   (:require [clojure.tools.logging :as log]
+            [clojure.string :as str]
             [puppetlabs.kitchensink.core :as ks]
             [cheshire.core :as cheshire]
             [schema.core :as s]))
@@ -39,6 +40,12 @@
   "Defines the data field for an inventory message body"
   {(s/required-key :query) [s/Str]})
 
+(s/defn ^:always-validate
+  explode-endpoint :- [s/Str]
+  "Parse an endpoint string into its component parts.  Raises if incomplete"
+  [endpoint :- Endpoint]
+  (str/split (subs endpoint 6) #"/"))
+
 (defn check-schema
   "Check if the JSON matches the ClientMessage schema.
   Returns message on success.
@@ -46,12 +53,13 @@
   [json]
   (s/validate ClientMessage json))
 
-(defn- check-certname
+(defn check-certname
   "Validate that the cert name advertised by the client matches the cert name in the certificate"
   [endpoint certname]
-  (if-not (re-matches (re-pattern (str "cth://" certname "/.*")) endpoint)
-    (log/warn "Certifcate name used in sender " endpoint " doesn't match the certname in certificate "certname)
-    true))
+  (let [[client] (explode-endpoint endpoint)]
+    (if-not (= client certname)
+      (log/warn "Certifcate name used in sender " endpoint " doesn't match the certname in certificate " certname)
+      true)))
 
 (defn validate-message
   "Validates the structure of a message.

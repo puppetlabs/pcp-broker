@@ -19,14 +19,6 @@
   (testing "It creates a correct endpoint string"
     (is (= "cth://localhost/controller" (make-endpoint-string "localhost" "controller")))))
 
-(deftest explode-endpoint-test
-  (testing "It raises on invalid endpoints"
-    (is (thrown? Exception (explode-endpoint ""))))
-  (testing "It returns component chunks"
-    (is (= [ "localhost" "agent"] (explode-endpoint "cth://localhost/agent")))
-    (is (= [ "localhost" "*" ] (explode-endpoint "cth://localhost/*")))
-    (is (= [ "*" "agent" ] (explode-endpoint "cth://*/agent")))))
-
 (deftest new-socket-test
   (testing "It returns a map that matches represents a new socket"
     (let [socket (new-socket "localhost")]
