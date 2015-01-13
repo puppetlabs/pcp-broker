@@ -20,13 +20,12 @@
 
 
 (defn start
-  [get-in-config mesh queueing inventory]
+  [get-in-config queueing inventory]
   (let [url-prefix (get-in-config [:cthun :url-prefix])
         host (get-in-config [:cthun :host])
         port (get-in-config [:cthun :port])
         config (get-in-config [:cthun])]
     (cs/use-this-inventory inventory)
-    (cs/use-this-mesh mesh)
     (cs/use-this-queueing queueing)
     (metrics/enable-cthun-metrics)
     (websockets/start-metrics metrics-app)
