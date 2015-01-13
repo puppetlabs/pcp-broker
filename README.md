@@ -24,8 +24,7 @@ your option) any later version.
 ## Message flow
 
 Websocket -> QueueingService (persists to reliable storage) ->
-InventoryService (expands destinations) -> MeshService (magic interbroker
-routing) -> Websocket
+InventoryService (expands destinations) -> Websocket
 
 
 ### Choosing queuing

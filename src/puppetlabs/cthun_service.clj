@@ -1,7 +1,6 @@
 (ns puppetlabs.cthun-service
   (:require [clojure.tools.logging :as log]
             [puppetlabs.cthun-core :as core]
-            [puppetlabs.cthun.meshing :refer [MeshingService]]
             [puppetlabs.trapperkeeper.app :as app]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]))
 
@@ -13,7 +12,6 @@
 (trapperkeeper/defservice cthun-service
   CthunService
   [[:ConfigService get-in-config]
-   MeshingService
    QueueingService
    InventoryService]
   (init [this context]
@@ -21,7 +19,7 @@
         context)
   (start [this context]
          (log/info "Starting cthun service")
-         (core/start get-in-config MeshingService QueueingService InventoryService)
+         (core/start get-in-config QueueingService InventoryService)
          context)
   (stop [this context]
         (log/info "Shutting down cthun service")

@@ -30,8 +30,6 @@
 
 (def endpoint-map (atom {})) ;; { endpoint => ws }
 
-(def mesh (atom {}))
-
 (def queueing (atom {}))
 
 (def inventory (atom {}))
@@ -100,16 +98,11 @@
 (defn deliver-from-accept-queue
   [message]
   (doall (pmap (fn [message]
-                 (log/info "delivering message from accept queue to mesh" message)
-                 (let [message (message/add-hop message "accept-to-mesh")]
-                   ((:deliver-to-client @mesh) (first (:endpoints message)) message)))
+                 (log/info "delivering message from accept queue to websocket" message)
+                 (let [message (message/add-hop message "deliver-message")]
+                   (deliver-message message)))
                (messages-to-destinations message))))
 
-(defn use-this-mesh
-  "Specify which mesh to use"
-  [new-mesh]
-  (reset! mesh new-mesh)
-  ((:register-local-delivery @mesh) deliver-message))
 
 (defn use-this-queueing
   "Specify which queuing to use"
@@ -143,11 +136,8 @@
   "Remove a connection from the connection state map"
   [host ws]
   (if-let [endpoint (get-in @connection-map [ws :endpoint])]
-    (do
-      ((:forget-client-location @mesh) endpoint)
-      (swap! endpoint-map dissoc endpoint)))
+    (swap! endpoint-map dissoc endpoint))
   (swap! connection-map dissoc ws))
-
 
 (defn- process-login-message
   "Process a login message from a client"
@@ -167,7 +157,6 @@
                                                     :status "ready"
                                                     :endpoint endpoint})
         (swap! endpoint-map assoc endpoint ws)
-        ((:record-client-location @mesh) endpoint)
         ((:record-client @inventory) endpoint)
         (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))
 
