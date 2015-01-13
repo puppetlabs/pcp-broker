@@ -3,6 +3,7 @@
             [clojure.core.incubator :refer [dissoc-in]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
+            [puppetlabs.cthun.executor :as executor]
             [puppetlabs.cthun.message :as message]
             [puppetlabs.cthun.validation :as validation]
             [puppetlabs.cthun.metrics :as metrics]
@@ -33,6 +34,9 @@
 (def queueing (atom {}))
 
 (def inventory (atom {}))
+
+;; TODO(richardc) make parameterised
+(def delivery-executor (executor/build-executor 0.9 64))
 
 (defn- make-endpoint-string
   "Make a new endpoint string for a host and type"
@@ -80,11 +84,11 @@
     (try
       ; Lock on the websocket object allowing us to do one write at a time
       ; down each of the websockets
-      @(future (locking websocket
+      (locking websocket
                  (inc! metrics/total-messages-out)
                  (mark! metrics/rate-messages-out)
                  (let [message (message/add-hop message "deliver")]
-                   (jetty-adapter/send! websocket (byte-array (map byte (cheshire/generate-string message)))))))
+                   (jetty-adapter/send! websocket (byte-array (map byte (cheshire/generate-string message))))))
       (catch Exception e
         (.start (Thread. (fn [] (handle-delivery-exception message))))))))
 
@@ -97,12 +101,13 @@
 
 (defn deliver-from-accept-queue
   [message]
-  (doall (pmap (fn [message]
-                 (log/info "delivering message from accept queue to websocket" message)
-                 (let [message (message/add-hop message "deliver-message")]
-                   (deliver-message message)))
-               (messages-to-destinations message))))
-
+  (doall (map (fn [message]
+                (.execute delivery-executor
+                          (fn []
+                            (log/info "delivering message from executor to websocket" message)
+                            (let [message (message/add-hop message "deliver-message")]
+                              (deliver-message message)))))
+              (messages-to-destinations message))))
 
 (defn use-this-queueing
   "Specify which queuing to use"
