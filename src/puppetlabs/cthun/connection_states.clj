@@ -15,9 +15,7 @@
             [metrics.counters :refer [inc!]]
             [metrics.meters :refer [mark!]]
             [metrics.timers :refer [time!]]
-            [ring.adapter.jetty9 :as jetty-adapter])
-  (:import com.hazelcast.core.Hazelcast)
-  (:import com.hazelcast.core.MessageListener))
+            [ring.adapter.jetty9 :as jetty-adapter]))
 
 (def ConnectionState
   "The state of a websocket in the connection-map"
