@@ -50,23 +50,27 @@
     (time! metrics/time-in-on-text
            (let [host (get-hostname ws)]
              (log/info "Received message from client" host)
-             (if-let [message-body (validation/validate-message message host)]
-               (let [message-body (message/add-hop message-body "accepted" timestamp)]
-                 (cs/process-message host ws message-body))
+             (if-let [message-body (message/decode message)]
+               (if (validation/check-certname (:sender message-body) host)
+                 (let [message-body (message/add-hop message-body "accepted" timestamp)]
+                   (cs/process-message host ws message-body)))
                (log/warn "Received message does not match valid message schema. Dropping."))))))
 
 (defn- on-bytes!
   "OnMessage (binary) websocket event handler"
   [ws bytes offset len]
-  (inc! metrics/total-messages-in)
-  (mark! metrics/rate-messages-in)
-  (time! metrics/time-in-on-text
-         (let [host (get-hostname ws)
-               message (String. bytes)]
-           (log/info "Received message from client" host)
-           (if-let [message-body (validation/validate-message message host)]
-             (cs/process-message host ws message-body)
-             (log/warn "Received message does not match valid message schema. Dropping.")))))
+  (let [timestamp (kitchensink/timestamp)]
+    (inc! metrics/total-messages-in)
+    (mark! metrics/rate-messages-in)
+    (time! metrics/time-in-on-text
+           (let [host (get-hostname ws)
+                 message (String. bytes)]
+             (log/info "Received message from client" host)
+             (if-let [message-body (message/decode message)]
+               (if (validation/check-certname (:sender message-body) host)
+                 (let [message-body (message/add-hop message-body "accepted" timestamp)]
+                   (cs/process-message host ws message-body)))
+               (log/warn "Received message does not match valid message schema. Dropping."))))))
 
 (defn- on-error
   "OnError websocket event handler"

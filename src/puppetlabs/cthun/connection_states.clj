@@ -78,7 +78,8 @@
 
 (defn deliver-message
   [message]
-  (doseq [websocket (websockets-for-endpoints (:endpoints message))]
+  "Delivers a message to the websocket indicated by the :_destination field"
+  (doseq [websocket (websockets-for-endpoints [(:_destination message)])]
     (try
       ; Lock on the websocket object allowing us to do one write at a time
       ; down each of the websockets
@@ -86,19 +87,22 @@
                  (inc! metrics/total-messages-out)
                  (mark! metrics/rate-messages-out)
                  (let [message (message/add-hop message "deliver")]
-                   (jetty-adapter/send! websocket (byte-array (map byte (cheshire/generate-string message))))))
+                   (jetty-adapter/send! websocket (byte-array (map byte (message/encode message))))))
       (catch Exception e
         (.start (Thread. (fn [] (handle-delivery-exception message))))))))
 
 (defn messages-to-destinations
-  "Returns a sequence of messages, each with a single endpoint.  All wildcards are expanded here by the InventoryService."
+  "Returns a sequence of messages, each with a single endpoint in
+  its :_destination field.  All wildcards are expanded here by the
+  InventoryService."
   [message]
   (map (fn [endpoint]
-         (assoc message :endpoints [ endpoint ]))
+         (assoc message :_destination endpoint))
        ((:find-clients @inventory) (:endpoints message))))
 
 (defn deliver-from-accept-queue
   [message]
+  "Message consumer.  Pulls the message off the queue and delivers it"
   (doall (map (fn [message]
                 (.execute delivery-executor
                           (fn []
