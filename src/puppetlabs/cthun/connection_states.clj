@@ -8,7 +8,6 @@
             [puppetlabs.cthun.validation :as validation]
             [puppetlabs.cthun.metrics :as metrics]
             [puppetlabs.kitchensink.core :as ks]
-            [cheshire.core :as cheshire]
             [schema.core :as s]
             [clj-time.core :as time]
             [clj-time.coerce :as time-coerce]

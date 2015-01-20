@@ -4,7 +4,6 @@
             Connector HttpConfiguration Request))
   (:require  [clojure.tools.logging :as log]
              [ring.adapter.jetty9 :as jetty-adapter]
-             [cheshire.core :as cheshire]
              [puppetlabs.cthun.validation :as validation]
              [puppetlabs.cthun.message :as message]
              [puppetlabs.cthun.connection-states :as cs]
