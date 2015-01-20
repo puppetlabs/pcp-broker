@@ -24,9 +24,6 @@
                  ;; managed ThreadPool/ExecutorService
                  [io.aleph/dirigiste "0.1.0-alpha4"]
 
-                 ;; MQ - durable-queue
-                 [factual/durable-queue "0.1.2"]
-
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4" :exclusions [org.slf4j/slf4j-api]]
                  [org.apache.activemq/activemq-core "5.6.0" :exclusions [org.slf4j/slf4j-api org.fusesource.fuse-extra/fusemq-leveldb]]

@@ -3,6 +3,7 @@
             [clojure.core.incubator :refer [dissoc-in]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
+            [puppetlabs.cthun.activemq :as activemq]
             [puppetlabs.cthun.executor :as executor]
             [puppetlabs.cthun.message :as message]
             [puppetlabs.cthun.validation :as validation]
@@ -27,8 +28,6 @@
 (def connection-map (atom {})) ;; Map of ws -> ConnectionState
 
 (def endpoint-map (atom {})) ;; { endpoint => ws }
-
-(def queueing (atom {}))
 
 (def inventory (atom {}))
 
@@ -55,7 +54,7 @@
    :status "connected"
    :created-at (ks/timestamp)})
 
- (defn- logged-in?
+(defn- logged-in?
   "Determine if a websocket combination is logged in"
   [host ws]
   (= (get-in @connection-map [ws :status]) "ready"))
@@ -72,7 +71,7 @@
               message        (message/add-hop message "redelivery")]
           (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
           (Thread/sleep (* sleep-duration 1000))
-          ((:queue-message @queueing) "accept" message)))
+          (activemq/queue-message "accept" message)))
       (log/warn "Message " message " has expired. Dropping message"))))
 
 (defn deliver-message
@@ -110,11 +109,9 @@
                               (deliver-message message)))))
               (messages-to-destinations message))))
 
-(defn use-this-queueing
-  "Specify which queuing to use"
-  [new-queueing]
-  (reset! queueing new-queueing)
-  ((:subscribe-to-topic @queueing) "accept" deliver-from-accept-queue))
+(defn subscribe-to-topics
+  [accept-threads]
+  (activemq/subscribe-to-topic "accept" deliver-from-accept-queue accept-threads))
 
 (defn use-this-inventory
   "Specify which inventory to use"
@@ -126,7 +123,7 @@
   [host ws message]
   (message (message/add-hop message "accept-to-queue"))
   (time! metrics/time-in-message-queueing
-         ((:queue-message @queueing) "accept" message)))
+         (activemq/queue-message "accept" message)))
 (defn- login-message?
   "Return true if message is a login type message"
   [message]

@@ -3,6 +3,7 @@
             [puppetlabs.cthun.websockets :as websockets]
             [puppetlabs.cthun.connection-states :as cs]
             [puppetlabs.cthun.metrics :as metrics]
+            [puppetlabs.puppetdb.mq :as mq]
             [compojure.core :as compojure]
             [cheshire.core :as cheshire]
             [compojure.route :as route]))
@@ -18,18 +19,35 @@
    :headers {"Content-Type" "application/json"}
    :body (metrics/get-metrics-string)})
 
-
-(defn start
-  [get-in-config queueing inventory]
-  (let [url-prefix (get-in-config [:cthun :url-prefix])
+(defn make-cthun-broker
+  [get-in-config inventory]
+  (let [config (get-in-config [:cthun])
         host (get-in-config [:cthun :host])
         port (get-in-config [:cthun :port])
-        config (get-in-config [:cthun])]
+        url-prefix (get-in-config [:cthun :url-prefix])
+        activemq-spool (get-in-config [:cthun :broker-spool] "tmp/activemq")
+        activemq-broker (mq/build-embedded-broker activemq-spool)
+        accept-threads (get-in-config [:cthun :accept-consumers] 4)]
     (cs/use-this-inventory inventory)
-    (cs/use-this-queueing queueing)
+    (cs/subscribe-to-topics accept-threads)
     (metrics/enable-cthun-metrics)
+    {:host host
+     :port port
+     :url-prefix url-prefix
+     :config config
+     :activemq-broker activemq-broker}))
+
+(defn start
+  [broker]
+  (let [{:keys [host port url-prefix config activemq-broker]} broker]
+    (mq/start-broker! activemq-broker)
     (websockets/start-metrics metrics-app)
     (websockets/start-jetty websocket-app url-prefix host port config)))
+
+(defn stop
+  [broker]
+  (let [{:keys [activemq-broker]} broker]
+    (mq/stop-broker! activemq-broker)))
 
 (defn state
   "Return the service state"
