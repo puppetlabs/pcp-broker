@@ -28,10 +28,6 @@
                         :time "2014-07-14T11:51:03+00:00"}]}]
       (is (= json (check-schema json))))))
 
-(deftest validate-message-test
-  (testing "it returns nil if message is invalid json"
-    (is (= nil (validate-message "foo :" "lolcathost")))))
-
 (deftest explode-endpoint-test
   (testing "It raises on invalid endpoints"
     (is (thrown? Exception (explode-endpoint ""))))
