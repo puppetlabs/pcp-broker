@@ -61,19 +61,18 @@
 (defn- handle-delivery-failure
   [message reason]
   "If the message is not expired schedule for a future redelivery by adding to the redeliver queue"
+  (log/info "Failed to deliver message" message reason)
   (let [expires (time-coerce/to-date-time (:expires message))
         now     (time/now)]
     (if (time/after? expires now)
-      (do
-        (log/info "Failed to deliver message" message reason)
-        (let [difference     (time/in-seconds (time/interval now expires))
-              sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
-              message        (message/add-hop message "redelivery")]
-          (log/info "Moving message to the redeliver queue in " sleep-duration " seconds")
-          ;; TODO(richardc): we should queue for future delivery, not sleep
-          (Thread/sleep (* sleep-duration 1000))
-          (activemq/queue-message "redeliver" message)))
-      (log/warn "Message " message " has expired. Dropping message"))))
+      (let [difference     (time/in-seconds (time/interval now expires))
+            sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
+            message        (message/add-hop message "redelivery")]
+        (log/info "Moving message to the redeliver queue in " sleep-duration " seconds")
+        ;; TODO(richardc): we should queue for future delivery, not sleep
+        (Thread/sleep (* sleep-duration 1000))
+        (activemq/queue-message "redeliver" message)))
+    (log/warn "Message " message " has expired. Dropping message")))
 
 (defn deliver-message
   [message]
