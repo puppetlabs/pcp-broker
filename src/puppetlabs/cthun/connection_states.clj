@@ -58,17 +58,19 @@
   [host ws]
   (= (get-in @connection-map [ws :status]) "ready"))
 
-(defn- handle-delivery-exception
-  [message]
+(defn- handle-delivery-failure
+  [message reason]
+  "If the message is not expired schedule for a future redelivery by adding to the redeliver queue"
   (let [expires (time-coerce/to-date-time (:expires message))
         now     (time/now)]
     (if (time/after? expires now)
       (do
-        (log/info "Failed to deliver message" message)
+        (log/info "Failed to deliver message" message reason)
         (let [difference     (time/in-seconds (time/interval now expires))
               sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
               message        (message/add-hop message "redelivery")]
-          (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
+          (log/info "Moving message to the redeliver queue in " sleep-duration " seconds")
+          ;; TODO(richardc): we should queue for future delivery, not sleep
           (Thread/sleep (* sleep-duration 1000))
           (activemq/queue-message "redeliver" message)))
       (log/warn "Message " message " has expired. Dropping message"))))
@@ -86,8 +88,8 @@
                  (let [message (message/add-hop message "deliver")]
                    (jetty-adapter/send! websocket (byte-array (map byte (message/encode message))))))
       (catch Exception e
-        (.start (Thread. (fn [] (handle-delivery-exception message))))))
-    (.start (Thread. (fn [] (handle-delivery-exception message))))))
+        (.start (Thread. (fn [] (handle-delivery-failure message e))))))
+    (.start (Thread. (fn [] (handle-delivery-failure message "not connected"))))))
 
 (defn messages-to-destinations
   "Returns a sequence of messages, each with a single endpoint in
