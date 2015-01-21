@@ -71,7 +71,7 @@
               message        (message/add-hop message "redelivery")]
           (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
           (Thread/sleep (* sleep-duration 1000))
-          (activemq/queue-message "accept" message)))
+          (activemq/queue-message "redeliver" message)))
       (log/warn "Message " message " has expired. Dropping message"))))
 
 (defn deliver-message
@@ -98,20 +98,32 @@
          (assoc message :_destination endpoint))
        ((:find-clients @inventory) (:endpoints message))))
 
+(defn make-delivery-fn
+  "Returns a Runnable that delivers a message to a :_destination"
+  [message]
+  (fn []
+    (log/info "delivering message from executor to websocket" message)
+    (let [message (message/add-hop message "deliver-message")]
+      (deliver-message message))))
+
 (defn deliver-from-accept-queue
   [message]
-  "Message consumer.  Pulls the message off the queue and delivers it"
+  "Message consumer.  Accepts a message from the accept queue, expands
+  destinations, and attempts delivery."
   (doall (map (fn [message]
-                (.execute delivery-executor
-                          (fn []
-                            (log/info "delivering message from executor to websocket" message)
-                            (let [message (message/add-hop message "deliver-message")]
-                              (deliver-message message)))))
+                (.execute delivery-executor (make-delivery-fn message)))
               (messages-to-destinations message))))
 
+(defn deliver-from-redelivery-queue
+  [message]
+  "Message consumer.  Accepts a message from the redeliver queue, and
+  attempts delivery."
+  (.execute delivery-executor (make-delivery-fn message)))
+
 (defn subscribe-to-topics
-  [accept-threads]
-  (activemq/subscribe-to-topic "accept" deliver-from-accept-queue accept-threads))
+  [accept-threads redeliver-threads]
+  (activemq/subscribe-to-topic "accept" deliver-from-accept-queue accept-threads)
+  (activemq/subscribe-to-topic "redeliver" deliver-from-redelivery-queue redeliver-threads))
 
 (defn use-this-inventory
   "Specify which inventory to use"

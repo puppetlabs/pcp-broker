@@ -27,9 +27,10 @@
         url-prefix (get-in-config [:cthun :url-prefix])
         activemq-spool (get-in-config [:cthun :broker-spool] "tmp/activemq")
         activemq-broker (mq/build-embedded-broker activemq-spool)
-        accept-threads (get-in-config [:cthun :accept-consumers] 4)]
+        accept-threads (get-in-config [:cthun :accept-consumers] 4)
+        redeliver-threads (get-in-config [:cthun :redeliver-consumers] 2)]
     (cs/use-this-inventory inventory)
-    (cs/subscribe-to-topics accept-threads)
+    (cs/subscribe-to-topics accept-threads redeliver-threads)
     (metrics/enable-cthun-metrics)
     {:host host
      :port port
