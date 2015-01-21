@@ -55,21 +55,16 @@
                                                      "ws"
                                                      {:data {:type "controller"}})))))
 
-(deftest websockets-for-endpoints-test
+(deftest websocket-of-endpoint-test
   (reset! endpoint-map {"cth://bill/agent" "ws1"
-                        "cth://bob/agent" "ws2"
-                        "cth://eric/controller" "ws3"
-                        "cth://bob/controller" "ws4"})
+                        "cth://bob/agent" "ws2"})
   (testing "it finds a single websocket explictly"
-    (is (= '("ws1")
-           (websockets-for-endpoints ["cth://bill/agent"]))))
-  (testing "it finds  multiple things when asked"
-    (is (= '("ws2" "ws4")
-           (sort (websockets-for-endpoints ["cth://bob/agent" "cth://bob/controller"])))))
+    (is (= "ws1"
+           (websocket-of-endpoint "cth://bill/agent"))))
   (testing "it finds nothing by wildcard"
-    (is (= '() (websockets-for-endpoints ["cth://*/agent"]))))
-  (testing "It returns an empty list when the endpoint cannot be found"
-    (is (= '() (websockets-for-endpoints ["cth://bob/nonsuch"])))))
+    (is (not (websocket-of-endpoint "cth://*/agent"))))
+  (testing "it finds nothing when it's not there"
+    (is (not (websocket-of-endpoint "cth://bob/nonsuch")))))
 
 (deftest process-server-message-test
   (with-redefs [puppetlabs.cthun.connection-states/process-login-message (fn [host ws message-body] true)]

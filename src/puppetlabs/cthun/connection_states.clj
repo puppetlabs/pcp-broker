@@ -39,11 +39,10 @@
   [host type]
   (str "cth://" host "/" type))
 
-(defn websockets-for-endpoints
-  "return list of ws given endpoints name"
-  [endpoints]
-  (flatten (remove nil?
-                   (map (fn [endpoint] (get @endpoint-map endpoint)) endpoints))))
+(defn websocket-of-endpoint
+  "Return the websocket an endpoint is connected to, false if not connected"
+  [endpoint]
+  (get @endpoint-map endpoint))
 
 (s/defn ^:always-validate
   new-socket :- ConnectionState
@@ -59,25 +58,26 @@
   [host ws]
   (= (get-in @connection-map [ws :status]) "ready"))
 
-(defn- handle-delivery-exception
-  [message]
+(defn- handle-delivery-failure
+  [message reason]
+  "If the message is not expired schedule for a future redelivery by adding to the redeliver queue"
+  (log/info "Failed to deliver message" message reason)
   (let [expires (time-coerce/to-date-time (:expires message))
         now     (time/now)]
     (if (time/after? expires now)
-      (do
-        (log/info "Failed to deliver message" message)
-        (let [difference     (time/in-seconds (time/interval now expires))
-              sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
-              message        (message/add-hop message "redelivery")]
-          (log/info "Moving message back to the accept queue in " sleep-duration " seconds")
-          (Thread/sleep (* sleep-duration 1000))
-          (activemq/queue-message "accept" message)))
-      (log/warn "Message " message " has expired. Dropping message"))))
+      (let [difference     (time/in-seconds (time/interval now expires))
+            sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
+            message        (message/add-hop message "redelivery")]
+        (log/info "Moving message to the redeliver queue in " sleep-duration " seconds")
+        ;; TODO(richardc): we should queue for future delivery, not sleep
+        (Thread/sleep (* sleep-duration 1000))
+        (activemq/queue-message "redeliver" message)))
+    (log/warn "Message " message " has expired. Dropping message")))
 
 (defn deliver-message
   [message]
   "Delivers a message to the websocket indicated by the :_destination field"
-  (doseq [websocket (websockets-for-endpoints [(:_destination message)])]
+  (if-let [websocket (websocket-of-endpoint (:_destination message))]
     (try
       ; Lock on the websocket object allowing us to do one write at a time
       ; down each of the websockets
@@ -87,7 +87,8 @@
                  (let [message (message/add-hop message "deliver")]
                    (jetty-adapter/send! websocket (byte-array (map byte (message/encode message))))))
       (catch Exception e
-        (.start (Thread. (fn [] (handle-delivery-exception message))))))))
+        (.start (Thread. (fn [] (handle-delivery-failure message e))))))
+    (.start (Thread. (fn [] (handle-delivery-failure message "not connected"))))))
 
 (defn messages-to-destinations
   "Returns a sequence of messages, each with a single endpoint in
@@ -98,20 +99,32 @@
          (assoc message :_destination endpoint))
        ((:find-clients @inventory) (:endpoints message))))
 
+(defn make-delivery-fn
+  "Returns a Runnable that delivers a message to a :_destination"
+  [message]
+  (fn []
+    (log/info "delivering message from executor to websocket" message)
+    (let [message (message/add-hop message "deliver-message")]
+      (deliver-message message))))
+
 (defn deliver-from-accept-queue
   [message]
-  "Message consumer.  Pulls the message off the queue and delivers it"
+  "Message consumer.  Accepts a message from the accept queue, expands
+  destinations, and attempts delivery."
   (doall (map (fn [message]
-                (.execute delivery-executor
-                          (fn []
-                            (log/info "delivering message from executor to websocket" message)
-                            (let [message (message/add-hop message "deliver-message")]
-                              (deliver-message message)))))
+                (.execute delivery-executor (make-delivery-fn message)))
               (messages-to-destinations message))))
 
+(defn deliver-from-redelivery-queue
+  [message]
+  "Message consumer.  Accepts a message from the redeliver queue, and
+  attempts delivery."
+  (.execute delivery-executor (make-delivery-fn message)))
+
 (defn subscribe-to-topics
-  [accept-threads]
-  (activemq/subscribe-to-topic "accept" deliver-from-accept-queue accept-threads))
+  [accept-threads redeliver-threads]
+  (activemq/subscribe-to-topic "accept" deliver-from-accept-queue accept-threads)
+  (activemq/subscribe-to-topic "redeliver" deliver-from-redelivery-queue redeliver-threads))
 
 (defn use-this-inventory
   "Specify which inventory to use"
@@ -124,6 +137,7 @@
   (message (message/add-hop message "accept-to-queue"))
   (time! metrics/time-in-message-queueing
          (activemq/queue-message "accept" message)))
+
 (defn- login-message?
   "Return true if message is a login type message"
   [message]
