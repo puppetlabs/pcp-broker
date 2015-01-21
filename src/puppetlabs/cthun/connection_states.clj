@@ -39,11 +39,10 @@
   [host type]
   (str "cth://" host "/" type))
 
-(defn websockets-for-endpoints
-  "return list of ws given endpoints name"
-  [endpoints]
-  (flatten (remove nil?
-                   (map (fn [endpoint] (get @endpoint-map endpoint)) endpoints))))
+(defn websocket-of-endpoint
+  "Return the websocket an endpoint is connected to, false if not connected"
+  [endpoint]
+  (get @endpoint-map endpoint))
 
 (s/defn ^:always-validate
   new-socket :- ConnectionState
@@ -77,7 +76,7 @@
 (defn deliver-message
   [message]
   "Delivers a message to the websocket indicated by the :_destination field"
-  (doseq [websocket (websockets-for-endpoints [(:_destination message)])]
+  (if-let [websocket (websocket-of-endpoint (:_destination message))]
     (try
       ; Lock on the websocket object allowing us to do one write at a time
       ; down each of the websockets
@@ -87,7 +86,8 @@
                  (let [message (message/add-hop message "deliver")]
                    (jetty-adapter/send! websocket (byte-array (map byte (message/encode message))))))
       (catch Exception e
-        (.start (Thread. (fn [] (handle-delivery-exception message))))))))
+        (.start (Thread. (fn [] (handle-delivery-exception message))))))
+    (.start (Thread. (fn [] (handle-delivery-exception message))))))
 
 (defn messages-to-destinations
   "Returns a sequence of messages, each with a single endpoint in
@@ -136,6 +136,7 @@
   (message (message/add-hop message "accept-to-queue"))
   (time! metrics/time-in-message-queueing
          (activemq/queue-message "accept" message)))
+
 (defn- login-message?
   "Return true if message is a login type message"
   [message]
