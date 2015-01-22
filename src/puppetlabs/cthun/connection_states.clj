@@ -4,7 +4,6 @@
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [puppetlabs.cthun.activemq :as activemq]
-            [puppetlabs.cthun.executor :as executor]
             [puppetlabs.cthun.message :as message]
             [puppetlabs.cthun.validation :as validation]
             [puppetlabs.cthun.metrics :as metrics]
@@ -31,8 +30,12 @@
 
 (def inventory (atom {}))
 
-;; TODO(richardc) make parameterised
-(def delivery-executor (executor/build-executor 0.9 64))
+(def delivery-executor (atom {})) ;; will be replaced with an ExecutorService
+
+(defn set-delivery-executor
+  "Sets the delivery executor"
+  [executor]
+  (reset! delivery-executor executor))
 
 (defn- make-endpoint-string
   "Make a new endpoint string for a host and type"
@@ -112,14 +115,14 @@
   "Message consumer.  Accepts a message from the accept queue, expands
   destinations, and attempts delivery."
   (doall (map (fn [message]
-                (.execute delivery-executor (make-delivery-fn message)))
+                (.execute @delivery-executor (make-delivery-fn message)))
               (messages-to-destinations message))))
 
 (defn deliver-from-redelivery-queue
   [message]
   "Message consumer.  Accepts a message from the redeliver queue, and
   attempts delivery."
-  (.execute delivery-executor (make-delivery-fn message)))
+  (.execute @delivery-executor (make-delivery-fn message)))
 
 (defn subscribe-to-topics
   [accept-threads redeliver-threads]

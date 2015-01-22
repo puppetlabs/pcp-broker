@@ -4,4 +4,4 @@
 
 (deftest build-executor-test
   (testing "it builds an executor"
-    (is (build-executor 0.9 64))))
+    (is (build-executor 64))))

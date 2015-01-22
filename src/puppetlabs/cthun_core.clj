@@ -1,5 +1,6 @@
 (ns puppetlabs.cthun-core
   (:require [clojure.tools.logging :as log]
+            [puppetlabs.cthun.executor :as executor]
             [puppetlabs.cthun.websockets :as websockets]
             [puppetlabs.cthun.connection-states :as cs]
             [puppetlabs.cthun.metrics :as metrics]
@@ -28,7 +29,10 @@
         activemq-spool (get-in-config [:cthun :broker-spool] "tmp/activemq")
         activemq-broker (mq/build-embedded-broker activemq-spool)
         accept-threads (get-in-config [:cthun :accept-consumers] 4)
-        redeliver-threads (get-in-config [:cthun :redeliver-consumers] 2)]
+        redeliver-threads (get-in-config [:cthun :redeliver-consumers] 2)
+        max-delivery-threads (get-in-config [:cthun :max-delivery-threads] 64)
+        delivery-executor (executor/build-executor max-delivery-threads)]
+    (cs/set-delivery-executor delivery-executor)
     (cs/use-this-inventory inventory)
     (cs/subscribe-to-topics accept-threads redeliver-threads)
     (metrics/enable-cthun-metrics)

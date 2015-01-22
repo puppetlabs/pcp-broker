@@ -6,5 +6,5 @@
 
 (defn build-executor
   "return a new Executor Service"
-  [utilization max-threads]
-  (Executors/utilization utilization max-threads (EnumSet/allOf Executor$Metric)))
+  [max-threads]
+  (Executors/utilization 1.0 max-threads (EnumSet/allOf Executor$Metric)))
