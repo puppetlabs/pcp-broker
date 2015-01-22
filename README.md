@@ -9,7 +9,7 @@ We'll build a 1 x Server, 3 x Agent, 1 x Controller environment.
 ## SSL
 
 We'll need to create ssl certificates.  The default paths in
-test-resources/config.conf assume a puppet ca in test-resources/ssl
+test-resources/config.ini assume a puppet ca in test-resources/ssl
 and the that cn of the cthun server will be `cthun-server`.  To
 make these run the following:
 
