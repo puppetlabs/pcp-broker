@@ -58,16 +58,16 @@
                                       "ws2"
                                       {:data {:type "controller"}}))))
 
-    (testing "It does not allow a login to happen twice on the same socket"
+    (testing "It does not allow a login to happen twice on the same websocket"
       (reset! endpoint-map {})
       (reset! connection-map {})
       (add-connection "localhost" "ws")
       (process-login-message "localhost"
                              "ws"
-                             {:data {:type "controller"}})
-      (is (thrown? Exception  (process-login-message "localhost"
-                                                     "ws"
-                                                     {:data {:type "controller"}}))))))
+                             {:data {:type "controller"}}))
+    (is (not (process-login-message "localhost"
+                                    "ws"
+                                    {:data {:type "controller"}})))))
 
 (deftest websocket-of-endpoint-test
   (reset! endpoint-map {"cth://bill/agent" "ws1"

@@ -166,10 +166,12 @@
   (when (validation/validate-login-data (:data message-body))
     (log/info "Valid login message received")
     (if (logged-in? host ws)
-      (throw (Exception. (str "Received login attempt for '" host "/" (get-in message-body [:data :type]) "' on socket '"
-                         ws "'.  Socket was already logged in as " host / (get-in @connection-map [ws :type])
-                         " connected since " (get-in @connection-map [ws :created-at])
-                         ". Ignoring")))
+      (let [current (get-in @connection-map [ws])]
+        (log/error "Received login attempt for '" host "/" (get-in message-body [:data :type]) "' on socket '"
+                   ws "'.  Socket was already logged in as " host "/" (:type current)
+                   " connected since " (:created-at current)
+                   ".  Closing new connection.")
+        (jetty-adapter/close! ws))
       (let [data (:data message-body)
             type (:type data)
             endpoint (make-endpoint-string host type)]

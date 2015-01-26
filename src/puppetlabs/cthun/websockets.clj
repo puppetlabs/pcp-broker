@@ -52,7 +52,10 @@
              (if-let [message-body (message/decode message)]
                (if (validation/check-certname (:sender message-body) host)
                  (let [message-body (message/add-hop message-body "accepted" timestamp)]
-                   (cs/process-message host ws message-body)))
+                   (cs/process-message host ws message-body))
+                 (do
+                   (log/warn "Recieved message does not match certname.  Disconnecting websocket.")
+                   (jetty-adapter/close! ws)))
                (log/warn "Received message does not match valid message schema. Dropping."))))))
 
 (defn- on-bytes!
@@ -68,7 +71,10 @@
              (if-let [message-body (message/decode message)]
                (if (validation/check-certname (:sender message-body) host)
                  (let [message-body (message/add-hop message-body "accepted" timestamp)]
-                   (cs/process-message host ws message-body)))
+                   (cs/process-message host ws message-body))
+                 (do
+                   (log/warn "Recieved message does not match certname.  Disconnecting websocket.")
+                   (jetty-adapter/close! ws)))
                (log/warn "Received message does not match valid message schema. Dropping."))))))
 
 (defn- on-error
