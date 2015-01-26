@@ -173,12 +173,17 @@
       (let [data (:data message-body)
             type (:type data)
             endpoint (make-endpoint-string host type)]
-        (swap! connection-map update-in [ws] merge {:type type
-                                                    :status "ready"
-                                                    :endpoint endpoint})
-        (swap! endpoint-map assoc endpoint ws)
-        ((:record-client @inventory) endpoint)
-        (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))
+        (if-let [old-ws (websocket-of-endpoint endpoint)]
+          (do
+            (log/error "endpoint " endpoint " already logged in on " old-ws  " Closing new connection")
+            (jetty-adapter/close! ws))
+          (do
+            (swap! connection-map update-in [ws] merge {:type type
+                                                        :status "ready"
+                                                        :endpoint endpoint})
+            (swap! endpoint-map assoc endpoint ws)
+            ((:record-client @inventory) endpoint)
+            (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))))
 
 (defn- process-inventory-message
   "Process a request for inventory data"

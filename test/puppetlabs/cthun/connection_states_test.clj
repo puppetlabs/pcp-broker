@@ -29,8 +29,10 @@
       (is (not= nil (ks/datetime? (:created-at socket)))))))
 
 (deftest process-login-message-test
-  (with-redefs [puppetlabs.cthun.validation/validate-login-data (fn [data] true)]
+  (with-redefs [puppetlabs.cthun.validation/validate-login-data (fn [data] true)
+                ring.adapter.jetty9/close! (fn [ws] false)]
     (testing "It should perform a login"
+      (reset! endpoint-map {})
       (add-connection "localhost" "ws")
       (reset! inventory {:record-client (fn [endpoint])})
       (swap! connection-map assoc-in ["ws" :created-at] "squirrel")
@@ -42,18 +44,30 @@
         (is (= (:type connection) "controller"))
         (is (= (:status connection) "ready"))
         (is (= (:created-at connection) "squirrel"))
-        (is (= "cth://localhost/controller" (:endpoint connection))))))
+        (is (= "cth://localhost/controller" (:endpoint connection)))))
 
+    (testing "It does not allow a login to happen from two locations for the same endpoint"
+      (reset! endpoint-map {})
+      (reset! connection-map {})
+      (add-connection "localhost" "ws1")
+      (add-connection "localhost" "ws2")
+      (process-login-message "localhost"
+                             "ws1"
+                             {:data {:type "controller"}})
+      (is (not (process-login-message "localhost"
+                                      "ws2"
+                                      {:data {:type "controller"}}))))
 
-  (testing "It does not allow a login to happen twice on the same socket"
-    (with-redefs [puppetlabs.cthun.validation/validate-login-data (fn [data] true)]
+    (testing "It does not allow a login to happen twice on the same socket"
+      (reset! endpoint-map {})
+      (reset! connection-map {})
       (add-connection "localhost" "ws")
       (process-login-message "localhost"
                              "ws"
-                             {:data {:type "controller"}}))
+                             {:data {:type "controller"}})
       (is (thrown? Exception  (process-login-message "localhost"
                                                      "ws"
-                                                     {:data {:type "controller"}})))))
+                                                     {:data {:type "controller"}}))))))
 
 (deftest websocket-of-endpoint-test
   (reset! endpoint-map {"cth://bill/agent" "ws1"
