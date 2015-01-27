@@ -136,6 +136,16 @@
   (doto (#'jetty-adapter/http-config options)
     (.setCustomizers customizers)))
 
+(defn- make-ssl-context-factory
+  [options]
+  "Returns a jetty.util.SslContextFactory.  This is the one from
+  ring.adapter.jetty9 with options set to use the crl from
+  ssl-crl-path, and to verify the peer"
+  (let [factory (#'jetty-adapter/ssl-context-factory options)]
+    (.setCrlPath factory (:ssl-crl-path options))
+    (.setValidatePeerCerts factory true)
+    factory))
+
 (defn- make-jetty9-configurator
   "Returns a configurator function that is called with
   jetty.server.Server before it's started.  We take this as a way of
@@ -148,7 +158,7 @@
     (let [https-configuration (https-config options)
           https-connector (doto (ServerConnector.
                                  ^Server server
-                                 (#'jetty-adapter/ssl-context-factory options)
+                                 (make-ssl-context-factory options)
                                  (into-array ConnectionFactory [(HttpConnectionFactory. https-configuration)]))
                             (.setPort (:ssl-port options))
                             (.setHost (:host options)))
