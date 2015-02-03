@@ -11,12 +11,13 @@
 ;; puppetdb about extracting puppetlabs.puppetdb.mq into a common library.
 
 (defn queue-message
-  [topic message]
+  "Queue a message on a middleware"
+  [topic message & args]
   (let [mq-spec "vm://localhost?create=false"
         mq-endpoint topic]
     (log/info "queueing message" message)
     (with-open [conn (mq/activemq-connection mq-spec)]
-      (mq/connect-and-publish! conn mq-endpoint (json/generate-string message)))))
+      (apply mq/connect-and-publish! conn mq-endpoint (json/generate-string message) args))))
 
 (defn subscribe-to-topic
   [topic callback-fn consumer-count]

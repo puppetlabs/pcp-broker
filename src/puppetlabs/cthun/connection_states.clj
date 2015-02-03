@@ -7,6 +7,7 @@
             [puppetlabs.cthun.message :as message]
             [puppetlabs.cthun.validation :as validation]
             [puppetlabs.cthun.metrics :as metrics]
+            [puppetlabs.puppetdb.mq :as mq]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as s]
             [clj-time.core :as time]
@@ -68,14 +69,12 @@
   (let [expires (time-coerce/to-date-time (:expires message))
         now     (time/now)]
     (if (time/after? expires now)
-      (let [difference     (time/in-seconds (time/interval now expires))
-            sleep-duration (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
-            message        (message/add-hop message "redelivery")]
-        (log/info "Moving message to the redeliver queue in " sleep-duration " seconds")
-        ;; TODO(richardc): we should queue for future delivery, not sleep
-        (Thread/sleep (* sleep-duration 1000))
-        (activemq/queue-message "redeliver" message)))
-    (log/warn "Message " message " has expired. Dropping message")))
+      (let [difference  (time/in-seconds (time/interval now expires))
+            retry-delay (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
+            message     (message/add-hop message "redelivery")]
+        (log/info "Moving message to the redeliver queue for redelivery in" retry-delay "seconds")
+        (activemq/queue-message "redeliver" message (mq/delay-property retry-delay :seconds)))
+      (log/warn "Message " message " has expired. Dropping message"))))
 
 (defn deliver-message
   [message]
@@ -90,8 +89,8 @@
                  (let [message (message/add-hop message "deliver")]
                    (jetty-adapter/send! websocket (byte-array (map byte (message/encode message))))))
       (catch Exception e
-        (.start (Thread. (fn [] (handle-delivery-failure message e))))))
-    (.start (Thread. (fn [] (handle-delivery-failure message "not connected"))))))
+        (handle-delivery-failure message e)))
+    (handle-delivery-failure message "not connected")))
 
 (defn messages-to-destinations
   "Returns a sequence of messages, each with a single endpoint in
