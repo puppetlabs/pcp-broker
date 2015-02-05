@@ -42,42 +42,32 @@
             (cs/add-connection host ws))
           (inc! metrics/active-connections))))
 
-(defn- on-text!
-  "OnMessage (text) websocket event handler"
-  [^WebSocketAdapter ws message]
+(defn on-message!
+  [^WebSocketAdapter ws bytes]
   (let [timestamp (kitchensink/timestamp)]
     (inc! metrics/total-messages-in)
     (mark! metrics/rate-messages-in)
     (time! metrics/time-in-on-text
            (let [host (get-hostname ws)]
              (log/info "Received message from client" host)
-             (if-let [message-body (message/decode message)]
-               (if (validation/check-certname (:sender message-body) host)
-                 (let [message-body (message/add-hop message-body "accepted" timestamp)]
-                   (cs/process-message host ws message-body))
+             (if-let [message (message/decode bytes)]
+               (if (validation/check-certname (:sender message) host)
+                 (let [message (message/add-hop message "accepted" timestamp)]
+                   (cs/process-message host ws message))
                  (do
                    (log/warn "Recieved message does not match certname.  Disconnecting websocket.")
                    (jetty-adapter/close! ws)))
                (log/warn "Received message does not match valid message schema. Dropping."))))))
 
+(defn- on-text!
+  "OnMessage (text) websocket event handler"
+  [^WebSocketAdapter ws message]
+  (on-message! ws (message/string->bytes message)))
+
 (defn- on-bytes!
   "OnMessage (binary) websocket event handler"
   [^WebSocketAdapter ws bytes offset len]
-  (let [timestamp (kitchensink/timestamp)]
-    (inc! metrics/total-messages-in)
-    (mark! metrics/rate-messages-in)
-    (time! metrics/time-in-on-text
-           (let [host (get-hostname ws)
-                 message (String. bytes)]
-             (log/info "Received message from client" host)
-             (if-let [message-body (message/decode message)]
-               (if (validation/check-certname (:sender message-body) host)
-                 (let [message-body (message/add-hop message-body "accepted" timestamp)]
-                   (cs/process-message host ws message-body))
-                 (do
-                   (log/warn "Recieved message does not match certname.  Disconnecting websocket.")
-                   (jetty-adapter/close! ws)))
-               (log/warn "Received message does not match valid message schema. Dropping."))))))
+  (on-message! ws bytes))
 
 (defn- on-error
   "OnError websocket event handler"

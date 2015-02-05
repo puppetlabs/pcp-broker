@@ -53,11 +53,11 @@
 (deftest websocket-handlers-test
   (testing "All the handler functions are defined"
     (let [handlers (websocket-handlers)]
-      (is (= (type (handlers :on-connect)) puppetlabs.cthun.websockets$on_connect_BANG_))
-      (is (= (type (handlers :on-error)) puppetlabs.cthun.websockets$on_error))
-      (is (= (type (handlers :on-close)) puppetlabs.cthun.websockets$on_close_BANG_))
-      (is (= (type (handlers :on-text)) puppetlabs.cthun.websockets$on_text_BANG_))
-      (is (= (type (handlers :on-bytes)) puppetlabs.cthun.websockets$on_bytes_BANG_)))))
+      (is (fn? (handlers :on-connect)))
+      (is (fn? (handlers :on-error)))
+      (is (fn? (handlers :on-close)))
+      (is (fn? (handlers :on-text)))
+      (is (fn? (handlers :on-bytes))))))
 
 (deftest start-jetty-test
   (with-redefs [ring.adapter.jetty9/run-jetty (fn [app arg-map] true)]

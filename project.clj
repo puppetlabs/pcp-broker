@@ -21,6 +21,8 @@
 
                  [com.taoensso/nippy "2.7.1"]
 
+                 [org.clojars.smee/binary "0.3.0"]
+
                  [org.clojure/java.jmx "0.3.0"]
                  [metrics-clojure "0.7.0" :exclusions [org.clojure/clojure org.slf4j/slf4j-api]]
 
