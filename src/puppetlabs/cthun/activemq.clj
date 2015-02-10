@@ -1,7 +1,7 @@
 (ns puppetlabs.cthun.activemq
   (:require [clojure.edn :as edn]
+            [taoensso.nippy :as nippy]
             [puppetlabs.puppetdb.mq :as mq]
-            [puppetlabs.puppetdb.cheshire :as json]
             [clamq.protocol.consumer :as mq-cons]
             [clamq.protocol.connection :as mq-conn]
             [clojure.tools.logging :as log]))
@@ -17,7 +17,7 @@
         mq-endpoint topic]
     (log/info "queueing message" message)
     (with-open [conn (mq/activemq-connection mq-spec)]
-      (apply mq/connect-and-publish! conn mq-endpoint (json/generate-string message) args))))
+      (apply mq/connect-and-publish! conn mq-endpoint (nippy/freeze message) args))))
 
 (defn subscribe-to-topic
   [topic callback-fn consumer-count]
@@ -27,9 +27,10 @@
         (let [consumer (mq-conn/consumer conn
                                          {:endpoint   topic
                                           :on-message (fn [message]
-                                                        (log/info "consuming message" (:body message))
-                                                        ; TODO(ploubser): Take another look at using edn instead
-                                                        (callback-fn (json/parse-string (:body message) true)))
+                                                        (let [body (:body message)
+                                                              thawed (nippy/thaw body)]
+                                                          (log/info "consuming message" thawed)
+                                                          (callback-fn thawed)))
                                           :transacted true
                                           :on-failure #(log/error "error consuming message" (:exception %))})]
           (mq-cons/start consumer))))))
