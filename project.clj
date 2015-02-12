@@ -8,12 +8,13 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
 		 [info.sunng/ring-jetty9-adapter "0.7.1"]
-                 [compojure "1.1.8"]
                  [org.clojure/tools.logging "0.3.0"]
                  [org.clojure/core.incubator "0.1.3"]
                  [org.clojure/core.async "0.1.338.0-5c5012-alpha"]
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/kitchensink ~ks-version]
+                 [puppetlabs/trapperkeeper-webserver-jetty9 "0.7.3"]
+
                  [cheshire "5.3.1"]
                  [prismatic/schema "0.2.6"]
                  [clj-time "0.8.0"]
@@ -42,11 +43,9 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [[puppetlabs/trapperkeeper-webserver-jetty9 "0.7.3"]
+  :profiles {:dev {:dependencies [
                                   [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
-                                  [clj-http "1.0.0"]
-                                  [ring-mock "0.1.5"]]}}
+                                  [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]}}
 
   :aliases {"tk" ["trampoline" "run" "--config" "test-resources/config.ini"]}
 

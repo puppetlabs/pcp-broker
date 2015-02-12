@@ -4,10 +4,7 @@
             [puppetlabs.cthun.websockets :as websockets]
             [puppetlabs.cthun.connection-states :as cs]
             [puppetlabs.cthun.metrics :as metrics]
-            [puppetlabs.puppetdb.mq :as mq]
-            [compojure.core :as compojure]
-            [cheshire.core :as cheshire]
-            [compojure.route :as route]))
+            [puppetlabs.puppetdb.mq :as mq]))
 
 (defn- websocket-app
   [conf]
