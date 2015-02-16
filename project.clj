@@ -43,12 +43,12 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [
-                                  [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
+  :profiles {:dev {:dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]}}
+
+  ;; Enable occasionally to check we have no interop hotspots that need better type hinting
+  ; :global-vars {*warn-on-reflection* true}
 
   :aliases {"tk" ["trampoline" "run" "--config" "test-resources/config.ini"]}
 
-  :main puppetlabs.trapperkeeper.main
-
-  )
+  :main puppetlabs.trapperkeeper.main)

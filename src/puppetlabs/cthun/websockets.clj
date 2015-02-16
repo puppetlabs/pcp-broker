@@ -1,7 +1,9 @@
 (ns puppetlabs.cthun.websockets
   (:import (org.eclipse.jetty.server
             Server ServerConnector ConnectionFactory HttpConnectionFactory
-            Connector HttpConfiguration Request))
+            Connector HttpConfiguration Request)
+           (org.eclipse.jetty.websocket.api
+            WebSocketAdapter))
   (:require  [clojure.tools.logging :as log]
              [ring.adapter.jetty9 :as jetty-adapter]
              [puppetlabs.cthun.validation :as validation]
@@ -18,7 +20,7 @@
 
 (defn- get-hostname*
   "Get the hostname or client certificate name from a websocket"
-  [ws]
+  [^WebSocketAdapter ws]
   (if (.. ws getSession getUpgradeRequest isSecure)
     (let [remoteaddr (.. ws getSession getRemoteAddress toString)
           cn         (get @remote-cns remoteaddr)]
@@ -31,7 +33,7 @@
 
 (defn- on-connect!
   "OnConnect websocket event handler"
-  [ws]
+  [^WebSocketAdapter ws]
   (time! metrics/time-in-on-connect
          ((let [host (get-hostname ws)
                 idle-timeout (* 1000 60 15)]
@@ -42,7 +44,7 @@
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"
-  [ws message]
+  [^WebSocketAdapter ws message]
   (let [timestamp (kitchensink/timestamp)]
     (inc! metrics/total-messages-in)
     (mark! metrics/rate-messages-in)
@@ -60,7 +62,7 @@
 
 (defn- on-bytes!
   "OnMessage (binary) websocket event handler"
-  [ws bytes offset len]
+  [^WebSocketAdapter ws bytes offset len]
   (let [timestamp (kitchensink/timestamp)]
     (inc! metrics/total-messages-in)
     (mark! metrics/rate-messages-in)
@@ -79,13 +81,13 @@
 
 (defn- on-error
   "OnError websocket event handler"
-  [ws e]
+  [^WebSocketAdapter ws e]
   (log/error e)
   (dec! metrics/active-connections))
 
 (defn- on-close!
   "OnClose websocket event handler"
-  [ws status-code reason]
+  [^WebSocketAdapter ws status-code reason]
   (let [hostname (get-hostname ws)]
     (log/info "Connection from" hostname "terminated with statuscode:" status-code " Reason:" reason)
     (dec! metrics/active-connections)
