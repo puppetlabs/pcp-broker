@@ -51,8 +51,10 @@
    ;; TODO(richardc) this server field should come from the cert of this instance
      (let [hop {:server "cth://fake/server"
                 :time   timestamp
-                :stage  stage}]
-       (update-in message [:_hops] conj hop))))
+                :stage  stage}
+           hops (vec (:_hops message))
+           new-hops (conj hops hop)]
+       (assoc message :_hops new-hops))))
 
 (defn get-data
   "Returns the data from the data frame"

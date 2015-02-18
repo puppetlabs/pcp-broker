@@ -18,27 +18,25 @@
 (deftest add-hop-test
   (with-redefs [puppetlabs.kitchensink.core/timestamp (fn [] "Tomorrow")]
     (testing "it adds a hop"
-      (is (= {:_hops [{:server "cth://fake/server"
+      (is (= [{:server "cth://fake/server"
                        :time   "Another day"
-                       :stage  "potato"}]}
-             (add-hop {:_hops []} "potato" "Another day"))))
-
+                       :stage  "potato"}]
+             (:_hops (add-hop (make-message) "potato" "Another day")))))
     (testing "it allows timestamp to be optional"
-      (is (= {:_hops [{:server "cth://fake/server"
-                       :time   "Tomorrow"
-                       :stage  "potato"}]}
-             (add-hop {:_hops []} "potato"))))
-
+      (is (= [{:server "cth://fake/server"
+               :time   "Tomorrow"
+               :stage  "potato"}]
+             (:_hops (add-hop (make-message) "potato")))))
     (testing "it adds hops in the expected order"
-      (is (= {:_hops [{:server "cth://fake/server"
-                       :time   "Tomorrow"
-                       :stage  "potato"}
-                      {:server "cth://fake/server"
-                       :time   "Tomorrow"
-                       :stage  "mash"}]}
-             (-> {:_hops []}
-                 (add-hop "potato")
-                 (add-hop "mash")))))))
+      (is (= [{:server "cth://fake/server"
+               :time   "Tomorrow"
+               :stage  "potato"}
+              {:server "cth://fake/server"
+               :time   "Tomorrow"
+               :stage  "mash"}]
+             (:_hops (-> (make-message)
+                         (add-hop "potato")
+                         (add-hop "mash"))))))))
 
 (deftest encode-descriptor-test
   (testing "it encodes"
