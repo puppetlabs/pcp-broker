@@ -87,7 +87,7 @@
                  (inc! metrics/total-messages-out)
                  (mark! metrics/rate-messages-out)
                  (let [message (message/add-hop message "deliver")]
-                   (jetty-adapter/send! websocket (byte-array (map byte (message/encode message))))))
+                   (jetty-adapter/send! websocket (message/encode message))))
       (catch Exception e
         (handle-delivery-failure message e)))
     (handle-delivery-failure message "not connected")))
@@ -161,60 +161,61 @@
 (defn- process-login-message
   "Process a login message from a client"
   [host ws message-body]
-  (log/info "Processing login message")
-  (when (validation/validate-login-data (:data message-body))
-    (log/info "Valid login message received")
-    (if (logged-in? host ws)
-      (let [current (get-in @connection-map [ws])]
-        (log/error "Received login attempt for '" host "/" (get-in message-body [:data :type]) "' on socket '"
-                   ws "'.  Socket was already logged in as " host "/" (:type current)
-                   " connected since " (:created-at current)
-                   ".  Closing new connection.")
-        (jetty-adapter/close! ws))
-      (let [data (:data message-body)
-            type (:type data)
-            endpoint (make-endpoint-string host type)]
-        (if-let [old-ws (websocket-of-endpoint endpoint)]
-          (do
-            (log/error "endpoint " endpoint " already logged in on " old-ws  " Closing new connection")
-            (jetty-adapter/close! ws))
-          (do
-            (swap! connection-map update-in [ws] merge {:type type
-                                                        :status "ready"
-                                                        :endpoint endpoint})
-            (swap! endpoint-map assoc endpoint ws)
-            ((:record-client @inventory) endpoint)
-            (log/info "Successfully logged in " host "/" type " on websocket: " ws)))))))
+  (let [data (message/get-json-data message-body)]
+    (log/info "Processing login message" data)
+    (when (validation/validate-login-data data)
+      (log/info "Valid login message received")
+      (if (logged-in? host ws)
+        (let [current (get-in @connection-map [ws])]
+          (log/error "Received login attempt for '" host "/" (:type data) "' on socket '"
+                     ws "'.  Socket was already logged in as " host "/" (:type current)
+                     " connected since " (:created-at current)
+                     ".  Closing new connection.")
+          (jetty-adapter/close! ws))
+        (let [type (:type data)
+              endpoint (make-endpoint-string host type)]
+          (if-let [old-ws (websocket-of-endpoint endpoint)]
+            (do
+              (log/error "endpoint " endpoint " already logged in on " old-ws  " Closing new connection")
+              (jetty-adapter/close! ws))
+            (do
+              (swap! connection-map update-in [ws] merge {:type type
+                                                          :status "ready"
+                                                          :endpoint endpoint})
+              (swap! endpoint-map assoc endpoint ws)
+              ((:record-client @inventory) endpoint)
+              (log/info "Successfully logged in " host "/" type " on websocket: " ws))))))))
 
 (defn- process-inventory-message
   "Process a request for inventory data"
-  [host ws message-body]
+  [host ws message]
   (log/info "Processing inventory message")
-  (when (validation/validate-inventory-data (:data message-body))
-    (log/info "Valid inventory message received")
-    (let [data (:data message-body)]
-      (process-client-message host ws  {:version 1
-                                        :id 12345
-                                        :endpoints [(get-in @connection-map [ws :endpoint])]
-                                        :data_schema "http://puppetlabs.com/inventoryresponseschema"
-                                        :sender "cth://server"
-                                        :expires ""
-                                        :hops []
-                                        :data {:response
-                                               {:endpoints ((:find-clients @inventory) (:query data))}}}))))
+  (let [data (message/get-json-data message)]
+    (when (validation/validate-inventory-data data)
+      (log/info "Valid inventory message received")
+      (let [endpoints ((:find-clients @inventory) (:query data))
+            response-data {:endpoints endpoints}
+            response (-> (message/make-message)
+                         (assoc :id (ks/uuid)
+                                :expires ""
+                                :endpoints [(get-in @connection-map [ws :endpoint])]
+                                :data_schema "http://puppetlabs.com/inventoryresponseschema"
+                                :sender "cth://server")
+                         (message/set-json-data response-data))]
+        (process-client-message host ws response)))))
 
 (defn- process-server-message
   "Process a message directed at the middleware"
-  [host ws message-body]
+  [host ws message]
   (log/info "Procesesing server message")
   ; We've only got two message types at the moment - login and inventory
   ; More will be added as we add server functionality
   ; To define a new message type add a schema to
   ; puppetlabs.cthun.validation, check for it here and process it.
-  (let [data-schema (:data_schema message-body)]
+  (let [data-schema (:data_schema message)]
     (case data-schema
-      "http://puppetlabs.com/loginschema" (process-login-message host ws message-body)
-      "http://puppetlabs.com/inventoryschema" (process-inventory-message host ws message-body)
+      "http://puppetlabs.com/loginschema" (process-login-message host ws message)
+      "http://puppetlabs.com/inventoryschema" (process-inventory-message host ws message)
       (log/warn "Invalid server message type received: " data-schema))))
 
 (defn message-expired?

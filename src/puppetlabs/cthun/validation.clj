@@ -18,17 +18,18 @@
    (s/optional-key :stage) s/Str
    (s/required-key :time) ISO8601})
 
-; Message types
-(def ClientMessage
-  "Defines the message format expected from a client"
-  {(s/required-key :version) s/Str
-   (s/required-key :id) s/Str ;; TODO(richardc) check it looks like a UUID maybe?
-   (s/required-key :endpoints) [Endpoint]
-   (s/required-key :data_schema) s/Str
-   (s/required-key :sender) Endpoint
-   (s/required-key :expires) ISO8601
-   (s/required-key :hops) [MessageHop]
-   (s/optional-key :data) {s/Keyword s/Any}})
+(def Envelope
+  "Defines the envelope format of a v2 message"
+  {:id           s/Str ;; TODO(richardc) check it looks like a UUID maybe?
+   :sender       Endpoint
+   :endpoints    [Endpoint]
+   :data_schema  s/Str
+   :expires      ISO8601
+
+   ;; TODO(richardc) remove once the agent/pegasus stop sending
+   (s/optional-key :hops) [MessageHop]
+   (s/optional-key :version) s/Str
+   })
 
 ; Server message data types
 (def LoginMessageData
@@ -44,13 +45,6 @@
   "Parse an endpoint string into its component parts.  Raises if incomplete"
   [endpoint :- Endpoint]
   (str/split (subs endpoint 6) #"/"))
-
-(defn check-schema
-  "Check if the JSON matches the ClientMessage schema.
-  Returns message on success.
-  Throws on failure."
-  [json]
-  (s/validate ClientMessage json))
 
 (defn check-certname
   "Validate that the cert name advertised by the client matches the cert name in the certificate"

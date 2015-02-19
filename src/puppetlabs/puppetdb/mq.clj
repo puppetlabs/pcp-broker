@@ -239,8 +239,11 @@
    (let [^TextMessage text-message message]
      (.getText text-message))
    (instance? javax.jms.BytesMessage message)
-   (let [^BytesMessage bytes-message message]
-     (.readUTF8 bytes-message))
+   (let [^BytesMessage bytes-message message
+         size (.getBodyLength bytes-message)
+         buffer (byte-array size)]
+     (.readBytes bytes-message buffer)
+     buffer)
    :else
    (throw (ex-info (str "Expected a text message, instead found: " (class message))))))
 
