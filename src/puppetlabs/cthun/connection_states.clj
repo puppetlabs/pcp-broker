@@ -92,14 +92,10 @@
         (handle-delivery-failure message e)))
     (handle-delivery-failure message "not connected")))
 
-(defn messages-to-destinations
-  "Returns a sequence of messages, each with a single endpoint in
-  its :_destination field.  All wildcards are expanded here by the
-  InventoryService."
+(defn expand-destinations
+  "Return the destinations a message should be delivered to"
   [message]
-  (map (fn [endpoint]
-         (assoc message :_destination endpoint))
-       ((:find-clients @inventory) (:endpoints message))))
+  ((:find-clients @inventory) (:endpoints message)))
 
 (defn make-delivery-fn
   "Returns a Runnable that delivers a message to a :_destination"
@@ -109,18 +105,37 @@
     (let [message (message/add-hop message "deliver-message")]
       (deliver-message message))))
 
+(declare process-client-message) ;; TODO(richardc) restructure to avoid forward decl, maybe rename
+
+(defn maybe-send-destination-report
+  "Send a destination report about the given message, if requested"
+  [message destinations]
+  (if (:destination_report message)
+    (let [report {:message (:id message)
+                  :destination destinations}
+          reply (-> (message/make-message)
+                    (assoc :id (ks/uuid)
+                           :expires ""
+                           :endpoints [(:sender message)]
+                           :data_schema "http://puppetlabs.com/destination_report"
+                           :sender "cth://server")
+                    (message/set-json-data report))]
+      (s/validate validation/DestinationReport report)
+      (process-client-message nil nil reply))))
+
 (defn deliver-from-accept-queue
-  [message]
   "Message consumer.  Accepts a message from the accept queue, expands
   destinations, and attempts delivery."
-  (doall (map (fn [message]
-                (.execute @delivery-executor (make-delivery-fn message)))
-              (messages-to-destinations message))))
+  [message]
+  (let [destinations (expand-destinations message)
+        messages (map #(assoc message :_destination %) destinations)]
+    (maybe-send-destination-report message destinations)
+    (doall (map #(.execute @delivery-executor (make-delivery-fn %)) messages))))
 
 (defn deliver-from-redelivery-queue
-  [message]
   "Message consumer.  Accepts a message from the redeliver queue, and
   attempts delivery."
+  [message]
   (.execute @delivery-executor (make-delivery-fn message)))
 
 (defn subscribe-to-topics

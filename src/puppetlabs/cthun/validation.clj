@@ -18,13 +18,19 @@
    (s/optional-key :stage) s/Str
    (s/required-key :time) ISO8601})
 
+(def MessageId
+  "A message identfier" ;; TODO(richardc) check it looks like a UUID maybe?
+  s/Str)
+
 (def Envelope
   "Defines the envelope format of a v2 message"
-  {:id           s/Str ;; TODO(richardc) check it looks like a UUID maybe?
+  {:id           MessageId
    :sender       Endpoint
    :endpoints    [Endpoint]
    :data_schema  s/Str
    :expires      ISO8601
+
+   (s/optional-key :destination_report) s/Bool
 
    ;; TODO(richardc) remove once the agent/pegasus stop sending
    (s/optional-key :hops) [MessageHop]
@@ -39,6 +45,11 @@
 (def InventoryMessageData
   "Defines the data field for an inventory message body"
   {(s/required-key :query) [s/Str]})
+
+(def DestinationReport
+  "Defined the data field for a destination report body"
+  {:message MessageId
+   :destination [Endpoint]})
 
 (s/defn ^:always-validate
   explode-endpoint :- [s/Str]
