@@ -1,6 +1,5 @@
 (ns puppetlabs.cthun.connection-states
   (:require [clojure.core.async :as async]
-            [clojure.core.incubator :refer [dissoc-in]]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [puppetlabs.cthun.activemq :as activemq]

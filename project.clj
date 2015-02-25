@@ -9,7 +9,6 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
 		 [info.sunng/ring-jetty9-adapter "0.8.1"]
                  [org.clojure/tools.logging "0.3.1"]
-                 [org.clojure/core.incubator "0.1.3"]
                  [org.clojure/core.async "0.1.338.0-5c5012-alpha"]
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/kitchensink ~ks-version]
