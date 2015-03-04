@@ -2,7 +2,8 @@
   (:require [clojure.tools.logging :as log]
             [clojure.string :as str]
             [puppetlabs.kitchensink.core :as ks]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [slingshot.slingshot :refer [throw+]]))
 
 (def ISO8601
   "Schema validates if string conforms to ISO8601"
@@ -51,18 +52,23 @@
   {:message MessageId
    :destination [Endpoint]})
 
+(def ErrorMessage
+  "Data schema for http://puppetlabs.com/error_message"
+  {:description s/Str})
+
 (s/defn ^:always-validate
   explode-endpoint :- [s/Str]
   "Parse an endpoint string into its component parts.  Raises if incomplete"
   [endpoint :- Endpoint]
   (str/split (subs endpoint 6) #"/"))
 
-(defn check-certname
+(defn validate-certname
   "Validate that the cert name advertised by the client matches the cert name in the certificate"
   [endpoint certname]
   (let [[client] (explode-endpoint endpoint)]
     (if-not (= client certname)
-      (log/warn "Certifcate name used in sender " endpoint " doesn't match the certname in certificate " certname)
+      (throw+ {:type ::identity-invalid
+               :message (str "Certificate name used in sender " endpoint " doesn't match the certname in certificate " certname)})
       true)))
 
 (defn validate-login-data

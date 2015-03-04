@@ -4,8 +4,8 @@
             [cheshire.core :as cheshire]
             [org.clojars.smee.binary.core :as b]
             [puppetlabs.cthun.validation :as validation]
-            [schema.core :as s]))
-
+            [schema.core :as s]
+            [slingshot.slingshot :refer [try+ throw+]]))
 
 ;; string<->byte-array utilities
 
@@ -145,16 +145,28 @@
   "Returns a message object from a network format message"
   [bytes]
   (let [stream (java.io.ByteArrayInputStream. bytes)
-        decoded (b/decode message-codec stream)]
+        decoded (try+
+                 (b/decode message-codec stream)
+                 (catch Throwable _
+                   (throw+ {:type ::message-malformed
+                            :message (:message &throw-context)})))]
     (log/info "decoded as" decoded)
     (log/info "envelope" (bytes->string (:data (first (:chunks decoded)))))
     (log/info "body"     (bytes->string (or (:data (second (:chunks decoded))) (byte-array 0))))
     (if (not (= 1 (get-in (first (:chunks decoded)) [:descriptor :type])))
-      (throw "first chunk should be type 1"))
+      (throw+ {:type ::message-invalid
+               :message "first chunk should be type 1"}))
     (let [envelope-json (bytes->string (:data (first (:chunks decoded))))
-          envelope (cheshire/decode envelope-json true)
+          envelope (try+
+                    (cheshire/decode envelope-json true)
+                    (catch Exception _
+                      (throw+ {:type ::envelope-malformed
+                               :message (:message &throw-context)})))
           data-chunk (second (:chunks decoded))
           data-frame (or (:data data-chunk) (byte-array 0))
           data-flags (or (get-in data-chunk [:descriptor :flags]) #{})]
-      (s/validate validation/Envelope envelope)
+      (try+ (s/validate validation/Envelope envelope)
+            (catch Throwable _
+              (throw+ {:type ::envelope-invalid
+                       :message (:message &throw-context)})))
       (set-data envelope data-frame data-flags))))
