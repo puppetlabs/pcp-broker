@@ -47,7 +47,7 @@
   {(s/required-key :query) [s/Str]})
 
 (def DestinationReport
-  "Defined the data field for a destination report body"
+  "Defines the data field for a destination report body"
   {:message MessageId
    :destination [Endpoint]})
 
