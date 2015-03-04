@@ -3,7 +3,7 @@
             [puppetlabs.cthun.validation :refer :all]
             [schema.core :as s]))
 
-(deftest check-endpoint-test
+(deftest endpoint-test
   (testing "it raises an exception for invalid endpoints"
     (is (thrown? Exception (s/validate Endpoint "")))
     (is (thrown? Exception (s/validate Endpoint "http://")))
