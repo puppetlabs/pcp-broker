@@ -14,7 +14,9 @@
              [metrics.meters :refer [mark!]]
              [metrics.timers :refer [time!]]
              [puppetlabs.cthun.metrics :as metrics]
-             [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]))
+             [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]
+             [schema.core :as s]
+             [slingshot.slingshot :refer [try+]]))
 
 (def remote-cns (atom {}))
 
@@ -50,14 +52,25 @@
     (time! metrics/time-in-on-text
            (let [host (get-hostname ws)]
              (log/info "Received message from client" host)
-             (if-let [message (message/decode bytes)]
-               (if (validation/check-certname (:sender message) host)
-                 (let [message (message/add-hop message "accepted" timestamp)]
-                   (cs/process-message host ws message))
-                 (do
-                   (log/warn "Recieved message does not match certname.  Disconnecting websocket.")
-                   (jetty-adapter/close! ws)))
-               (log/warn "Received message does not match valid message schema. Dropping."))))))
+             (try+
+              (let [message (message/decode bytes)]
+                (validation/validate-certname (:sender message) host)
+                (let [message (message/add-hop message "accepted" timestamp)]
+                  (log/info "Processing message")
+                  (cs/process-message host ws message)))
+              (catch map? m
+                (let [error-body {:description (str "Error " (:type m) " handling message: " (:message m))}
+                      error-message (-> (message/make-message)
+                                        (assoc :id (kitchensink/uuid)
+                                               :expires ""
+                                               :data_schema "http://puppetlabs.com/error_message"
+                                               :sender "cth://server")
+                                        (message/set-json-data error-body))]
+                  (s/validate validation/ErrorMessage error-body)
+                  (log/warn "sending error message" error-body)
+                  (jetty-adapter/send! ws (message/encode error-message))))
+              (catch Throwable e
+                (log/error "Unhandled exception" e)))))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"

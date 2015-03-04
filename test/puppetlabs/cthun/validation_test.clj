@@ -1,9 +1,10 @@
 (ns puppetlabs.cthun.validation-test
   (:require [clojure.test :refer :all]
             [puppetlabs.cthun.validation :refer :all]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [slingshot.slingshot :refer [try+ throw+]]))
 
-(deftest check-endpoint-test
+(deftest endpoint-test
   (testing "it raises an exception for invalid endpoints"
     (is (thrown? Exception (s/validate Endpoint "")))
     (is (thrown? Exception (s/validate Endpoint "http://")))
@@ -22,10 +23,22 @@
     (is (= [ "localhost" "*" ] (explode-endpoint "cth://localhost/*")))
     (is (= [ "*" "agent" ] (explode-endpoint "cth://*/agent")))))
 
-(deftest check-certname-test
-  (testing "simple match"
-    (is (check-certname "cth://lolcathost/agent" "lolcathost")))
+(deftest validate-certname-test
+  (testing "simple match, no exception"
+    (try+
+     (validate-certname "cth://lolcathost/agent" "lolcathost")
+     (catch Object _
+       (is (not true) "No exception should be raised"))
+     (else (is true "No exception raised"))))
   (testing "simple mismatch"
-    (is (not (check-certname "cth://lolcathost/agent" "remotecat"))))
+    (try+
+     (validate-certname "cth://lolcathost/agent" "remotecat")
+     (catch map? m
+       (is (= :puppet.cthun.validation/identity-invalid) (:type m)))
+     (else (is (not true) "Expected an exception for remotecat"))))
   (testing "accidental regex collisions"
-    (is (not (check-certname "cth://lolcathost/agent" "lol.athost")))))
+    (try+
+     (validate-certname "cth://lolcathost/agent" "remotecat")
+     (catch map? m
+       (is (= :puppet.cthun.validation/identity-invalid) (:type m)))
+     (else (is (not true) "Expected an exception for lol.athost")))))
