@@ -1,42 +1,10 @@
 (ns puppetlabs.cthun.validation
   (:require [clojure.tools.logging :as log]
             [clojure.string :as str]
+            [puppetlabs.cthun.message :as message]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+]]))
-
-(def ISO8601
-  "Schema validates if string conforms to ISO8601"
-  (s/pred ks/datetime? 'datetime?))
-
-(def Endpoint
-  "Pattern that matches valid endpoints"
-  (s/pred (partial re-matches #"cth://(server|.*/.*)") 'endpoint?))
-
-(def MessageHop
-  "Map that describes a step in message delivery"
-  {(s/required-key :server) Endpoint
-   (s/optional-key :stage) s/Str
-   (s/required-key :time) ISO8601})
-
-(def MessageId
-  "A message identfier" ;; TODO(richardc) check it looks like a UUID maybe?
-  s/Str)
-
-(def Envelope
-  "Defines the envelope format of a v2 message"
-  {:id           MessageId
-   :sender       Endpoint
-   :endpoints    [Endpoint]
-   :data_schema  s/Str
-   :expires      ISO8601
-
-   (s/optional-key :destination_report) s/Bool
-
-   ;; TODO(richardc) remove once the agent/pegasus stop sending
-   (s/optional-key :hops) [MessageHop]
-   (s/optional-key :version) s/Str
-   })
 
 ; Server message data types
 (def LoginMessageData
@@ -49,8 +17,8 @@
 
 (def DestinationReport
   "Defines the data field for a destination report body"
-  {:message MessageId
-   :destination [Endpoint]})
+  {:message message/MessageId
+   :destination [message/Endpoint]})
 
 (def ErrorMessage
   "Data schema for http://puppetlabs.com/error_message"
@@ -59,7 +27,7 @@
 (s/defn ^:always-validate
   explode-endpoint :- [s/Str]
   "Parse an endpoint string into its component parts.  Raises if incomplete"
-  [endpoint :- Endpoint]
+  [endpoint :- message/Endpoint]
   (str/split (subs endpoint 6) #"/"))
 
 (defn validate-certname
