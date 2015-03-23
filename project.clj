@@ -20,8 +20,6 @@
 
                  [com.taoensso/nippy "2.7.1"]
 
-                 [org.clojars.smee/binary "0.3.0"]
-
                  [org.clojure/java.jmx "0.3.0"]
                  [metrics-clojure "0.7.0" :exclusions [org.clojure/clojure org.slf4j/slf4j-api]]
 
@@ -30,6 +28,8 @@
 
                  ;; try+/throw+
                  [slingshot "0.12.2"]
+
+                 [puppetlabs/cthun-message "0.0.1-SNAPSHOT"]
 
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4" :exclusions [org.slf4j/slf4j-api]]
@@ -46,6 +46,9 @@
                  [org.eclipse.jetty/jetty-webapp "9.2.2.v20140723"]
                  [org.eclipse.jetty/jetty-proxy "9.2.2.v20140723"]
                  [org.eclipse.jetty/jetty-jmx "9.2.2.v20140723"]]
+
+  :repositories [["releases" "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"]
+                 ["snapshots"  "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
 
   :test-paths ["test" "test-resources"]
 

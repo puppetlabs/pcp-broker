@@ -4,17 +4,6 @@
             [schema.core :as s]
             [slingshot.slingshot :refer [try+ throw+]]))
 
-(deftest endpoint-test
-  (testing "it raises an exception for invalid endpoints"
-    (is (thrown? Exception (s/validate Endpoint "")))
-    (is (thrown? Exception (s/validate Endpoint "http://")))
-    (is (thrown? Exception (s/validate Endpoint "cth:/foo"))))
-  (testing "it accepts valid endpoints"
-    (is (= "cth://server"
-           (s/validate Endpoint "cth://server")))
-    (is (= "cth://me.example.com/agent/1"
-           (s/validate Endpoint "cth://me.example.com/agent/1")))))
-
 (deftest explode-endpoint-test
   (testing "It raises on invalid endpoints"
     (is (thrown? Exception (explode-endpoint ""))))
