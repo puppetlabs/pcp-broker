@@ -21,8 +21,8 @@
   {:client s/Str
    :type s/Str
    :status s/Str
-   (s/optional-key :endpoint) validation/Endpoint
-   :created-at validation/ISO8601})
+   (s/optional-key :endpoint) message/Endpoint
+   :created-at message/ISO8601})
 
 (def connection-map (atom {})) ;; Map of ws -> ConnectionState
 
