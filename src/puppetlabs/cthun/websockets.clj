@@ -59,7 +59,7 @@
                   (log/info "Processing message")
                   (cs/process-message host ws message)))
               (catch map? m
-                (let [error-body {:description (str "Error " (:type m) " handling message: " (:message m))}
+                (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
                       error-message (-> (message/make-message)
                                         (assoc :id (kitchensink/uuid)
                                                :expires ""
