@@ -17,23 +17,24 @@
 
 (def DestinationReport
   "Defines the data field for a destination report body"
-  {:message message/MessageId
-   :destination [message/Endpoint]})
+  {:id message/MessageId
+   :targets [message/Uri]})
 
 (def ErrorMessage
   "Data schema for http://puppetlabs.com/error_message"
-  {:description s/Str})
+  {(s/optional-key :id) message/MessageId
+   :description s/Str})
 
 (s/defn ^:always-validate
-  explode-endpoint :- [s/Str]
-  "Parse an endpoint string into its component parts.  Raises if incomplete"
-  [endpoint :- message/Endpoint]
+  explode-uri :- [s/Str]
+  "Parse an Uri string into its component parts.  Raises if incomplete"
+  [endpoint :- message/Uri]
   (str/split (subs endpoint 6) #"/"))
 
 (defn validate-certname
   "Validate that the cert name advertised by the client matches the cert name in the certificate"
   [endpoint certname]
-  (let [[client] (explode-endpoint endpoint)]
+  (let [[client] (explode-uri endpoint)]
     (if-not (= client certname)
       (throw+ {:type ::identity-invalid
                :message (str "Certificate name used in sender " endpoint " doesn't match the certname in certificate " certname)})

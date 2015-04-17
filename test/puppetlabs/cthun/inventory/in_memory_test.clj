@@ -5,8 +5,6 @@
 (deftest endpoint-pattern-match?-test
   (testing "direct matches"
     (is (endpoint-pattern-match? "cth://pies/agent" "cth://pies/agent"))
-    (is (endpoint-pattern-match? "cth://pies/agent/extra" "cth://pies/agent"))
-    (is (endpoint-pattern-match? "cth://pies/agent/extra_here" "cth://pies/agent/extra_there"))
     (is (not (endpoint-pattern-match? "cth://pies/agent" "cth://sheep/agent"))))
   (testing "it can match on a pattern"
     (is (endpoint-pattern-match? "cth://*/agent" "cth://pies/agent"))
