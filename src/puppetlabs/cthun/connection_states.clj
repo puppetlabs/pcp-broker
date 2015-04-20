@@ -19,7 +19,6 @@
 (def ConnectionState
   "The state of a websocket in the connection-map"
   {:client s/Str
-   :type s/Str
    :status s/Str
    (s/optional-key :uri) message/Uri
    :created-at message/ISO8601})
@@ -52,13 +51,12 @@
   "Return a new, unconfigured connection map"
   [client]
   {:client client
-   :type "undefined"
    :status "connected"
    :created-at (ks/timestamp)})
 
-(defn- logged-in?
+(defn- session-associated?
   "Determine if a websocket combination is logged in"
-  [host ws]
+  [ws]
   (= (get-in @connection-map [ws :status]) "ready"))
 
 (defn- handle-delivery-failure
@@ -154,11 +152,11 @@
   (time! metrics/time-in-message-queueing
          (activemq/queue-message "accept" message)))
 
-(defn- login-message?
-  "Return true if message is a login type message"
+(defn- session-association-message?
+  "Return true if message is a session association message"
   [message]
   (and (= (first (:targets message)) "cth:///server")
-       (= (:message_type message) "http://puppetlabs.com/loginschema")))
+       (= (:message_type message) "http://puppetlabs.com/associate_request")))
 
 (defn add-connection
   "Add a connection to the connection state map"
@@ -172,33 +170,55 @@
     (swap! uri-map dissoc uri))
   (swap! connection-map dissoc ws))
 
-(defn- process-login-message
-  "Process a login message from a client"
-  [host ws message-body]
-  (let [data (message/get-json-data message-body)]
-    (log/info "Processing login message" data)
-    (when (validation/validate-login-data data)
-      (log/info "Valid login message received")
-      (if (logged-in? host ws)
+(def AssociateResponse
+  "Schema for http://puppetlabs.com/associate_response"
+  {:id message/MessageId
+   :success s/Bool
+   (s/optional-key :reason) s/Str})
+
+(defn- association-response
+  [ws message]
+  (let [uri (:sender message)
+        [certname type] (validation/explode-uri uri)]
+    (log/info "Processing associate_request for" uri)
+    (if (= type "server") ;; currently we don't support inter-server connects
+      {:success false
+       :reason "'server' type connections not accepted"}
+      (if (session-associated? ws)
         (let [current (get-in @connection-map [ws])]
-          (log/error "Received login attempt for '" host "/" (:type data) "' on socket '"
-                     ws "'.  Socket was already logged in as " host "/" (:type current)
+          (log/error "Received session association for '" uri "' on socket '"
+                     ws "'.  Socket was already associated as " (:uri current)
                      " connected since " (:created-at current)
                      ".  Closing new connection.")
-          (jetty-adapter/close! ws))
-        (let [type (:type data)
-              uri (make-uri host type)]
-          (if-let [old-ws (websocket-for-uri uri)]
-            (do
-              (log/error "node with uri " uri " already logged in on " old-ws " Closing new connection")
-              (jetty-adapter/close! ws))
-            (do
-              (swap! connection-map update-in [ws] merge {:type type
-                                                          :status "ready"
-                                                          :uri uri})
-              (swap! uri-map assoc uri ws)
-              ((:record-client @inventory) uri)
-              (log/info "Successfully logged in " host "/" type " on websocket: " ws))))))))
+          {:success false
+           :reason "session already associated"})
+        (if-let [old-ws (websocket-for-uri uri)]
+          (do
+            (log/error "node with uri " uri " already associated with socket " old-ws " Closing new connection")
+            {:success false
+             :reason "uri associated to other session"})
+          (do
+            (swap! connection-map update-in [ws] merge {:status "ready"
+                                                        :uri uri})
+            (swap! uri-map assoc uri ws)
+            ((:record-client @inventory) uri)
+            (log/info "Successfully associated " uri " with websocket" ws)
+            {:success true}))))))
+
+(defn- process-session-association-message
+  "Process a session association message on a websocket"
+  [host ws request]
+  (let [response (merge {:id (:id request)}
+                        (association-response ws request))]
+    (s/validate AssociateResponse response)
+    (let [message (-> (message/make-message)
+                      (assoc :message_type "http://puppetlabs.com/associate_response"
+                             :targets [ (:sender request) ]
+                             :sender "cth:///server")
+                      (message/set-json-data response))]
+      (jetty-adapter/send! ws (message/encode message))
+      (if (not (:success response))
+        (jetty-adapter/close! ws)))))
 
 (defn- process-inventory-message
   "Process a request for inventory data"
@@ -222,13 +242,13 @@
   "Process a message directed at the middleware"
   [host ws message]
   (log/info "Procesesing server message")
-  ; We've only got two message types at the moment - login and inventory
+  ; We've only got two message types at the moment - session-association and inventory
   ; More will be added as we add server functionality
   ; To define a new message type add a schema to
   ; puppetlabs.cthun.validation, check for it here and process it.
   (let [message-type (:message_type message)]
     (case message-type
-      "http://puppetlabs.com/loginschema" (process-login-message host ws message)
+      "http://puppetlabs.com/associate_request" (process-session-association-message host ws message)
       "http://puppetlabs.com/inventoryschema" (process-inventory-message host ws message)
       (log/warn "Invalid server message type received: " message-type))))
 
@@ -245,13 +265,12 @@
   ; check if message has expired
   (if (message-expired? message-body)
     (log/warn "Expired message with id '" (:id message-body) "' received from '" (:sender message-body) "'. Dropping.")
-  ; Check if socket has been logged into
-    (if (logged-in? host ws)
+  ; Check if socket is associated
+    (if (session-associated? ws)
   ; check if this is a message directed at the middleware
       (if (= (get (:targets message-body) 0) "cth:///server")
         (process-server-message host ws message-body)
         (process-client-message host ws message-body))
-      (if (login-message? message-body)
+      (if (session-association-message? message-body)
         (process-server-message host ws message-body)
-        (log/warn "Connection cannot accept messages until login message has been "
-                  "processed. Dropping message.")))))
+        (log/warn "Connection cannot accept messages until session has been associated.  Dropping message.")))))

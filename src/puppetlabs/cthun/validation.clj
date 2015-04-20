@@ -7,10 +7,6 @@
             [slingshot.slingshot :refer [throw+]]))
 
 ; Server message data types
-(def LoginMessageData
-  "Defines the data field in a login message body"
-  {(s/required-key :type) s/Str})
-
 (def InventoryMessageData
   "Defines the data field for an inventory message body"
   {(s/required-key :query) [s/Str]})
@@ -39,11 +35,6 @@
       (throw+ {:type ::identity-invalid
                :message (str "Certificate name used in sender " endpoint " doesn't match the certname in certificate " certname)})
       true)))
-
-(defn validate-login-data
-  "Validate the structure of a login message data field"
-  [data]
-  (s/validate LoginMessageData data))
 
 (defn validate-inventory-data
   "Validate the structure of a inventory message data field"
