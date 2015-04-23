@@ -225,18 +225,18 @@
   [host ws message]
   (log/info "Processing inventory message")
   (let [data (message/get-json-data message)]
-    (when (validation/validate-inventory-data data)
-      (log/info "Valid inventory message received")
-      (let [uris ((:find-clients @inventory) (:query data))
-            response-data {:uris uris}
-            response (-> (message/make-message)
-                         (assoc :id (ks/uuid)
-                                :expires ""
-                                :endpoints [(get-in @connection-map [ws :uri])]
-                                :message_type "http://puppetlabs.com/inventoryresponseschema"
-                                :sender "cth:///server")
-                         (message/set-json-data response-data))]
-        (process-client-message host ws response)))))
+    (s/validate validation/InventoryRequest data)
+    (let [uris ((:find-clients @inventory) (:query data))
+          response-data {:uris uris}
+          response (-> (message/make-message)
+                       (assoc :id (ks/uuid)
+                              :expires ""
+                              :endpoints [(get-in @connection-map [ws :uri])]
+                              :message_type "http://puppetlabs.com/inventory_response"
+                              :sender "cth:///server")
+                       (message/set-json-data response-data))]
+      (s/validate validation/InventoryResponse response-data)
+      (process-client-message host ws response))))
 
 (defn- process-server-message
   "Process a message directed at the middleware"
@@ -249,7 +249,7 @@
   (let [message-type (:message_type message)]
     (case message-type
       "http://puppetlabs.com/associate_request" (process-session-association-message host ws message)
-      "http://puppetlabs.com/inventoryschema" (process-inventory-message host ws message)
+      "http://puppetlabs.com/inventory_request" (process-inventory-message host ws message)
       (log/warn "Invalid server message type received: " message-type))))
 
 (defn message-expired?

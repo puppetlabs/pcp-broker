@@ -7,9 +7,13 @@
             [slingshot.slingshot :refer [throw+]]))
 
 ; Server message data types
-(def InventoryMessageData
-  "Defines the data field for an inventory message body"
-  {(s/required-key :query) [s/Str]})
+(def InventoryRequest
+  "Data schema for http://puppetlabs.com/inventory_request"
+  {:query [s/Str]})
+
+(def InventoryResponse
+  "Data schema for http://puppetlabs.com/inventory_response"
+  {:uris [message/Uri]})
 
 (def DestinationReport
   "Defines the data field for a destination report body"
@@ -35,8 +39,3 @@
       (throw+ {:type ::identity-invalid
                :message (str "Certificate name used in sender " endpoint " doesn't match the certname in certificate " certname)})
       true)))
-
-(defn validate-inventory-data
-  "Validate the structure of a inventory message data field"
-  [data]
-  (s/validate InventoryMessageData data))
