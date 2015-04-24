@@ -4,13 +4,13 @@
             [schema.core :as s]
             [slingshot.slingshot :refer [try+ throw+]]))
 
-(deftest explode-endpoint-test
-  (testing "It raises on invalid endpoints"
-    (is (thrown? Exception (explode-endpoint ""))))
+(deftest explode-uri-test
+  (testing "It raises on invalid uris"
+    (is (thrown? Exception (explode-uri ""))))
   (testing "It returns component chunks"
-    (is (= [ "localhost" "agent"] (explode-endpoint "cth://localhost/agent")))
-    (is (= [ "localhost" "*" ] (explode-endpoint "cth://localhost/*")))
-    (is (= [ "*" "agent" ] (explode-endpoint "cth://*/agent")))))
+    (is (= [ "localhost" "agent"] (explode-uri "cth://localhost/agent")))
+    (is (= [ "localhost" "*" ] (explode-uri "cth://localhost/*")))
+    (is (= [ "*" "agent" ] (explode-uri "cth://*/agent")))))
 
 (deftest validate-certname-test
   (testing "simple match, no exception"

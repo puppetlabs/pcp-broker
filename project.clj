@@ -29,7 +29,7 @@
                  ;; try+/throw+
                  [slingshot "0.12.2"]
 
-                 [puppetlabs/cthun-message "0.0.1"]
+                 [puppetlabs/cthun-message "0.1.0"]
 
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4" :exclusions [org.slf4j/slf4j-api]]

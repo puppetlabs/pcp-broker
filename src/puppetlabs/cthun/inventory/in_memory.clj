@@ -12,8 +12,8 @@
 (defn endpoint-pattern-match?
   "does an endpoint pattern match the subject value.  Here is where wildards happen"
   [pattern subject]
-  (let [[pattern-client pattern-type] (validation/explode-endpoint pattern)
-        [subject-client subject-type] (validation/explode-endpoint subject)]
+  (let [[pattern-client pattern-type] (validation/explode-uri pattern)
+        [subject-client subject-type] (validation/explode-uri subject)]
     (and (some (partial = pattern-client) ["*" subject-client])
          (some (partial = pattern-type)   ["*" subject-type]))))
 
