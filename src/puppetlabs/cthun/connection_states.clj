@@ -112,10 +112,10 @@
                   :targets targets}
           reply (-> (message/make-message)
                     (assoc :id (ks/uuid)
-                           :expires ""
                            :targets [(:sender message)]
                            :message_type "http://puppetlabs.com/destination_report"
                            :sender "cth://server")
+                    (message/set-expiry 3 :seconds)
                     (message/set-json-data report))]
       (s/validate validation/DestinationReport report)
       (process-client-message nil nil reply))))
@@ -212,9 +212,11 @@
                         (association-response ws request))]
     (s/validate AssociateResponse response)
     (let [message (-> (message/make-message)
-                      (assoc :message_type "http://puppetlabs.com/associate_response"
+                      (assoc :id (ks/uuid)
+                             :message_type "http://puppetlabs.com/associate_response"
                              :targets [ (:sender request) ]
                              :sender "cth:///server")
+                      (message/set-expiry 3 :seconds)
                       (message/set-json-data response))]
       (jetty-adapter/send! ws (message/encode message))
       (if (not (:success response))
@@ -230,10 +232,10 @@
           response-data {:uris uris}
           response (-> (message/make-message)
                        (assoc :id (ks/uuid)
-                              :expires ""
                               :endpoints [(get-in @connection-map [ws :uri])]
                               :message_type "http://puppetlabs.com/inventory_response"
                               :sender "cth:///server")
+                       (message/set-expiry 3 :seconds)
                        (message/set-json-data response-data))]
       (s/validate validation/InventoryResponse response-data)
       (process-client-message host ws response))))
