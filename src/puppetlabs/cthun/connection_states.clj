@@ -212,7 +212,8 @@
                         (association-response ws request))]
     (s/validate AssociateResponse response)
     (let [message (-> (message/make-message)
-                      (assoc :message_type "http://puppetlabs.com/associate_response"
+                      (assoc :id (ks/uuid)
+                             :message_type "http://puppetlabs.com/associate_response"
                              :targets [ (:sender request) ]
                              :sender "cth:///server")
                       (message/set-expiry 3 :seconds)
