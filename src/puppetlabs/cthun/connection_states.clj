@@ -232,8 +232,8 @@
           response-data {:uris uris}
           response (-> (message/make-message)
                        (assoc :id (ks/uuid)
-                              :endpoints [(get-in @connection-map [ws :uri])]
                               :message_type "http://puppetlabs.com/inventory_response"
+                              :targets [(get-in @connection-map [ws :uri])]
                               :sender "cth:///server")
                        (message/set-expiry 3 :seconds)
                        (message/set-json-data response-data))]
