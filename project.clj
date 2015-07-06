@@ -30,7 +30,7 @@
                                ring/ring-servlet]]
 
                  [cheshire "5.5.0"]
-                 [prismatic/schema "0.4.0"]
+                 [prismatic/schema "0.4.3"]
                  [clj-time "0.9.0"]
 
                  [com.taoensso/nippy "2.9.0"]
