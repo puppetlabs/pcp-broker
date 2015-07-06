@@ -22,7 +22,7 @@
 
                  [info.sunng/ring-jetty9-adapter "0.8.2" :exclusions [ring/ring-servlet]]
 
-                 [cheshire "5.4.0"]
+                 [cheshire "5.5.0"]
                  [prismatic/schema "0.4.0"]
                  [clj-time "0.9.0"]
 
