@@ -20,7 +20,14 @@
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/trapperkeeper-webserver-jetty9 "1.3.1"]
 
-                 [info.sunng/ring-jetty9-adapter "0.8.2" :exclusions [ring/ring-servlet]]
+                 [info.sunng/ring-jetty9-adapter "0.8.5"
+                  :exclusions [org.eclipse.jetty/jetty-util
+                               org.eclipse.jetty/jetty-io
+                               org.eclipse.jetty/jetty-http
+                               org.eclipse.jetty/jetty-security
+                               org.eclipse.jetty/jetty-server
+                               org.eclipse.jetty/jetty-servlet
+                               ring/ring-servlet]]
 
                  [cheshire "5.5.0"]
                  [prismatic/schema "0.4.0"]
