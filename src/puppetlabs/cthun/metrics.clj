@@ -2,9 +2,10 @@
   (:require [clojure.tools.logging :as log]
             [clojure.java.jmx :as jmx]
             [clj-time.core :as time]
+            [metrics.core]
             [metrics.counters :as counters]
             [metrics.meters :as meters]
-            [metrics.timers :refer [timer]]
+            [metrics.timers :as timers]
             [cheshire.core :as cheshire]))
 
 (def total-messages-in (counters/counter ["puppetlabs.cthun" "global" "total-messages-in"]))
@@ -12,17 +13,23 @@
 (def active-connections (counters/counter ["puppetlabs.cthun" "global" "active-connections"]))
 (def rate-messages-in (meters/meter ["puppetlabs.cthun" "global" "rate-messages-in"]))
 (def rate-messages-out (meters/meter ["puppetlabs.cthun" "global" "rate-messages-out"]))
-(def time-in-on-connect (timer ["puppetlabs.cthun" "handlers" "time-in-on-connect"]))
-(def time-in-on-text (timer ["puppetlabs.cthun" "handlers" "time-in-on-text"]))
-(def time-in-on-close (timer ["puppetlabs.cthun" "handlers" "time-in-on-close"]))
-(def time-in-message-queueing (timer ["puppetlabs.cthun" "global" "time-in-message-queueing"]))
+(def time-in-on-connect (timers/timer ["puppetlabs.cthun" "handlers" "time-in-on-connect"]))
+(def time-in-on-text (timers/timer ["puppetlabs.cthun" "handlers" "time-in-on-text"]))
+(def time-in-on-close (timers/timer ["puppetlabs.cthun" "handlers" "time-in-on-close"]))
+(def time-in-message-queueing (timers/timer ["puppetlabs.cthun" "global" "time-in-message-queueing"]))
 
 (defn- get-cthun-metrics
   "Returns cthun specific metrics as a map"
   []
-  {:total-messages-in (counters/value total-messages-in)
-   :total-messages-out (counters/value total-messages-out)
-   :active-connections (counters/value active-connections)})
+  (reduce into {}
+          [(map (fn [[k v]] {k (meters/rates v)}) (.getMeters metrics.core/default-registry))
+           (map (fn [[k v]] {k (counters/value v)}) (.getCounters metrics.core/default-registry))
+           (map (fn [[k v]] {k {:rates (timers/rates v)
+                                :mean (timers/mean v)
+                                :std-dev (timers/std-dev v)
+                                :percentiles (timers/percentiles v)
+                                :largest (timers/largest v)
+                                :smallest (timers/smallest v)} }) (.getTimers metrics.core/default-registry))]))
 
 (defn- get-memory-metrics
   "Returns memory related metrics as a map"
