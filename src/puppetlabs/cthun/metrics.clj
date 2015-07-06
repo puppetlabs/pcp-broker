@@ -7,9 +7,6 @@
             [metrics.timers :refer [timer]]
             [cheshire.core :as cheshire]))
 
-(def metrics (atom {}))
-(def start-time (time/now))
-
 (def total-messages-in (counters/counter ["puppetlabs.cthun" "global" "total-messages-in"]))
 (def total-messages-out (counters/counter ["puppetlabs.cthun" "global" "total-messages-out"]))
 (def active-connections (counters/counter ["puppetlabs.cthun" "global" "active-connections"]))
@@ -45,17 +42,3 @@
                                 (assoc :threads (get-thread-metrics))
                                 (assoc :cthun (get-cthun-metrics)))
                             {:pretty true}))
-
-
-(defn enable-cthun-metrics
-  "Defines a set of jmx beans. Kick it on startup"
-  []
-  (swap! metrics assoc :active-connections active-connections)
-  (swap! metrics assoc :total-messages-in total-messages-in)
-  (swap! metrics assoc :total-messages-out total-messages-out)
-  (swap! metrics assoc :rate-messages-in rate-messages-in)
-  (swap! metrics assoc :rate-messages-out rate-messages-out)
-  (swap! metrics assoc :time-in-on-connect time-in-on-connect)
-  (swap! metrics assoc :time-in-on-text time-in-on-text)
-  (swap! metrics assoc :time-in-message-queueing time-in-message-queueing)
-  (swap! metrics assoc :time-in-on-close time-in-on-close))
