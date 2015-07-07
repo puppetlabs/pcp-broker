@@ -2,7 +2,6 @@
   (:require [clojure.tools.logging :as log]
             [clojure.java.jmx :as jmx]
             [clj-time.core :as time]
-            [metrics.gauges :refer [gauge]]
             [metrics.counters :as counters]
             [metrics.meters :as meters]
             [metrics.timers :refer [timer]]
@@ -14,8 +13,8 @@
 (def total-messages-in (counters/counter ["puppetlabs.cthun" "global" "total-messages-in"]))
 (def total-messages-out (counters/counter ["puppetlabs.cthun" "global" "total-messages-out"]))
 (def active-connections (counters/counter ["puppetlabs.cthun" "global" "active-connections"]))
-(def rate-messages-in (meters/meter ["puppetlabs.cthun" "global" "rate-messages-in"] "messages received"))
-(def rate-messages-out (meters/meter ["puppetlabs.cthun" "global" "rate-messages-out"] "messages sent"))
+(def rate-messages-in (meters/meter ["puppetlabs.cthun" "global" "rate-messages-in"]))
+(def rate-messages-out (meters/meter ["puppetlabs.cthun" "global" "rate-messages-out"]))
 (def time-in-on-connect (timer ["puppetlabs.cthun" "handlers" "time-in-on-connect"]))
 (def time-in-on-text (timer ["puppetlabs.cthun" "handlers" "time-in-on-text"]))
 (def time-in-on-close (timer ["puppetlabs.cthun" "handlers" "time-in-on-close"]))
