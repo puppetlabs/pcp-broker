@@ -36,7 +36,7 @@
                  [com.taoensso/nippy "2.9.0"]
 
                  [org.clojure/java.jmx "0.3.0"]
-                 [metrics-clojure "0.7.0" :exclusions [org.clojure/clojure org.slf4j/slf4j-api]]
+                 [metrics-clojure "2.5.1"]
 
                  ;; managed ThreadPool/ExecutorService
                  [io.aleph/dirigiste "0.1.0-alpha4"]

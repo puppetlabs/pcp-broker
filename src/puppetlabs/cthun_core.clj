@@ -32,7 +32,6 @@
     (cs/set-delivery-executor delivery-executor)
     (cs/use-this-inventory inventory)
     (cs/subscribe-to-topics accept-threads redeliver-threads)
-    (metrics/enable-cthun-metrics)
     {:host host
      :port port
      :url-prefix url-prefix
