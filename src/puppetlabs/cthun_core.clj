@@ -6,11 +6,7 @@
             [puppetlabs.cthun.metrics :as metrics]
             [puppetlabs.puppetdb.mq :as mq]))
 
-(defn- websocket-app
-  [conf]
-  (log/info "Websocket App starting"))
-
-(defn- metrics-app
+(defn- app
   [conf]
   (log/info "Metrics App initiated")
   {:status 200
@@ -42,8 +38,7 @@
   [broker]
   (let [{:keys [host port url-prefix config activemq-broker]} broker]
     (mq/start-broker! activemq-broker)
-    (websockets/start-metrics metrics-app)
-    (websockets/start-jetty websocket-app url-prefix host port config)))
+    (websockets/start-jetty app url-prefix host port config)))
 
 (defn stop
   [broker]
