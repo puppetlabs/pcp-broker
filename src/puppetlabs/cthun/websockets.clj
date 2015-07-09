@@ -115,11 +115,10 @@
   javax.servlet.request.X509Certificate attribute"
   []
   (reify org.eclipse.jetty.server.HttpConfiguration$Customizer
-     (^void customize [this ^Connector connector ^HttpConfiguration config ^Request request]
-       (let [remoteaddr      (.. request getRemoteInetSocketAddress toString)
-             ssl-client-cert (first (.getAttribute request "javax.servlet.request.X509Certificate"))
-             cn              (kitchensink/cn-for-cert ssl-client-cert)]
-         (swap! remote-cns assoc remoteaddr cn)))))
+    (^void customize [this ^Connector connector ^HttpConfiguration config ^Request request]
+      (if-let [ssl-client-cert (first (.getAttribute request "javax.servlet.request.X509Certificate"))]
+        (let [remoteaddr (.. request getRemoteInetSocketAddress toString)]
+          (swap! remote-cns assoc remoteaddr (kitchensink/cn-for-cert ssl-client-cert)))))))
 
 (defn- make-ssl-customizers
   "Returns the customizers we want to apply to the ssl Configurator"
@@ -136,10 +135,9 @@
 (defn- https-config
   "Returns a jetty.server.HttpConfiguration with the
   desired Customizers set"
-  [{:as options
-    :keys [customizers]}]
+  [options]
   (doto (#'jetty-adapter/http-config options)
-    (.setCustomizers customizers)))
+    (.setCustomizers (make-ssl-customizers))))
 
 (defn- make-ssl-context-factory
   [options]
@@ -167,32 +165,18 @@
                                  (into-array ConnectionFactory [(HttpConnectionFactory. https-configuration)]))
                             (.setPort (:ssl-port options))
                             (.setHost (:host options)))
-          http-connector (first (.getConnectors server))
-          connectors (into-array [http-connector https-connector])]
+          connectors (into-array [https-connector])]
       (.setConnectors server connectors))
     server))
 
-(defn- maybe-ssl-config
-  "Takes a config map.  Returns a map with ssl-related options if ssl-port was set in the config"
-  [config]
-  (if-let [ssl-port (:ssl-port config)]
-    (let [config (assoc config :client-auth :need)
-          config (assoc config :customizers (make-ssl-customizers))
-          config (merge config (jetty9-config/pem-ssl-config->keystore-ssl-config
-                                (select-keys config [:ssl-key :ssl-cert :ssl-ca-cert])))
-          config (assoc config :configurator (make-jetty9-configurator config))]
-      config)
-    {}))
-
-(defn start-metrics
-  [app]
-  (jetty-adapter/run-jetty app {:port 3000
-                                :join? false}))
-
 (defn start-jetty
   [app prefix host port config]
-  (jetty-adapter/run-jetty app (merge
-                                {:websockets {prefix (websocket-handlers)}
-                                 :port port
-                                 :host host}
-                                (maybe-ssl-config config))))
+  (let [jetty-config {:websockets {prefix (websocket-handlers)}
+                      :ssl-port port
+                      :host host
+                      :client-auth :want
+                      :ssl-crl-path (:ssl-crl-path config)}
+        jetty-config (merge jetty-config (jetty9-config/pem-ssl-config->keystore-ssl-config
+                                          (select-keys config [:ssl-key :ssl-cert :ssl-ca-cert])))
+        jetty-config (assoc jetty-config :configurator (make-jetty9-configurator jetty-config))]
+    (jetty-adapter/run-jetty app jetty-config)))

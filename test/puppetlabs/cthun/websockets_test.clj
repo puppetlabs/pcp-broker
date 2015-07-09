@@ -60,6 +60,7 @@
       (is (fn? (handlers :on-bytes))))))
 
 (deftest start-jetty-test
-  (with-redefs [ring.adapter.jetty9/run-jetty (fn [app arg-map] true)]
+  (with-redefs [puppetlabs.trapperkeeper.services.webserver.jetty9-config/pem-ssl-config->keystore-ssl-config (fn [config] {})
+                ring.adapter.jetty9/run-jetty (fn [app arg-map] true)]
     (testing "It starts Jetty"
       (is (= (start-jetty "app" "/cthun" "localhost" 8080 {}) true)))))
