@@ -156,8 +156,7 @@
   jetty.server.Server before it's started.  We take this as a way of
   completely replacing the connectors with an ssl connector with the
   customizers we need.  This is heavy and involves more private
-  function spelunking.
-"
+  function spelunking."
   [options]
   (fn [server]
     (let [https-configuration (https-config options)
