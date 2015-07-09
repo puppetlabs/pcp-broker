@@ -1,5 +1,6 @@
 (def tk-version "1.1.1")
 (def ks-version "1.1.0")
+(def cthun-version "0.1.0-SNAPSHOT")
 
 (defn deploy-info
   [url]
@@ -8,7 +9,7 @@
     :password :env/nexus_jenkins_password
     :sign-releases false })
 
-(defproject puppetlabs/cthun "0.1.0-SNAPSHOT"
+(defproject puppetlabs/cthun cthun-version
   :description "cthun fabric messaging server"
   :url "https://github.com/puppetlabs/cthun"
   :license {:name ""
@@ -69,6 +70,12 @@
 
   :lein-release {:scm :git, :deploy-via :lein-deploy}
 
+  :uberjar-name "cthun-release.jar"
+
+  :lein-ezbake {:resources {:type jar
+                            :dir "tmp/config"}
+                :config-dir "ezbake/config"}
+
   :test-paths ["test" "test-resources"]
 
   :profiles {:dev {:source-paths ["dev"]
@@ -76,7 +83,10 @@
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
                                   [puppetlabs/ssl-utils "0.8.0"]
                                   [me.raynes/fs "1.4.5"]
-                                  [org.clojure/tools.namespace "0.2.4"]]}}
+                                  [org.clojure/tools.namespace "0.2.4"]]}
+             :ezbake {:dependencies ^:replace [[puppetlabs/cthun ~cthun-version]]
+                      :plugins [[puppetlabs/lein-ezbake "0.3.11"]]
+                      :name "cthun"}}
 
   :repl-options {:init-ns user}
 
