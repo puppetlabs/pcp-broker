@@ -21,6 +21,10 @@ make these run the following:
         puppet cert --ssldir=`pwd`/test-resources/ssl generate $(printf "%04d_controller" $i)
     done
 
+For simple use cases you may be able to get away with:
+
+    lein certs
+
 ## Running the server
 
     lein tk
