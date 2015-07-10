@@ -168,13 +168,14 @@
       (.setConnectors server connectors))
     server))
 
-(defn start-jetty
+(s/defn ^:always-validate start-jetty :- Server
   [app prefix host port config]
   (let [jetty-config {:websockets {prefix (websocket-handlers)}
                       :ssl-port port
                       :host host
                       :client-auth :want
-                      :ssl-crl-path (:ssl-crl-path config)}
+                      :ssl-crl-path (:ssl-crl-path config)
+                      :join? false}
         jetty-config (merge jetty-config (jetty9-config/pem-ssl-config->keystore-ssl-config
                                           (select-keys config [:ssl-key :ssl-cert :ssl-ca-cert])))
         jetty-config (assoc jetty-config :configurator (make-jetty9-configurator jetty-config))]

@@ -20,12 +20,13 @@
           (assoc context :cthun service)))
   (start [this context]
          (log/info "Starting cthun service")
-         (let [service (:cthun (service-context this))]
-           (core/start service))
-         context)
+    (let [service (:cthun (service-context this))
+          ;; TODO: these Jetty lines will go away if we switch to tk-j9
+          jetty-server (core/start service)]
+         (assoc context :jetty-server jetty-server)))
   (stop [this context]
         (log/info "Shutting down cthun service")
-        (let [service (:cthun (service-context this))]
+        (let [service (select-keys (service-context this) [:cthun :jetty-server])]
           (core/stop service))
         context)
   (state [this caller]

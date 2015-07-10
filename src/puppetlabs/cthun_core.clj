@@ -4,7 +4,9 @@
             [puppetlabs.cthun.websockets :as websockets]
             [puppetlabs.cthun.connection-states :as cs]
             [puppetlabs.cthun.metrics :as metrics]
-            [puppetlabs.puppetdb.mq :as mq]))
+            [puppetlabs.puppetdb.mq :as mq]
+            [schema.core :as s])
+  (:import (org.eclipse.jetty.server Server)))
 
 (defn- app
   [conf]
@@ -34,6 +36,11 @@
      :config config
      :activemq-broker activemq-broker}))
 
+(s/defn ^:always-validate stop-jetty
+  [jetty-server :- Server]
+  (.stop jetty-server)
+  (.join jetty-server))
+
 (defn start
   [broker]
   (let [{:keys [host port url-prefix config activemq-broker]} broker]
@@ -41,9 +48,10 @@
     (websockets/start-jetty app url-prefix host port config)))
 
 (defn stop
-  [broker]
-  (let [{:keys [activemq-broker]} broker]
-    (mq/stop-broker! activemq-broker)))
+  [{:keys [cthun jetty-server] :as service}]
+  (let [{:keys [activemq-broker]} cthun]
+    (mq/stop-broker! activemq-broker)
+    (stop-jetty jetty-server)))
 
 (defn state
   "Return the service state"
