@@ -46,9 +46,6 @@
 
                  [puppetlabs/cthun-message "0.1.0"]
 
-                 [puppetlabs/ssl-utils "0.8.0"]
-                 [me.raynes/fs "1.4.5"]
-
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4" :exclusions [org.slf4j/slf4j-api]]
                  [org.apache.activemq/activemq-core "5.6.0" :exclusions [org.slf4j/slf4j-api org.fusesource.fuse-extra/fusemq-leveldb]]
@@ -60,8 +57,14 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]}}
+  :profiles {:dev {:source-paths ["dev"]
+                   :dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
+                                  [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
+                                  [puppetlabs/ssl-utils "0.8.0"]
+                                  [me.raynes/fs "1.4.5"]
+                                  [org.clojure/tools.namespace "0.2.4"]]}}
+
+  :repl-options {:init-ns user}
 
   ;; Enable occasionally to check we have no interop hotspots that need better type hinting
   ; :global-vars {*warn-on-reflection* true}
