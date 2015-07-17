@@ -192,18 +192,18 @@
                      ".  Closing new connection.")
           {:success false
            :reason "session already associated"})
-        (if-let [old-ws (websocket-for-uri uri)]
-          (do
-            (log/error "node with uri " uri " already associated with socket " old-ws " Closing new connection")
-            {:success false
-             :reason "uri associated to other session"})
-          (do
-            (swap! connection-map update-in [ws] merge {:status "ready"
-                                                        :uri uri})
-            (swap! uri-map assoc uri ws)
-            ((:record-client @inventory) uri)
-            (log/info "Successfully associated " uri " with websocket" ws)
-            {:success true}))))))
+        (do
+          (if-let [old-ws (websocket-for-uri uri)]
+            (do
+              (log/info "node with uri " uri " already associated with socket " old-ws " Closing old connection")
+              (jetty-adapter/close! old-ws)
+              (swap! connection-map dissoc old-ws)))
+          (swap! connection-map update-in [ws] merge {:status "ready"
+                                                      :uri uri})
+          (swap! uri-map assoc uri ws)
+          ((:record-client @inventory) uri)
+          (log/info "Successfully associated " uri " with websocket" ws)
+          {:success true})))))
 
 (defn- process-session-association-message
   "Process a session association message on a websocket"
@@ -220,7 +220,8 @@
                       (message/set-json-data response))]
       (jetty-adapter/send! ws (message/encode message))
       (if (not (:success response))
-        (jetty-adapter/close! ws)))))
+        (jetty-adapter/close! ws))
+      (:success response))))
 
 (defn- process-inventory-message
   "Process a request for inventory data"
