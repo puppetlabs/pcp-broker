@@ -81,13 +81,16 @@
           (is (= (:created-at connection) "squirrel"))
           (is (= "cth://localhost/controller" (:uri connection)))))
 
-      (testing "It does not allow a login to happen from two locations for the same uri"
+      (testing "It allows a login to from two locations for the same uri, but disconnects the first"
         (reset! uri-map {})
         (reset! connection-map {})
         (add-connection "localhost" "ws1")
+        (is (= ["ws1"] (keys @connection-map)))
         (add-connection "localhost" "ws2")
+        (is (= ["ws1" "ws2"] (sort (keys @connection-map))))
         (process-session-association-message "localhost" "ws1" login-message)
-        (is (not (process-session-association-message "localhost" "ws2" login-message))))
+        (is (process-session-association-message "localhost" "ws2" login-message))
+        (is (= ["ws2"] (keys @connection-map))))
 
       (testing "It does not allow a login to happen twice on the same websocket"
         (reset! uri-map {})
