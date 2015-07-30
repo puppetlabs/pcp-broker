@@ -74,7 +74,8 @@
 
   :lein-ezbake {:resources {:type jar
                             :dir "tmp/config"}
-                :config-dir "ezbake/config"}
+                :config-dir "ezbake/config"
+                :build-type "pe" }
 
   :test-paths ["test" "test-resources"]
 
