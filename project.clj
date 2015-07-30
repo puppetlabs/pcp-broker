@@ -10,7 +10,7 @@
     :sign-releases false })
 
 (defproject puppetlabs/cthun cthun-version
-  :description "cthun fabric messaging server"
+  :description "puppet fabric messaging server"
   :url "https://github.com/puppetlabs/cthun"
   :license {:name ""
             :url ""}
