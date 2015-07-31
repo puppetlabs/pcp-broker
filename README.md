@@ -47,13 +47,24 @@ adjusting that.
 
 ## Running a controller
 
-Checkout and build https://github.com/puppetlabs/pegasus cthun_connector
-branch according to its instructions.
+Checkout and build https://github.com/puppetlabs/pegasus according to its
+instructions.
 
 Use by symlinking the test-resources/ssl from your cthun checkout into the pegasus
 checkout as test-resources.
 
     ln -s ../cthun/test-resources/ssl test-resources
+
+Pegasus requires some config (default config file is ~/.pegasus in JSON) for Cthun
+
+    {
+      "cthun" : {
+        "server" : "wss://127.0.0.1:8090/cthun/",
+        "ca" : "[CTHUN REPO]/test-resources/ssl/ca/ca_crt.pem",
+        "cert" : "[CTHUN REPO]/test-resources/ssl/certs/0000_controller.pem",
+        "key" : "[CTHUN REPO]/test-resources/ssl/private_keys/0000_controller.pem"
+      }
+    }
 
 And send a ping via the middleware to all agents
 
