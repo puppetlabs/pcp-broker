@@ -72,7 +72,7 @@ And send a ping via the middleware to all agents
 
 Or invoke an rpc action
 
-    ./bin/pegasus rpc reverse hash message=foo
+    ./bin/pegasus rpc reverse hash input=foo
 
 
 # Random notes
