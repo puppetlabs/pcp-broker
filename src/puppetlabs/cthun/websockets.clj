@@ -62,9 +62,8 @@
                 (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
                       error-message (-> (message/make-message)
                                         (assoc :id (kitchensink/uuid)
-                                               :expires ""
-                                               :data_schema "http://puppetlabs.com/error_message"
-                                               :sender "cth://server")
+                                               :message_type "http://puppetlabs.com/error_message"
+                                               :sender "cth:///server")
                                         (message/set-json-data error-body))]
                   (s/validate validation/ErrorMessage error-body)
                   (log/warn "sending error message" error-body)
