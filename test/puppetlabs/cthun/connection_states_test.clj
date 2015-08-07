@@ -64,8 +64,8 @@
     (is (= {} @connection-map))))
 
 (deftest process-session-association-message-test
-  (with-redefs [ring.adapter.jetty9/close! (fn [ws] false)
-                ring.adapter.jetty9/send! (fn [ws bytes] false)]
+  (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [ws] false)
+                puppetlabs.experimental.websockets.client/send! (fn [ws bytes] false)]
     (let [login-message {:id ""
                          :sender "cth://localhost/controller"
                          :message_type "http://puppetlabs.com/login_message"}]
