@@ -7,7 +7,8 @@
 (trapperkeeper/defservice broker-service
   [[:ConfigService get-in-config]
    [:WebserverService add-ring-handler add-websocket-handler]
-   [:InventoryService record-client find-clients]]
+   [:InventoryService record-client find-clients]
+   [:AuthorizationService authorized]]
   (init [this context]
         (log/info "Initializing broker service")
         (let [path               (get-in-config [:cthun :url-prefix] "/cthun")
@@ -21,7 +22,8 @@
                                              :add-ring-handler add-ring-handler
                                              :add-websocket-handler add-websocket-handler
                                              :record-client record-client
-                                             :find-clients find-clients})]
+                                             :find-clients find-clients
+                                             :authorized authorized})]
           (assoc context :broker broker)))
   (start [this context]
          (log/info "Starting broker service")
