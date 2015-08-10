@@ -94,7 +94,7 @@
   ;; Enable occasionally to check we have no interop hotspots that need better type hinting
   ; :global-vars {*warn-on-reflection* true}
 
-  :aliases {"tk" ["trampoline" "run" "--config" "test-resources/config.ini"]
-            "certs" ["trampoline" "run" "-m" "puppetlabs.cthun.testutils.certs" "--config" "test-resources/config.ini"]}
+  :aliases {"tk" ["trampoline" "run" "--config" "test-resources/conf.d"]
+            "certs" ["trampoline" "run" "-m" "puppetlabs.cthun.testutils.certs" "--config" "test-resources/conf.d"]}
 
   :main puppetlabs.trapperkeeper.main)

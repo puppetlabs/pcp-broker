@@ -15,7 +15,7 @@
 (defn init []
   (alter-var-root #'system
     (fn [_] (let [services (tk-bootstrap/parse-bootstrap-config! "./test-resources/bootstrap.cfg")
-                  config (tk-config/load-config "./test-resources/config.ini")]
+                  config (tk-config/load-config "./test-resources/conf.d")]
               (tk/build-app services config))))
   (alter-var-root #'system tk-app/init)
   (tk-app/check-for-errors! system))
