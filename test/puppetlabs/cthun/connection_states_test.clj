@@ -121,4 +121,18 @@
     (testing "It will process a server message"
       (with-redefs [puppetlabs.cthun.connection-states/session-associated? (fn [ws] true)
                     puppetlabs.cthun.connection-states/process-server-message (fn [host ws message-body] "server")]
-        (is (= (process-message "localhost" "ws" {:targets ["cth:///server"]}) "server"))))))
+        (is (= (process-message "localhost" "ws" {:targets ["cth:///server"]}) "server"))))
+    (testing "It will process an expired message"
+      (with-redefs [puppetlabs.cthun.connection-states/message-expired? (constantly true)
+                    puppetlabs.cthun.connection-states/process-expired-message (constantly :processed-expired)]
+        (is (= (process-message "localhost" "ws" {:id "12347890"}) :processed-expired))))))
+
+(deftest process-expired-message-test
+  (with-redefs [puppetlabs.cthun.connection-states/process-client-message (fn [_ _ response] response)]
+    (testing "It will create and send a ttl expired message"
+       (let [msg (puppetlabs.cthun.connection-states/process-expired-message {:id "12347890"
+                                                                              :sender "cth://client2.com/tester"})
+             msg_data (puppetlabs.cthun.message/get-json-data msg)]
+         (is (= "http://puppetlabs.com/ttl_expired" (:message_type msg)))
+         (is (= "12347890" (:id msg_data)))))))
+
