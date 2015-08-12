@@ -25,6 +25,10 @@
   {(s/optional-key :id) message/MessageId
    :description s/Str})
 
+(def TTLExpiredMessage
+  "Data schema for http://puppetlabs.com/ttl_expired"
+  {:id message/MessageId})
+
 (s/defn ^:always-validate
   explode-uri :- [s/Str]
   "Parse an Uri string into its component parts.  Raises if incomplete"

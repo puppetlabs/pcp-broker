@@ -59,9 +59,27 @@
   [ws]
   (= (get-in @connection-map [ws :status]) "ready"))
 
+(declare process-client-message) ;; TODO(richardc) restructure to avoid forward decl, maybe rename
+
+(defn process-expired-message
+  "Reply with a ttl_expired message to the original message sender"
+  [message]
+  (log/warn "Message " message " has expired. Replying with a ttl_expired.")
+  (let [response_data {:id (:id message)}
+        response (-> (message/make-message)
+                     (assoc :id           (ks/uuid)
+                            :message_type "http://puppetlabs.com/ttl_expired"
+                            :targets      [(:sender message)]
+                            :sender       "cth:///server")
+                     (message/set-expiry 3 :seconds)
+                     (message/set-json-data response_data))]
+    (s/validate validation/TTLExpiredMessage response_data)
+    (process-client-message nil nil response)))
+
 (defn- handle-delivery-failure
   [message reason]
-  "If the message is not expired schedule for a future redelivery by adding to the redeliver queue"
+  "If the message is not expired schedule for a future redelivery by adding to
+  the redeliver queue, otherwise reply with a TTL expired message"
   (log/info "Failed to deliver message" message reason)
   (let [expires (time-coerce/to-date-time (:expires message))
         now     (time/now)]
@@ -71,7 +89,7 @@
             message     (message/add-hop message "redelivery")]
         (log/info "Moving message to the redeliver queue for redelivery in" retry-delay "seconds")
         (activemq/queue-message "redeliver" message (mq/delay-property retry-delay :seconds)))
-      (log/warn "Message " message " has expired. Dropping message"))))
+      (process-expired-message message))))
 
 (defn deliver-message
   [message]
@@ -101,8 +119,6 @@
     (log/info "delivering message from executor to websocket" message)
     (let [message (message/add-hop message "deliver-message")]
       (deliver-message message))))
-
-(declare process-client-message) ;; TODO(richardc) restructure to avoid forward decl, maybe rename
 
 (defn maybe-send-destination-report
   "Send a destination report about the given message, if requested"
@@ -267,10 +283,10 @@
   (log/info "processing incoming message")
   ; check if message has expired
   (if (message-expired? message-body)
-    (log/warn "Expired message with id '" (:id message-body) "' received from '" (:sender message-body) "'. Dropping.")
-  ; Check if socket is associated
+    (process-expired-message message-body)
+    ; Check if socket is associated
     (if (session-associated? ws)
-  ; check if this is a message directed at the middleware
+      ; check if this is a message directed at the middleware
       (if (= (get (:targets message-body) 0) "cth:///server")
         (process-server-message host ws message-body)
         (process-client-message host ws message-body))

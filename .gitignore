@@ -6,6 +6,7 @@ pom.xml.asc
 *.jar
 *.class
 *.pyc
+*.iml
 /.lein-*
 /.nrepl-port
 *~
