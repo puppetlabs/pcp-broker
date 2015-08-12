@@ -23,18 +23,15 @@
    (s/optional-key :uri) message/Uri
    :created-at message/ISO8601})
 
+(def accept-queue "accept")
+
+(def delivery-queue "delivery")
+
 (def connection-map (atom {})) ;; Map of ws -> ConnectionState
 
 (def uri-map (atom {})) ;; { uri => ws }
 
 (def inventory (atom {}))
-
-(def delivery-executor (atom {})) ;; will be replaced with an ExecutorService
-
-(defn set-delivery-executor
-  "Sets the delivery executor"
-  [executor]
-  (reset! delivery-executor executor))
 
 (defn- make-uri
   "Make a new given a common name and type"
@@ -77,8 +74,9 @@
     (process-client-message nil nil response)))
 
 (defn- handle-delivery-failure
-  "If the message is not expired schedule for a future redelivery by adding to
-  the redeliver queue, otherwise reply with a TTL expired message"
+  "If the message is not expired schedule for a future delivery by
+  adding to the delivery queue with a delay property, otherwise reply
+  with a TTL expired message"
   [message reason]
   (log/info "Failed to deliver message" message reason)
   (let [expires (time-coerce/to-date-time (:expires message))
@@ -88,7 +86,7 @@
             retry-delay (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
             message     (message/add-hop message "redelivery")]
         (log/info "Moving message to the redeliver queue for redelivery in" retry-delay "seconds")
-        (activemq/queue-message "redeliver" message (mq/delay-property retry-delay :seconds)))
+        (activemq/queue-message delivery-queue message (mq/delay-property retry-delay :seconds)))
       (process-expired-message message))))
 
 (defn deliver-message
@@ -98,11 +96,12 @@
     (try
       ; Lock on the websocket object allowing us to do one write at a time
       ; down each of the websockets
+      (log/info "delivering message to websocket" message)
       (locking websocket
-                 (inc! metrics/total-messages-out)
-                 (mark! metrics/rate-messages-out)
-                 (let [message (message/add-hop message "deliver")]
-                   (jetty-adapter/send! websocket (message/encode message))))
+        (inc! metrics/total-messages-out)
+        (mark! metrics/rate-messages-out)
+        (let [message (message/add-hop message "deliver")]
+          (jetty-adapter/send! websocket (message/encode message))))
       (catch Exception e
         (handle-delivery-failure message e)))
     (handle-delivery-failure message "not connected")))
@@ -112,13 +111,7 @@
   [message]
   ((:find-clients @inventory) (:targets message)))
 
-(defn make-delivery-fn
-  "Returns a Runnable that delivers a message to a :_destination"
-  [message]
-  (fn []
-    (log/info "delivering message from executor to websocket" message)
-    (let [message (message/add-hop message "deliver-message")]
-      (deliver-message message))))
+(declare process-client-message) ;; TODO(richardc) restructure to avoid forward decl, maybe rename
 
 (defn maybe-send-destination-report
   "Send a destination report about the given message, if requested"
@@ -136,25 +129,21 @@
       (s/validate validation/DestinationReport report)
       (process-client-message nil nil reply))))
 
-(defn deliver-from-accept-queue
+(defn expand-destinations
   "Message consumer.  Accepts a message from the accept queue, expands
-  destinations, and attempts delivery."
+  destinations, and enqueues to the `delivery-queue`"
   [message]
   (let [targets (expand-targets message)
         messages (map #(assoc message :_target %) targets)]
     (maybe-send-destination-report message targets)
-    (doall (map #(.execute @delivery-executor (make-delivery-fn %)) messages))))
+    ;; TODO(richardc): can we wrap all these enqueues in a JMS transaction?
+    ;; if so we should
+    (doall (map #(activemq/queue-message delivery-queue %) messages))))
 
-(defn deliver-from-redelivery-queue
-  "Message consumer.  Accepts a message from the redeliver queue, and
-  attempts delivery."
-  [message]
-  (.execute @delivery-executor (make-delivery-fn message)))
-
-(defn subscribe-to-topics
-  [accept-threads redeliver-threads]
-  (activemq/subscribe-to-topic "accept" deliver-from-accept-queue accept-threads)
-  (activemq/subscribe-to-topic "redeliver" deliver-from-redelivery-queue redeliver-threads))
+(defn subscribe-to-queues
+  [accept-count delivery-count]
+  (activemq/subscribe-to-queue accept-queue expand-destinations accept-count)
+  (activemq/subscribe-to-queue delivery-queue deliver-message delivery-count))
 
 (defn use-this-inventory
   "Specify which inventory to use"
@@ -166,7 +155,7 @@
   [host ws message]
   (message (message/add-hop message "accept-to-queue"))
   (time! metrics/time-in-message-queueing
-         (activemq/queue-message "accept" message)))
+         (activemq/queue-message accept-queue message)))
 
 (defn- session-association-message?
   "Return true if message is a session association message"
