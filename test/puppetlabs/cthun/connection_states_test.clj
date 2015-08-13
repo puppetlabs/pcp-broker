@@ -1,8 +1,8 @@
 (ns puppetlabs.cthun.connection-states-test
-  (require [clojure.test :refer :all]
-           [puppetlabs.cthun.message :as message]
-           [puppetlabs.cthun.connection-states :refer :all]
-           [puppetlabs.kitchensink.core :as ks]))
+  (:require [clojure.test :refer :all]
+            [puppetlabs.cthun.message :as message]
+            [puppetlabs.cthun.connection-states :refer :all]
+            [puppetlabs.kitchensink.core :as ks]))
 
 
 ; private symbols
@@ -135,4 +135,3 @@
              msg_data (puppetlabs.cthun.message/get-json-data msg)]
          (is (= "http://puppetlabs.com/ttl_expired" (:message_type msg)))
          (is (= "12347890" (:id msg_data)))))))
-
