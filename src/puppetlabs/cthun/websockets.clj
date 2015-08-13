@@ -139,10 +139,10 @@
     (.setCustomizers (make-ssl-customizers))))
 
 (defn- make-ssl-context-factory
-  [options]
   "Returns a jetty.util.SslContextFactory.  This is the one from
   ring.adapter.jetty9 with options set to use the crl from
   ssl-crl-path, and to verify the peer"
+  [options]
   (let [factory (#'jetty-adapter/ssl-context-factory options)]
     (.setCrlPath factory (:ssl-crl-path options))
     (.setValidatePeerCerts factory true)
