@@ -23,15 +23,16 @@
   [queue callback-fn consumer-count]
   (let [mq-spec "vm://localhost?create=false"]
     (with-open [conn (mq/activemq-connection mq-spec)]
-      (dotimes [i consumer-count]
-        (let [consumer (mq-conn/consumer conn
-                                         {:endpoint   queue
-                                          :on-message (fn [message]
-                                                        (let [body (:body message)
-                                                              thawed (nippy/thaw body)]
-                                                          (log/infof "consuming message from %s: %s" queue thawed)
-                                                          (callback-fn thawed)))
-                                          :transacted true
-                                          :on-failure (fn [error]
-                                                        (log/errorf "error consuming message from %s: %s" queue (:exception error)))})]
-          (mq-cons/start consumer))))))
+      (doall (for [i (range consumer-count)]
+               (let [consumer (mq-conn/consumer conn
+                                                {:endpoint   queue
+                                                 :on-message (fn [message]
+                                                               (let [body (:body message)
+                                                                     thawed (nippy/thaw body)]
+                                                                 (log/infof "consuming message from %s: %s" queue thawed)
+                                                                 (callback-fn thawed)))
+                                                 :transacted true
+                                                 :on-failure (fn [error]
+                                                               (log/errorf "error consuming message from %s: %s" queue (:exception error)))})]
+                 (mq-cons/start consumer)
+                 consumer))))))

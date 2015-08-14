@@ -1,6 +1,6 @@
 (ns puppetlabs.cthun.inventory.in-memory
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.cthun.validation :as validation]
+            [puppetlabs.cthun.broker-core :refer [explode-uri]]
             [puppetlabs.cthun.inventory :refer [InventoryService]]
             [puppetlabs.trapperkeeper.core :refer [defservice]]
             [puppetlabs.trapperkeeper.services :refer [service-context]]))
@@ -12,8 +12,8 @@
 (defn endpoint-pattern-match?
   "does an endpoint pattern match the subject value.  Here is where wildards happen"
   [pattern subject]
-  (let [[pattern-client pattern-type] (validation/explode-uri pattern)
-        [subject-client subject-type] (validation/explode-uri subject)]
+  (let [[pattern-client pattern-type] (explode-uri pattern)
+        [subject-client subject-type] (explode-uri subject)]
     (and (some (partial = pattern-client) ["*" subject-client])
          (some (partial = pattern-type)   ["*" subject-type]))))
 
