@@ -46,9 +46,6 @@
                  [org.clojure/java.jmx "0.3.0"]
                  [metrics-clojure "2.5.1"]
 
-                 ;; managed ThreadPool/ExecutorService
-                 [io.aleph/dirigiste "0.1.0-alpha4"]
-
                  ;; try+/throw+
                  [slingshot "0.12.2"]
 

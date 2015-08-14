@@ -12,25 +12,26 @@
 
 (defn queue-message
   "Queue a message on a middleware"
-  [topic message & args]
+  [queue message & args]
   (let [mq-spec "vm://localhost?create=false"
-        mq-endpoint topic]
-    (log/info "queueing message" message)
+        mq-endpoint queue]
+    (log/infof "enqueuing message on %s: %s" queue message)
     (with-open [conn (mq/activemq-connection mq-spec)]
       (apply mq/connect-and-publish! conn mq-endpoint (nippy/freeze message) args))))
 
-(defn subscribe-to-topic
-  [topic callback-fn consumer-count]
+(defn subscribe-to-queue
+  [queue callback-fn consumer-count]
   (let [mq-spec "vm://localhost?create=false"]
     (with-open [conn (mq/activemq-connection mq-spec)]
       (dotimes [i consumer-count]
         (let [consumer (mq-conn/consumer conn
-                                         {:endpoint   topic
+                                         {:endpoint   queue
                                           :on-message (fn [message]
                                                         (let [body (:body message)
                                                               thawed (nippy/thaw body)]
-                                                          (log/info "consuming message" thawed)
+                                                          (log/infof "consuming message from %s: %s" queue thawed)
                                                           (callback-fn thawed)))
                                           :transacted true
-                                          :on-failure #(log/error "error consuming message" (:exception %))})]
+                                          :on-failure (fn [error]
+                                                        (log/errorf "error consuming message from %s: %s" queue (:exception error)))})]
           (mq-cons/start consumer))))))
