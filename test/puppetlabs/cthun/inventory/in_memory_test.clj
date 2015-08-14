@@ -1,6 +1,6 @@
 (ns puppetlabs.cthun.inventory.in-memory-test
-  (require [clojure.test :refer :all]
-           [puppetlabs.cthun.inventory.in-memory :refer :all]))
+  (:require [clojure.test :refer :all]
+            [puppetlabs.cthun.inventory.in-memory :refer :all]))
 
 (deftest endpoint-pattern-match?-test
   (testing "direct matches"

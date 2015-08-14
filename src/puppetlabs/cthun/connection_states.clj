@@ -77,9 +77,9 @@
     (process-client-message nil nil response)))
 
 (defn- handle-delivery-failure
-  [message reason]
   "If the message is not expired schedule for a future redelivery by adding to
   the redeliver queue, otherwise reply with a TTL expired message"
+  [message reason]
   (log/info "Failed to deliver message" message reason)
   (let [expires (time-coerce/to-date-time (:expires message))
         now     (time/now)]
@@ -92,8 +92,8 @@
       (process-expired-message message))))
 
 (defn deliver-message
-  [message]
   "Delivers a message to the websocket indicated by the :_target field"
+  [message]
   (if-let [websocket (websocket-for-uri (:_target message))]
     (try
       ; Lock on the websocket object allowing us to do one write at a time

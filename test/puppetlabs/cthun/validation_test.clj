@@ -23,11 +23,11 @@
     (try+
      (validate-certname "cth://lolcathost/agent" "remotecat")
      (catch map? m
-       (is (= :puppet.cthun.validation/identity-invalid) (:type m)))
+       (is (= :puppetlabs.cthun.validation/identity-invalid (:type m))))
      (else (is (not true) "Expected an exception for remotecat"))))
   (testing "accidental regex collisions"
     (try+
      (validate-certname "cth://lolcathost/agent" "remotecat")
      (catch map? m
-       (is (= :puppet.cthun.validation/identity-invalid) (:type m)))
+       (is (= :puppetlabs.cthun.validation/identity-invalid (:type m))))
      (else (is (not true) "Expected an exception for lol.athost")))))
