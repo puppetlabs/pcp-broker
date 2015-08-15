@@ -79,7 +79,7 @@
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
-                                  [puppetlabs/ssl-utils "0.8.0"]
+                                  [puppetlabs/ssl-utils "0.8.1"]
                                   [me.raynes/fs "1.4.5"]
                                   [org.clojure/tools.namespace "0.2.4"]]}
              :ezbake {:dependencies ^:replace [[puppetlabs/cthun ~cthun-version]]
