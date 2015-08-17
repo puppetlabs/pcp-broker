@@ -17,9 +17,14 @@
             [slingshot.slingshot :refer [throw+ try+]])
   (:import (clojure.lang IFn Atom)))
 
+(def ConnectionState
+  "The states it is possible for a Connection to be in"
+  (s/enum :open :associated))
+
 (def Connection
-  "The state of a websocket in the connections map"
-  {:state (s/enum :open :associated)
+  "The state of a connection as managed by the broker in the connections map"
+  {:state ConnectionState
+   :websocket Object
    (s/optional-key :uri) p/Uri
    :created-at p/ISO8601})
 
@@ -44,7 +49,8 @@
    :uri-map            Atom ;; atom with schema UriMap. will be checked with :validator
    :connections        Atom ;; atom with schema Connections. will be checked with :validator
    :metrics-registry   Object
-   :metrics            {s/Keyword Object}})
+   :metrics            {s/Keyword Object}
+   :transitions        {ConnectionState IFn}})
 
 ;; Metrics
 (s/defn metrics-app
@@ -75,16 +81,19 @@
   "cth:///server")
 
 ;; connection lifecycle
-(s/defn ^:always-validate new-socket :- Connection
+(s/defn ^:always-validate make-connection :- Connection
   "Return the initial state for a websocket"
-  []
+  [ws :- Websocket]
   {:state :open
+   :websocket ws
    :created-at (ks/timestamp)})
 
-(s/defn ^:always-validate add-connection!
+(s/defn ^:always-validate add-connection! :- Connection
   "Add a Connection to the connections to track a websocket"
   [broker :- Broker ws :- Websocket]
-  (swap! (:connections broker) assoc ws (new-socket)))
+  (let [connection (make-connection ws)]
+    (swap! (:connections broker) assoc ws connection)
+    connection))
 
 (s/defn ^:always-validate remove-connection!
   "Remove tracking of a Connection from the broker by websocket"
@@ -101,11 +110,6 @@
   "Return the websocket a node identified by a uri is connected to, false if not connected"
   [broker :- Broker uri :- p/Uri]
   (get @(:uri-map broker) uri))
-
-(s/defn ^:always-validate session-associated?
-  "Determine if a websocket is logged in"
-  [broker :- Broker ws :- Websocket]
-  (= (:state (get-connection broker ws)) :associated))
 
 ;; message lifecycle
 (s/defn ^:always-validate accept-message-for-delivery :- Capsule
@@ -213,57 +217,61 @@
   (and (= (:targets message) ["cth:///server"])
        (= (:message_type message) "http://puppetlabs.com/associate_request")))
 
-(s/defn ^:always-validate association-response :- (dissoc p/AssociateResponse :id)
-  [broker :- Broker ws :- Websocket message :- Message]
-  (let [uri (:sender message)
-        [certname type] (p/explode-uri uri)]
-    (log/info "Processing associate_request for" uri)
-    (if (= type "server") ;; currently we don't support inter-server connects
-      {:success false
-       :reason "'server' type connections not accepted"}
-      (if (session-associated? broker ws)
-        (let [current (get-connection broker ws)]
-          (log/errorf (str "Received session association for '%s' on socket '%s'.  "
-                           "Socket was already associated as '%s' connected since %s.  "
-                           "Closing connection.")
-                      uri ws (:uri current) (:created-at current))
-          {:success false
-           :reason "session already associated"})
-        (do
-          (if-let [old-ws (get-websocket broker uri)]
-            (do
-              (log/infof "Node with uri %s already associated at with socket '%s'. Closing old connection." uri old-ws)
-              (websockets-client/close! old-ws 4000 "superceded")
-              (swap! (:connections broker) dissoc old-ws)))
-          (swap! (:connections broker) update-in [ws] merge {:state :associated
-                                                             :uri  uri})
-          (swap! (:uri-map broker) assoc uri ws)
-          ((:record-client broker) uri)
-          (log/infof "Successfully associated %s with websocket %s" uri ws)
-          {:success true})))))
+(s/defn ^:always-validate reason-to-deny-association :- (s/maybe s/Str)
+  "Returns an error message describing why the session should not be
+  allowed, if it should be denied"
+  [broker :- Broker connection :- Connection as :- p/Uri]
+  (let [[_ type] (p/explode-uri as)]
+    (log/info "Processing associate_request for" as)
+    (cond
+      (= type "server")
+      "'server' type connections not accepted"
 
-(s/defn ^:always-validate process-session-association-message
+      (= :associated (:state connection))
+      (let [{:keys [websocket created-at uri]} connection]
+        (log/errorf (str "Received session association for '%s' on socket '%s'.  "
+                         "Socket was already associated as '%s' connected since %s.")
+                    as websocket uri created-at)
+        "session already associated"))))
+
+(s/defn ^:always-validate process-associate-message :- Connection
   "Process a session association message on a websocket"
-  [broker :- Broker ws :- Websocket request :- Message]
-  (let [response (merge {:id (:id request)}
-                        (association-response broker ws request))]
+  [broker :- Broker capsule :- Capsule connection :- Connection]
+  (let [request  (:message capsule)
+        id       (:id request)
+        uri      (:sender request)
+        ws       (:websocket connection)
+        reason   (reason-to-deny-association broker connection uri)
+        response (if reason {:id id :success false :reason reason} {:id id :success true})]
     (s/validate p/AssociateResponse response)
-    (let [message (-> (message/make-message)
-                      (assoc :message_type "http://puppetlabs.com/associate_response"
-                             :targets [ (:sender request) ]
-                             :sender "cth:///server")
+    (let [message (-> (message/make-message :message_type "http://puppetlabs.com/associate_response"
+                                            :targets [uri]
+                                            :sender "cth:///server")
                       (message/set-expiry 3 :seconds)
                       (message/set-json-data response))]
-      (websockets-client/send! ws (message/encode message))
-      (if (not (:success response))
-        (websockets-client/close! ws 4002 "association unsuccessful"))
-      (:success response))))
+      (websockets-client/send! ws (message/encode message)))
+    (if reason
+      (do
+        (websockets-client/close! ws 4002 "association unsuccessful")
+        connection)
+      (let [{:keys [uri-map record-client]} broker]
+        (when-let [old-ws (get-websocket broker uri)]
+          (let [connections (:connections broker)]
+            (log/infof "Node with uri %s already associated at with socket '%s'. Closing old connection." uri old-ws)
+            (websockets-client/close! old-ws 4000 "superceded")
+            (swap! connections dissoc old-ws)))
+        (swap! uri-map assoc uri ws)
+        (record-client uri)
+        (assoc connection
+               :uri uri
+               :state :associated)))))
 
-(s/defn ^:always-validate process-inventory-message
+(s/defn ^:always-validate process-inventory-message :- Connection
   "Process a request for inventory data"
-  [broker :- Broker ws :- Websocket message :- Message]
+  [broker :- Broker capsule :- Capsule connection :- Connection]
   (log/info "Processing inventory message")
-  (let [data (message/get-json-data message)]
+  (let [message (:message capsule)
+        data (message/get-json-data message)]
     (s/validate p/InventoryRequest data)
     (let [uris ((:find-clients broker) (:query data))
           response-data {:uris uris}
@@ -275,37 +283,20 @@
                        (message/set-expiry 3 :seconds)
                        (message/set-json-data response-data))]
       (s/validate p/InventoryResponse response-data)
-      (accept-message-for-delivery broker (capsule/wrap response)))))
+      (accept-message-for-delivery broker (capsule/wrap response))))
+  connection)
 
-(s/defn ^:always-validate process-server-message
+(s/defn ^:always-validate process-server-message :- Connection
   "Process a message directed at the middleware"
-  [broker :- Broker ws :- Websocket capsule :- Capsule]
+  [broker :- Broker capsule :- Capsule connection :- Connection]
   (log/info "Procesesing server message")
-  ; We've only got two message types at the moment - session-association and inventory
-  ; More will be added as we add server functionality
-  (let [message      (:message capsule)
-        message-type (:message_type message)]
+  (let [message-type (get-in capsule [:message :message_type])]
     (case message-type
-      "http://puppetlabs.com/associate_request" (process-session-association-message broker ws message)
-      "http://puppetlabs.com/inventory_request" (process-inventory-message broker ws message)
-      (log/warn "Invalid server message type received: " message-type))))
-
-(s/defn ^:always-validate process-message
-  "Process an incoming message from a websocket"
-  [broker :- Broker ws :- Websocket capsule :- Capsule]
-  (log/info "processing incoming message")
-  ; check if message has expired
-  (if (capsule/expired? capsule)
-    (process-expired-message broker capsule)
-    ; Check if socket is associated
-    (if (session-associated? broker ws)
-      ; check if this is a message directed at the middleware
-      (if (= (:targets (:message capsule)) ["cth:///server"])
-        (process-server-message broker ws capsule)
-        (accept-message-for-delivery broker capsule))
-      (if (session-association-message? (:message capsule))
-        (process-server-message broker ws capsule)
-        (log/warn "Connection cannot accept messages until session has been associated.  Dropping message.")))))
+      "http://puppetlabs.com/associate_request" (process-associate-message broker capsule connection)
+      "http://puppetlabs.com/inventory_request" (process-inventory-message broker capsule connection)
+      (do
+        (log/warn "Unhandled server message type received: " message-type)
+        connection))))
 
 (s/defn ^:always-validate validate-certname :- s/Bool
   "Validate that the cert name advertised by the client matches the cert name in the certificate"
@@ -333,31 +324,64 @@
            (websockets-client/idle-timeout! ws idle-timeout)
            (add-connection! broker ws))))
 
+(s/defn ^:always-validate connection-open :- Connection
+  [broker :- Broker capsule :- Capsule connection :- Connection]
+  (let [message (:message capsule)]
+    (if (session-association-message? message)
+      (process-associate-message broker capsule connection)
+      (do
+        (log/warn "Connection cannot accept messages until session has been associated.  Dropping message.")
+        connection))))
+
+(s/defn ^:always-validate connection-associated :- Connection
+  [broker :- Broker capsule :- Capsule connection :- Connection]
+  (let [targets (get-in capsule [:message :targets])]
+    (if (= ["cth:///server"] targets)
+      (process-server-message broker capsule connection)
+      (do
+        (accept-message-for-delivery broker capsule)
+        connection))))
+
+(s/defn ^:always-validate decode-and-check :- (s/maybe Message)
+  [bytes :- message/ByteArray connection :- Connection]
+  (let [socket  (:websocket connection)
+        cn      (get-cn socket)
+        message (message/decode bytes)
+        sender  (:sender message)]
+    (validate-certname sender cn)
+    message))
+
+(s/defn ^:always-validate determine-next-state :- Connection
+  "Determine the next state for a connection given a capsule and some transitions"
+  [broker :- Broker capsule :- Capsule connection :- Connection]
+  (let [transitions (:transitions broker)
+        state       (:state connection)]
+    (if-let [transition (get transitions state)]
+      (transition broker capsule connection)
+      (do
+        (log/errorf "Cannot find transition for state %s" state)
+        connection))))
+
 (defn on-message!
   [broker ws bytes]
-  (let [timestamp (ks/timestamp)]
-    (time! (:on-message (:metrics broker))
-           (let [cn (get-cn ws)]
-             (log/infof "Received message from client %s on %s" cn ws)
-             (try+
-              (let [message (message/decode bytes)]
-                (validate-certname (:sender message) cn)
-                (let [capsule (capsule/wrap message)
-                      capsule (capsule/add-hop capsule (broker-uri broker) "accepted" timestamp)]
-                  (log/info "Processing message")
-                  (process-message broker ws capsule)))
-              (catch map? m
-                (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
-                      error-message (-> (message/make-message)
-                                        (assoc :id (ks/uuid)
-                                               :message_type "http://puppetlabs.com/error_message"
-                                               :sender "cth:///server")
-                                        (message/set-json-data error-body))]
-                  (s/validate p/ErrorMessage error-body)
-                  (log/warn "sending error message" error-body)
-                  (websockets-client/send! ws (message/encode error-message))))
-              (catch Throwable e
-                (log/error e "on-message")))))))
+  (time! (:on-message (:metrics broker))
+         (try+
+          (let [connection  (get-connection broker ws)
+                message     (decode-and-check bytes connection)
+                uri         (broker-uri broker)
+                capsule     (capsule/wrap message)
+                capsule     (capsule/add-hop capsule uri "accepted")
+                next        (determine-next-state broker capsule connection)]
+            (swap! (:connections broker) assoc ws next))
+          (catch map? m
+            (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
+                  error-message (-> (message/make-message
+                                     :message_type "http://puppetlabs.com/error_message"
+                                     :sender "cth:///server")
+                                    (message/set-json-data error-body))]
+              (s/validate p/ErrorMessage error-body)
+              (log/warn "sending error message" error-body)
+              (websockets-client/send! ws (message/encode error-message)))))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"
@@ -417,7 +441,9 @@
                               :metrics            {}
                               :metrics-registry   (get-metrics-registry)
                               :connections        (atom {} :validator (partial s/validate Connections))
-                              :uri-map            (atom {} :validator (partial s/validate UriMap))}
+                              :uri-map            (atom {} :validator (partial s/validate UriMap))
+                              :transitions        {:open connection-open
+                                                   :associated connection-associated}}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)
           activemq-consumers (subscribe-to-queues broker accept-consumers delivery-consumers)
