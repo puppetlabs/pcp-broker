@@ -377,8 +377,7 @@
 
 ;; service lifecycle
 (def InitOptions
-  {:path s/Str
-   :activemq-spool s/Str
+  {:activemq-spool s/Str
    :accept-consumers s/Num
    :delivery-consumers s/Num
    :add-ring-handler IFn
@@ -402,8 +401,8 @@
                               :uri-map            (atom {})}
           activemq-consumers (subscribe-to-queues broker accept-consumers delivery-consumers)
           broker             (assoc broker :activemq-consumers activemq-consumers)]
-      (add-ring-handler metrics-app "/")
-      (add-websocket-handler (build-websocket-handlers broker) path)
+      (add-ring-handler metrics-app {:route-id :metrics})
+      (add-websocket-handler (build-websocket-handlers broker) {:route-id :websocket})
       broker)))
 
 (s/defn ^:always-validate start

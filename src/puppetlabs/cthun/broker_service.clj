@@ -6,21 +6,19 @@
 
 (trapperkeeper/defservice broker-service
   [[:ConfigService get-in-config]
-   [:WebserverService add-ring-handler add-websocket-handler]
+   [:WebroutingService add-ring-handler add-websocket-handler]
    [:InventoryService record-client find-clients]
    [:AuthorizationService authorized]]
   (init [this context]
         (log/info "Initializing broker service")
-        (let [path               (get-in-config [:cthun :url-prefix] "/cthun")
-              activemq-spool     (get-in-config [:cthun :broker-spool])
+        (let [activemq-spool     (get-in-config [:cthun :broker-spool])
               accept-consumers   (get-in-config [:cthun :accept-consumers] 4)
               delivery-consumers (get-in-config [:cthun :delivery-consumers] 16)
-              broker             (core/init {:path path
-                                             :activemq-spool activemq-spool
+              broker             (core/init {:activemq-spool activemq-spool
                                              :accept-consumers accept-consumers
                                              :delivery-consumers delivery-consumers
-                                             :add-ring-handler add-ring-handler
-                                             :add-websocket-handler add-websocket-handler
+                                             :add-ring-handler (partial add-ring-handler this)
+                                             :add-websocket-handler (partial add-websocket-handler this)
                                              :record-client record-client
                                              :find-clients find-clients
                                              :authorized authorized})]
