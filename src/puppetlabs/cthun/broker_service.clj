@@ -8,7 +8,8 @@
   [[:ConfigService get-in-config]
    [:WebroutingService add-ring-handler add-websocket-handler]
    [:InventoryService record-client find-clients]
-   [:AuthorizationService authorized]]
+   [:AuthorizationService authorized]
+   [:MetricsService get-metrics-registry]]
   (init [this context]
         (log/info "Initializing broker service")
         (let [activemq-spool     (get-in-config [:cthun :broker-spool])
@@ -21,7 +22,8 @@
                                              :add-websocket-handler (partial add-websocket-handler this)
                                              :record-client record-client
                                              :find-clients find-clients
-                                             :authorized authorized})]
+                                             :authorized authorized
+                                             :get-metrics-registry get-metrics-registry})]
           (assoc context :broker broker)))
   (start [this context]
          (log/info "Starting broker service")
