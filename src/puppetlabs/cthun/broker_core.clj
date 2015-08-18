@@ -33,6 +33,7 @@
    :activemq-consumers [Object]
    :record-client      IFn
    :find-clients       IFn
+   :authorized         IFn
    ;; TODO(richardc) watch for a solution for an atom containing a
    ;; structure - https://github.com/Prismatic/schema/issues/186
    ;; until then, s/Any it is.
@@ -90,7 +91,9 @@
   [broker :- Broker message :- message/Message]
   (message (message/add-hop message "accept-to-queue"))
   (time! metrics/time-in-message-queueing
-         (activemq/queue-message accept-queue message)))
+         (if ((:authorized broker) message)
+           (activemq/queue-message accept-queue message)
+           (log/info "Message not authorized, dropping" message))))
 
 (s/defn ^:always-validate process-expired-message
   "Reply with a ttl_expired message to the original message sender"
@@ -381,18 +384,20 @@
    :add-ring-handler IFn
    :add-websocket-handler IFn
    :record-client IFn
-   :find-clients IFn})
+   :find-clients IFn
+   :authorized IFn})
 
 (s/defn ^:always-validate init :- Broker
   [options :- InitOptions]
   (let [{:keys [path activemq-spool accept-consumers delivery-consumers
                 add-ring-handler add-websocket-handler
-                record-client find-clients]} options]
+                record-client find-clients authorized]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
           broker             {:activemq-broker    activemq-broker
                               :activemq-consumers []
                               :record-client      record-client
                               :find-clients       find-clients
+                              :authorized         authorized
                               :connections        (atom {})
                               :uri-map            (atom {})}
           activemq-consumers (subscribe-to-queues broker accept-consumers delivery-consumers)

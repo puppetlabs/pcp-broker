@@ -12,6 +12,7 @@
    :activemq-consumers []
    :record-client      (constantly true)
    :find-clients       (constantly true)
+   :authorized         (constantly true)
    :uri-map            (atom {})
    :connections        (atom {})})
 
