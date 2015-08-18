@@ -26,16 +26,7 @@
                  [org.clojure/core.async "0.1.338.0-5c5012-alpha"]
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/kitchensink ~ks-version]
-                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.3.1"]
-
-                 [info.sunng/ring-jetty9-adapter "0.8.5"
-                  :exclusions [org.eclipse.jetty/jetty-util
-                               org.eclipse.jetty/jetty-io
-                               org.eclipse.jetty/jetty-http
-                               org.eclipse.jetty/jetty-security
-                               org.eclipse.jetty/jetty-server
-                               org.eclipse.jetty/jetty-servlet
-                               ring/ring-servlet]]
+                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.4.0"]
 
                  [cheshire "5.5.0"]
                  [prismatic/schema "0.4.3"]

@@ -14,7 +14,7 @@
             [metrics.counters :refer [inc!]]
             [metrics.meters :refer [mark!]]
             [metrics.timers :refer [time!]]
-            [ring.adapter.jetty9 :as jetty-adapter]))
+            [puppetlabs.experimental.websockets.client :as websockets-client]))
 
 (def ConnectionState
   "The state of a websocket in the connection-map"
@@ -101,7 +101,7 @@
         (inc! metrics/total-messages-out)
         (mark! metrics/rate-messages-out)
         (let [message (message/add-hop message "deliver")]
-          (jetty-adapter/send! websocket (message/encode message))))
+          (websockets-client/send! websocket (message/encode message))))
       (catch Exception e
         (handle-delivery-failure message e)))
     (handle-delivery-failure message "not connected")))
@@ -201,7 +201,7 @@
           (if-let [old-ws (websocket-for-uri uri)]
             (do
               (log/info "node with uri " uri " already associated with socket " old-ws " Closing old connection")
-              (jetty-adapter/close! old-ws)
+              (websockets-client/close! old-ws)
               (swap! connection-map dissoc old-ws)))
           (swap! connection-map update-in [ws] merge {:status "ready"
                                                       :uri uri})
@@ -223,9 +223,9 @@
                              :sender "cth:///server")
                       (message/set-expiry 3 :seconds)
                       (message/set-json-data response))]
-      (jetty-adapter/send! ws (message/encode message))
+      (websockets-client/send! ws (message/encode message))
       (if (not (:success response))
-        (jetty-adapter/close! ws))
+        (websockets-client/close! ws))
       (:success response))))
 
 (defn- process-inventory-message
