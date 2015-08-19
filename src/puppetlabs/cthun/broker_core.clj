@@ -4,15 +4,14 @@
             [clj-time.core :as time]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
-            [metrics.counters :refer [inc! dec!]]
-            [metrics.meters :refer [mark!]]
-            [metrics.timers :refer [time!]]
+            [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.cthun.activemq :as activemq]
             [puppetlabs.cthun.message :as message]
             [puppetlabs.cthun.metrics :as metrics]
             [puppetlabs.cthun.protocol.schemas :as schemas]
             [puppetlabs.kitchensink.core :as ks]
+            [puppetlabs.metrics :refer [time!]]
             [puppetlabs.puppetdb.mq :as mq]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]])
@@ -38,13 +37,27 @@
    ;; structure - https://github.com/Prismatic/schema/issues/186
    ;; until then, s/Any it is.
    :uri-map            s/Any #_(s/atom {message/Uri Websocket})
-   :connections        s/Any #_(s/atom {Websocket Connection})})
+   :connections        s/Any #_(s/atom {Websocket Connection})
+   :metrics-registry   Object
+   :metrics            {s/Keyword Object}})
 
-(defn metrics-app
-  [conf]
+;; Metrics
+(s/defn metrics-app
+  [broker :- Broker request]
   {:status 200
    :headers {"Content-Type" "application/json"}
-   :body (metrics/get-metrics-string)})
+   :body (metrics/render-metrics (:metrics-registry broker))})
+
+(s/defn ^:always-validate build-and-register-metrics :- {s/Keyword Object}
+  [broker :- Broker]
+  (let [registry (:metrics-registry broker)]
+    (gauges/gauge-fn registry ["puppetlabs.cthun.connections"]
+                     (fn [] (count (keys @(:connections broker)))))
+    {:on-connect       (.timer registry "puppetlabs.cthun.on-connect")
+     :on-close         (.timer registry "puppetlabs.cthun.on-close")
+     :on-message       (.timer registry "puppetlabs.cthun.on-message")
+     :message-queueing (.timer registry "puppetlabs.cthun.message-queueing")
+     :on-send          (.timer registry "puppetlabs.cthun.on-send")}))
 
 ;; names of activemq queues - as vars so they're harder to typo
 (def accept-queue "accept")
@@ -87,13 +100,13 @@
 ;; message lifecycle
 (s/defn ^:always-validate accept-message-for-delivery
   "Accept a message for later delivery"
-  ;; TODO(richardc): Not using broker now - may use it later when we thread metrics
   [broker :- Broker message :- message/Message]
   (message (message/add-hop message "accept-to-queue"))
-  (time! metrics/time-in-message-queueing
-         (if ((:authorized broker) message)
-           (activemq/queue-message accept-queue message)
-           (log/info "Message not authorized, dropping" message))))
+  (if ((:authorized broker) message)
+    (time! (:message-queueing (:metrics broker))
+           (activemq/queue-message accept-queue message))
+    (log/info "Message not authorized, dropping" message)))
+
 
 (s/defn ^:always-validate process-expired-message
   "Reply with a ttl_expired message to the original message sender"
@@ -123,7 +136,8 @@
             retry-delay (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
             message     (message/add-hop message "redelivery")]
         (log/info "Moving message to the redeliver queue for redelivery in" retry-delay "seconds")
-        (activemq/queue-message delivery-queue message (mq/delay-property retry-delay :seconds)))
+        (time! (:message-queueing (:metrics broker))
+               (activemq/queue-message delivery-queue message (mq/delay-property retry-delay :seconds))))
       (process-expired-message broker message))))
 
 (s/defn ^:always-validate maybe-send-destination-report
@@ -152,12 +166,11 @@
       ; down each of the websockets
       (log/info "delivering message to websocket" message)
       (locking websocket
-        (inc! metrics/total-messages-out)
-        (mark! metrics/rate-messages-out)
-        (let [message (message/add-hop message "deliver")]
-          (websockets-client/send! websocket (message/encode message))))
-      (catch Exception e
-        (handle-delivery-failure broker message e)))
+        (time! (:on-send (:metrics broker))
+               (let [message (message/add-hop message "deliver")]
+                 (websockets-client/send! websocket (message/encode message))))
+        (catch Exception e
+          (handle-delivery-failure broker message (str e)))))
     (handle-delivery-failure broker message "not connected")))
 
 (s/defn ^:always-validate expand-destinations
@@ -169,7 +182,8 @@
     (maybe-send-destination-report broker message targets)
     ;; TODO(richardc): can we wrap all these enqueues in a JMS transaction?
     ;; if so we should
-    (doall (map #(activemq/queue-message delivery-queue %) messages))))
+    (time! (:message-queueing (:metrics broker))
+           (doall (map #(activemq/queue-message delivery-queue %) messages)))))
 
 (s/defn ^:always-validate subscribe-to-queues
   [broker :- Broker accept-count delivery-count]
@@ -306,20 +320,17 @@
 (defn- on-connect!
   "OnConnect websocket event handler"
   [broker ws]
-  (time! metrics/time-in-on-connect
+  (time! (:on-connect (:metrics broker))
          (let [host (get-cn ws)
                idle-timeout (* 1000 60 15)]
            (log/infof "Connection established from client %s on %s" host ws)
            (websockets-client/idle-timeout! ws idle-timeout)
-           (add-connection! broker ws)
-           (inc! metrics/active-connections))))
+           (add-connection! broker ws))))
 
 (defn on-message!
   [broker ws bytes]
   (let [timestamp (ks/timestamp)]
-    (inc! metrics/total-messages-in)
-    (mark! metrics/rate-messages-in)
-    (time! metrics/time-in-on-text
+    (time! (:on-message (:metrics broker))
            (let [cn (get-cn ws)]
              (log/infof "Received message from client %s on %s" cn ws)
              (try+
@@ -354,18 +365,16 @@
 (defn- on-error
   "OnError websocket event handler"
   [broker ws e]
-  (log/error e)
-  (dec! metrics/active-connections))
+  (log/error e))
 
 (defn- on-close!
   "OnClose websocket event handler"
   [broker ws status-code reason]
-  (time! metrics/time-in-on-close
+  (time! (:time-in-on-close (:metrics broker))
          (let [cn (get-cn ws)]
            (log/infof "Connection from %s on %s terminated with statuscode: %s Reason: %s"
                       cn ws status-code reason)
-           (remove-connection! broker ws)
-           (dec! metrics/active-connections))))
+           (remove-connection! broker ws))))
 
 (s/defn ^:always-validate build-websocket-handlers :- {s/Keyword IFn}
   [broker :- Broker]
@@ -384,24 +393,29 @@
    :add-websocket-handler IFn
    :record-client IFn
    :find-clients IFn
-   :authorized IFn})
+   :authorized IFn
+   :get-metrics-registry IFn})
 
 (s/defn ^:always-validate init :- Broker
   [options :- InitOptions]
   (let [{:keys [path activemq-spool accept-consumers delivery-consumers
                 add-ring-handler add-websocket-handler
-                record-client find-clients authorized]} options]
+                record-client find-clients authorized get-metrics-registry]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
           broker             {:activemq-broker    activemq-broker
                               :activemq-consumers []
                               :record-client      record-client
                               :find-clients       find-clients
                               :authorized         authorized
+                              :metrics            {}
+                              :metrics-registry   (get-metrics-registry)
                               :connections        (atom {})
                               :uri-map            (atom {})}
+          metrics            (build-and-register-metrics broker)
+          broker             (assoc broker :metrics metrics)
           activemq-consumers (subscribe-to-queues broker accept-consumers delivery-consumers)
           broker             (assoc broker :activemq-consumers activemq-consumers)]
-      (add-ring-handler metrics-app {:route-id :metrics})
+      (add-ring-handler (partial metrics-app broker) {:route-id :metrics})
       (add-websocket-handler (build-websocket-handlers broker) {:route-id :websocket})
       broker)))
 

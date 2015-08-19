@@ -14,7 +14,9 @@
    :find-clients       (constantly true)
    :authorized         (constantly true)
    :uri-map            (atom {})
-   :connections        (atom {})})
+   :connections        (atom {})
+   :metrics-registry   ""
+   :metrics            {}})
 
 (deftest new-socket-test
   (testing "It returns a map that matches represents a new socket"
