@@ -68,7 +68,9 @@
   :test-paths ["test" "test-resources"]
 
   :profiles {:dev {:source-paths ["dev"]
-                   :dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
+                   :dependencies [[http.async.client "0.6.1" :exclusions [org.clojure/clojure]]
+                                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                                  [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
                                   [puppetlabs/ssl-utils "0.8.1"]
                                   [me.raynes/fs "1.4.5"]
