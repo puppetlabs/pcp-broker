@@ -1,4 +1,4 @@
-(ns puppetlabs.cthun.activemq
+(ns puppetlabs.cthun.broker.activemq
   (:require [clojure.edn :as edn]
             [taoensso.nippy :as nippy]
             [puppetlabs.puppetdb.mq :as mq]

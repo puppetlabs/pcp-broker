@@ -1,6 +1,6 @@
-(ns puppetlabs.cthun.authorization.basic-core-test
+(ns puppetlabs.cthun.broker.basic-authorization
   (:require [clojure.test :refer :all]
-            [puppetlabs.cthun.authorization.basic-core :refer :all]
+            [puppetlabs.cthun.broker.basic-authorization :refer :all]
             [puppetlabs.cthun.message :as message]
             [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]))
 

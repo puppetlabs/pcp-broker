@@ -1,4 +1,4 @@
-(ns puppetlabs.cthun.metrics
+(ns puppetlabs.cthun.broker.metrics
   (:require [clojure.java.jmx :as jmx]
             [metrics.counters :as counters]
             [metrics.meters :as meters]

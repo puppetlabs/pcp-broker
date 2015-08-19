@@ -1,4 +1,4 @@
-(ns puppetlabs.cthun.broker-core
+(ns puppetlabs.cthun.broker.core
   (:require [clamq.protocol.consumer :as mq-cons]
             [clj-time.coerce :as time-coerce]
             [clj-time.core :as time]
@@ -6,9 +6,9 @@
             [clojure.string :as str]
             [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
-            [puppetlabs.cthun.activemq :as activemq]
+            [puppetlabs.cthun.broker.activemq :as activemq]
+            [puppetlabs.cthun.broker.metrics :as metrics]
             [puppetlabs.cthun.message :as message]
-            [puppetlabs.cthun.metrics :as metrics]
             [puppetlabs.cthun.protocol.schemas :as schemas]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.metrics :refer [time!]]
