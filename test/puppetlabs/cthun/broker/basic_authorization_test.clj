@@ -1,4 +1,4 @@
-(ns puppetlabs.cthun.broker.basic-authorization
+(ns puppetlabs.cthun.broker.basic-authorization-test
   (:require [clojure.test :refer :all]
             [puppetlabs.cthun.broker.basic-authorization :refer :all]
             [puppetlabs.cthun.message :as message]
