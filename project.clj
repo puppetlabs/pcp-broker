@@ -1,6 +1,6 @@
 (def tk-version "1.1.1")
 (def ks-version "1.1.0")
-(def cthun-version "0.1.0-SNAPSHOT")
+(def cthun-version "0.2.0-SNAPSHOT")
 
 (defn deploy-info
   [url]
