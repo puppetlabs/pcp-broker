@@ -97,8 +97,8 @@
     (is (= [ "*" "agent" ] (explode-uri "cth://*/agent")))))
 
 (deftest process-session-association-message-test
-  (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [ws] false)
-                puppetlabs.experimental.websockets.client/send! (fn [ws bytes] false)]
+  (with-redefs [puppetlabs.experimental.websockets.client/close! (constantly false)
+                puppetlabs.experimental.websockets.client/send! (constantly false)]
     (let [message (-> (message/make-message)
                       (assoc  :sender "cth://localhost/controller"
                               :message_type "http://puppetlabs.com/login_message"))]

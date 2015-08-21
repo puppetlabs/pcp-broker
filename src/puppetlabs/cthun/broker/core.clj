@@ -221,7 +221,7 @@
           (if-let [old-ws (get-websocket broker uri)]
             (do
               (log/infof "Node with uri %s already associated at with socket '%s'. Closing old connection." uri old-ws)
-              (websockets-client/close! old-ws)
+              (websockets-client/close! old-ws 4000 "superceded")
               (swap! (:connections broker) dissoc old-ws)))
           (swap! (:connections broker) update-in [ws] merge {:state :associated
                                                              :uri  uri})
@@ -245,7 +245,7 @@
                       (message/set-json-data response))]
       (websockets-client/send! ws (message/encode message))
       (if (not (:success response))
-        (websockets-client/close! ws))
+        (websockets-client/close! ws 4002 "association unsuccessful"))
       (:success response))))
 
 (s/defn ^:always-validate process-inventory-message
@@ -350,7 +350,7 @@
                   (log/warn "sending error message" error-body)
                   (websockets-client/send! ws (message/encode error-message))))
               (catch Throwable e
-                (log/error "Unhandled exception" e)))))))
+                (log/error e "on-message")))))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"
@@ -370,7 +370,7 @@
 (defn- on-close!
   "OnClose websocket event handler"
   [broker ws status-code reason]
-  (time! (:time-in-on-close (:metrics broker))
+  (time! (:on-close (:metrics broker))
          (let [cn (get-cn ws)]
            (log/infof "Connection from %s on %s terminated with statuscode: %s Reason: %s"
                       cn ws status-code reason)
