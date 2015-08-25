@@ -9,22 +9,22 @@
 ;; A simple websockets client with some assertions - for non-testing uses use pcp-client.
 
 (defprotocol WsClient
-  (close [this])
-  (send! [this message])
-  (recv! [this] [this timeout]
+  (close [_])
+  (send! [_ message])
+  (recv! [_] [_ timeout]
     "Returns nil on timeout, [code reason] on close, message/Message on message"))
 
 (defrecord ChanClient [http-client ws-client message-channel]
   WsClient
-  (close [this]
-    (async/close! (:message-channel this))
-    (.close (:ws-client this))
-    (.close (:http-client this)))
-  (send! [this message]
-    (http/send (:ws-client this) :byte (message/encode message)))
+  (close [_]
+    (async/close! message-channel)
+    (.close ws-client)
+    (.close http-client))
+  (send! [_ message]
+    (http/send ws-client :byte (message/encode message)))
   (recv! [this] (recv! this (* 10 1000)))
-  (recv! [this timeout-ms]
-    (let [[message channel] (alts!! [(:message-channel this) (timeout timeout-ms)])]
+  (recv! [_ timeout-ms]
+    (let [[message channel] (alts!! [message-channel (timeout timeout-ms)])]
       message)))
 
 (defn http-client-with-cert
