@@ -7,8 +7,9 @@
             [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.cthun.broker.activemq :as activemq]
+            [puppetlabs.cthun.broker.capsule :as capsule :refer [Capsule]]
             [puppetlabs.cthun.broker.metrics :as metrics]
-            [puppetlabs.cthun.message :as message]
+            [puppetlabs.cthun.message :as message :refer [Message]]
             [puppetlabs.cthun.protocol.schemas :as schemas]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.metrics :refer [time!]]
@@ -69,6 +70,11 @@
 
 (def delivery-queue "delivery")
 
+(s/defn ^:always-validate broker-uri :- message/Uri
+  [broker :- Broker]
+  ;; TODO(richardc) should come from config or the cert of this instance
+  "cth:///server")
+
 ;; protocol helpers - probably should move
 (s/defn ^:always-validate explode-uri :- [s/Str]
   "Parse an Uri string into its component parts.  Raises if incomplete"
@@ -114,21 +120,22 @@
   (= (:state (get-connection broker ws)) :associated))
 
 ;; message lifecycle
-(s/defn ^:always-validate accept-message-for-delivery
+(s/defn ^:always-validate accept-message-for-delivery :- Capsule
   "Accept a message for later delivery"
-  [broker :- Broker message :- message/Message]
-  (message (message/add-hop message "accept-to-queue"))
-  (if ((:authorized broker) message)
+  [broker :- Broker capsule :- Capsule]
+  (if ((:authorized broker) (:message capsule))
     (time! (:message-queueing (:metrics broker))
-           (activemq/queue-message accept-queue message))
-    (log/info "Message not authorized, dropping" message)))
+           (let [capsule (capsule/add-hop capsule (broker-uri broker) "accept-to-queue")]
+             (activemq/queue-message accept-queue capsule)))
+    (log/info "Message not authorized, dropping" capsule))
+  capsule)
 
-
-(s/defn ^:always-validate process-expired-message
+(s/defn ^:always-validate process-expired-message :- Capsule
   "Reply with a ttl_expired message to the original message sender"
-  [broker :- Broker message :- message/Message]
-  (log/warn "Message " message " has expired. Replying with a ttl_expired.")
-  (let [response_data {:id (:id message)}
+  [broker :- Broker capsule :- Capsule]
+  (log/warn "Message " capsule " has expired. Replying with a ttl_expired.")
+  (let [message (:message capsule)
+        response_data {:id (:id message)}
         response (-> (message/make-message)
                      (assoc :id           (ks/uuid)
                             :message_type "http://puppetlabs.com/ttl_expired"
@@ -137,28 +144,28 @@
                      (message/set-expiry 3 :seconds)
                      (message/set-json-data response_data))]
     (s/validate schemas/TTLExpiredMessage response_data)
-    (accept-message-for-delivery broker response)))
+    (accept-message-for-delivery broker (capsule/wrap response))))
 
 (s/defn ^:always-validate handle-delivery-failure
   "If the message is not expired schedule for a future delivery by
   adding to the delivery queue with a delay property, otherwise reply
   with a TTL expired message"
-  [broker :- Broker message :- message/Message reason :- s/Str]
-  (log/info "Failed to deliver message" message reason)
-  (let [expires (time-coerce/to-date-time (:expires message))
+  [broker :- Broker capsule :- Capsule reason :- s/Str]
+  (log/error "Failed to deliver message" capsule reason)
+  (let [expires (:expires capsule)
         now     (time/now)]
     (if (time/after? expires now)
       (let [difference  (time/in-seconds (time/interval now expires))
             retry-delay (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
-            message     (message/add-hop message "redelivery")]
+            capsule     (capsule/add-hop capsule (broker-uri broker) "redelivery")]
         (log/info "Moving message to the redeliver queue for redelivery in" retry-delay "seconds")
         (time! (:message-queueing (:metrics broker))
-               (activemq/queue-message delivery-queue message (mq/delay-property retry-delay :seconds))))
-      (process-expired-message broker message))))
+               (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))
+      (process-expired-message broker capsule))))
 
 (s/defn ^:always-validate maybe-send-destination-report
   "Send a destination report about the given message, if requested"
-  [broker :- Broker message :- message/Message targets :- [message/Uri]]
+  [broker :- Broker message :- Message targets :- [message/Uri]]
   (when (:destination_report message)
     (let [report {:id (:id message)
                   :targets targets}
@@ -170,38 +177,39 @@
                     (message/set-expiry 3 :seconds)
                     (message/set-json-data report))]
       (s/validate schemas/DestinationReport report)
-      (accept-message-for-delivery broker reply))))
+      (accept-message-for-delivery broker (capsule/wrap reply)))))
 
 ;; ActiveMQ queue consumers
 (s/defn ^:always-validate deliver-message
-  "Message consumer. Delivers a message to the websocket indicated by the :_target field"
-  [broker :- Broker message :- message/Message]
-  (if-let [websocket (get-websocket broker (:_target message))]
-    (try
-      ; Lock on the websocket object allowing us to do one write at a time
-      ; down each of the websockets
-      (log/info "delivering message to websocket" message)
-      (locking websocket
-        (time! (:on-send (:metrics broker))
-               (let [message (message/add-hop message "deliver")]
-                 (websockets-client/send! websocket (message/encode message))))
+  "Message consumer. Delivers a message to the websocket indicated by the :target field"
+  [broker :- Broker capsule :- Capsule]
+  (let [message (:message capsule)]
+    (if-let [websocket (get-websocket broker (:target capsule))]
+      (try
+        (log/info "delivering message to websocket" capsule)
+        (locking websocket
+          (time! (:on-send (:metrics broker))
+                 (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
+                   (websockets-client/send! websocket (capsule/encode capsule)))))
         (catch Exception e
-          (handle-delivery-failure broker message (str e)))))
-    (handle-delivery-failure broker message "not connected")))
+          (log/error e "deliver-message")
+          (handle-delivery-failure broker capsule (str e))))
+      (handle-delivery-failure broker capsule "not connected"))))
 
 (s/defn ^:always-validate expand-destinations
   "Message consumer.  Takes a message from the accept queue, expands
   destinations, and enqueues to the `delivery-queue`"
-  [broker :- Broker message :- message/Message]
-  (let [explicit  (filter (complement uri-wildcard?) (:targets message))
+  [broker :- Broker capsule :- Capsule]
+  (let [message   (:message capsule)
+        explicit  (filter (complement uri-wildcard?) (:targets message))
         wildcards (filter uri-wildcard? (:targets message))
         targets   (flatten [explicit ((:find-clients broker) wildcards)])
-        messages (map #(assoc message :_target %) targets)]
+        capsules  (map #(assoc capsule :target %) targets)]
     (maybe-send-destination-report broker message targets)
     ;; TODO(richardc): can we wrap all these enqueues in a JMS transaction?
     ;; if so we should
     (time! (:message-queueing (:metrics broker))
-           (doall (map #(activemq/queue-message delivery-queue %) messages)))))
+           (doall (map #(activemq/queue-message delivery-queue %) capsules)))))
 
 (s/defn ^:always-validate subscribe-to-queues
   [broker :- Broker accept-count delivery-count]
@@ -210,12 +218,12 @@
 
 (s/defn ^:always-validate session-association-message? :- s/Bool
   "Return true if message is a session association message"
-  [message :- message/Message]
+  [message :- Message]
   (and (= (:targets message) ["cth:///server"])
        (= (:message_type message) "http://puppetlabs.com/associate_request")))
 
 (s/defn ^:always-validate association-response :- (dissoc schemas/AssociateResponse :id)
-  [broker :- Broker ws :- Websocket message :- message/Message]
+  [broker :- Broker ws :- Websocket message :- Message]
   (let [uri (:sender message)
         [certname type] (explode-uri uri)]
     (log/info "Processing associate_request for" uri)
@@ -245,7 +253,7 @@
 
 (s/defn ^:always-validate process-session-association-message
   "Process a session association message on a websocket"
-  [broker :- Broker ws :- Websocket request :- message/Message]
+  [broker :- Broker ws :- Websocket request :- Message]
   (let [response (merge {:id (:id request)}
                         (association-response broker ws request))]
     (s/validate schemas/AssociateResponse response)
@@ -263,7 +271,7 @@
 
 (s/defn ^:always-validate process-inventory-message
   "Process a request for inventory data"
-  [broker :- Broker ws :- Websocket message :- message/Message]
+  [broker :- Broker ws :- Websocket message :- Message]
   (log/info "Processing inventory message")
   (let [data (message/get-json-data message)]
     (s/validate schemas/InventoryRequest data)
@@ -277,41 +285,36 @@
                        (message/set-expiry 3 :seconds)
                        (message/set-json-data response-data))]
       (s/validate schemas/InventoryResponse response-data)
-      (accept-message-for-delivery broker response))))
+      (accept-message-for-delivery broker (capsule/wrap response)))))
 
 (s/defn ^:always-validate process-server-message
   "Process a message directed at the middleware"
-  [broker :- Broker ws :- Websocket message :- message/Message]
+  [broker :- Broker ws :- Websocket capsule :- Capsule]
   (log/info "Procesesing server message")
   ; We've only got two message types at the moment - session-association and inventory
   ; More will be added as we add server functionality
-  (let [message-type (:message_type message)]
+  (let [message      (:message capsule)
+        message-type (:message_type message)]
     (case message-type
       "http://puppetlabs.com/associate_request" (process-session-association-message broker ws message)
       "http://puppetlabs.com/inventory_request" (process-inventory-message broker ws message)
       (log/warn "Invalid server message type received: " message-type))))
 
-(s/defn ^:always-validate message-expired? :- s/Bool
-  "Check whether a message has expired or not"
-  [message :- message/Message]
-  (let [expires (:expires message)]
-    (time/after? (time/now) (time-coerce/to-date-time expires))))
-
 (s/defn ^:always-validate process-message
   "Process an incoming message from a websocket"
-  [broker :- Broker ws :- Websocket message :- message/Message]
+  [broker :- Broker ws :- Websocket capsule :- Capsule]
   (log/info "processing incoming message")
   ; check if message has expired
-  (if (message-expired? message)
-    (process-expired-message broker message)
+  (if (capsule/expired? capsule)
+    (process-expired-message broker capsule)
     ; Check if socket is associated
     (if (session-associated? broker ws)
       ; check if this is a message directed at the middleware
-      (if (= (:targets message) ["cth:///server"])
-        (process-server-message broker ws message)
-        (accept-message-for-delivery broker message))
-      (if (session-association-message? message)
-        (process-server-message broker ws message)
+      (if (= (:targets (:message capsule)) ["cth:///server"])
+        (process-server-message broker ws capsule)
+        (accept-message-for-delivery broker capsule))
+      (if (session-association-message? (:message capsule))
+        (process-server-message broker ws capsule)
         (log/warn "Connection cannot accept messages until session has been associated.  Dropping message.")))))
 
 (s/defn ^:always-validate validate-certname :- s/Bool
@@ -349,9 +352,10 @@
              (try+
               (let [message (message/decode bytes)]
                 (validate-certname (:sender message) cn)
-                (let [message (message/add-hop message "accepted" timestamp)]
+                (let [capsule (capsule/wrap message)
+                      capsule (capsule/add-hop capsule (broker-uri broker) "accepted" timestamp)]
                   (log/info "Processing message")
-                  (process-message broker ws message)))
+                  (process-message broker ws capsule)))
               (catch map? m
                 (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
                       error-message (-> (message/make-message)
