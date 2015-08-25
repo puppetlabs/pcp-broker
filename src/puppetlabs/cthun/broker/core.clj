@@ -64,6 +64,17 @@
 
 (def delivery-queue "delivery")
 
+;; protocol helpers - probably should move
+(s/defn ^:always-validate explode-uri :- [s/Str]
+  "Parse an Uri string into its component parts.  Raises if incomplete"
+  [endpoint :- message/Uri]
+  (str/split (subs endpoint 6) #"/"))
+
+(s/defn ^:always-validate uri-wildcard? :- s/Bool
+  [uri :- message/Uri]
+  (let [chunks (explode-uri uri)]
+    (some? (some (partial = "*") chunks))))
+
 ;; connection lifecycle
 (s/defn ^:always-validate new-socket :- Connection
   "Return the initial state for a websocket"
@@ -177,7 +188,9 @@
   "Message consumer.  Takes a message from the accept queue, expands
   destinations, and enqueues to the `delivery-queue`"
   [broker :- Broker message :- message/Message]
-  (let [targets  ((:find-clients broker) (:targets message))
+  (let [explicit  (filter (complement uri-wildcard?) (:targets message))
+        wildcards (filter uri-wildcard? (:targets message))
+        targets   (flatten [explicit ((:find-clients broker) wildcards)])
         messages (map #(assoc message :_target %) targets)]
     (maybe-send-destination-report broker message targets)
     ;; TODO(richardc): can we wrap all these enqueues in a JMS transaction?
@@ -195,11 +208,6 @@
   [message :- message/Message]
   (and (= (:targets message) ["cth:///server"])
        (= (:message_type message) "http://puppetlabs.com/associate_request")))
-
-(s/defn ^:always-validate explode-uri :- [s/Str]
-  "Parse an Uri string into its component parts.  Raises if incomplete"
-  [endpoint :- message/Uri]
-  (str/split (subs endpoint 6) #"/"))
 
 (s/defn ^:always-validate association-response :- (dissoc schemas/AssociateResponse :id)
   [broker :- Broker ws :- Websocket message :- message/Message]

@@ -217,17 +217,29 @@
           (is (= "greeting" (:message_type message)))
           (is (= "Hello" (message/get-json-data message))))))))
 
-(deftest send-expired-gets-expiry-test
+(deftest send-expired-wildcard-gets-no-expiry-test
   (with-app-with-config
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    ;; TODO(richardc) - check in with the specs.  Currently as
-    ;; implemented if you send a message, non-wildcarded, to an
-    ;; identity that has never existed, we drop the message, so
-    ;; here we fluff the inventory with a connect
-    (with-open [client (client/connect "client02.example.com" "cth://client02.example.com/test" true)])
+    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+      (let [message (-> (message/make-message)
+                        (assoc :id (ks/uuid)
+                               :sender "cth://client01.example.com/test"
+                               :targets ["cth://client02.example.com/*"]
+                               :message_type "greeting")
+                        (message/set-expiry 3 :seconds)
+                        (message/set-json-data "Hello"))]
+        (client/send! client message)
+        (let [response (client/recv! client)]
+          ;; Should get no message
+          (is (= nil response)))))))
 
+(deftest send-expired-explicit-gets-expiry-test
+  (with-app-with-config
+    app
+    [broker-service jetty9-service webrouting-service metrics-service]
+    broker-config
     (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
                         (assoc :id (ks/uuid)
