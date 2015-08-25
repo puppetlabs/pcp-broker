@@ -83,6 +83,6 @@
   ; :global-vars {*warn-on-reflection* true}
 
   :aliases {"tk" ["trampoline" "run" "--config" "test-resources/conf.d"]
-            "certs" ["trampoline" "run" "-m" "puppetlabs.cthun.testutils.certs" "--config" "test-resources/conf.d"]}
+            "certs" ["trampoline" "run" "-m" "puppetlabs.cthun.testutils.certs" "--config" "test-resources/conf.d" "--"]}
 
   :main puppetlabs.trapperkeeper.main)

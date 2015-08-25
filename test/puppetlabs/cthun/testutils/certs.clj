@@ -19,16 +19,18 @@
     (println "saved pems for" (:certname cert))))
 
 (defn gen-cthun-certs
-  [ssl-dir]
-  (let [cacert (ssl-simple/gen-self-signed-cert "ca" (swap! cert-serial-num inc))
-        cthun-cert (ssl-simple/gen-cert "cthun-server" cacert (swap! cert-serial-num inc))
-        crl (ssl-simple/gen-crl cacert)]
+  [ssl-dir names]
+  (let [cacert (ssl-simple/gen-self-signed-cert "ca" (swap! cert-serial-num inc))]
     (save-pems ssl-dir cacert)
-    (save-pems ssl-dir cthun-cert)
-    (fs/mkdirs (fs/file ssl-dir "ca"))
-    (fs/copy (fs/file ssl-dir "certs/ca.pem") (fs/file ssl-dir "ca/ca_crt.pem"))
-    (ssl-utils/crl->pem! crl (fs/file ssl-dir "ca" "ca_crl.pem"))))
+    (doseq [name names]
+      (let [cert (ssl-simple/gen-cert name cacert (swap! cert-serial-num inc))]
+        (save-pems ssl-dir cert)))
+    (let [crl (ssl-simple/gen-crl cacert)]
+      (fs/mkdirs (fs/file ssl-dir "ca"))
+      (fs/copy (fs/file ssl-dir "certs/ca.pem") (fs/file ssl-dir "ca/ca_crt.pem"))
+      (ssl-utils/crl->pem! crl (fs/file ssl-dir "ca" "ca_crl.pem")))))
 
 (defn -main
   [& args]
-  (gen-cthun-certs "./test-resources/ssl"))
+  (let [certs (rest (drop-while (fn [s] (not (= s "--"))) args))]
+    (gen-cthun-certs "./test-resources/ssl" certs)))

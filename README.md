@@ -23,7 +23,7 @@ make these run the following:
 
 For simple use cases you may be able to get away with:
 
-    lein certs
+    lein certs broker.example.com client01.example.com client02.example.com
 
 ## Running the server
 
