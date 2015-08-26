@@ -15,7 +15,7 @@
             [puppetlabs.puppetdb.mq :as mq]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]])
-  (:import (clojure.lang IFn)))
+  (:import (clojure.lang IFn Atom)))
 
 (def Connection
   "The state of a websocket in the connections map"
@@ -27,17 +27,22 @@
   "Schema for a websocket session"
   Object)
 
+(def UriMap
+  "Mapping of Uri to Websocket, for sending"
+  {message/Uri Websocket})
+
+(def Connections
+  "Mapping of Websocket session to Connection state"
+  {Websocket Connection})
+
 (def Broker
   {:activemq-broker    Object
    :activemq-consumers [Object]
    :record-client      IFn
    :find-clients       IFn
    :authorized         IFn
-   ;; TODO(richardc) watch for a solution for an atom containing a
-   ;; structure - https://github.com/Prismatic/schema/issues/186
-   ;; until then, s/Any it is.
-   :uri-map            s/Any #_(s/atom {message/Uri Websocket})
-   :connections        s/Any #_(s/atom {Websocket Connection})
+   :uri-map            Atom ;; atom with schema UriMap. will be checked with :validator
+   :connections        Atom ;; atom with schema Connections. will be checked with :validator
    :metrics-registry   Object
    :metrics            {s/Keyword Object}})
 
@@ -417,8 +422,8 @@
                               :authorized         authorized
                               :metrics            {}
                               :metrics-registry   (get-metrics-registry)
-                              :connections        (atom {})
-                              :uri-map            (atom {})}
+                              :connections        (atom {} :validator (partial s/validate Connections))
+                              :uri-map            (atom {} :validator (partial s/validate UriMap))}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)
           activemq-consumers (subscribe-to-queues broker accept-consumers delivery-consumers)
