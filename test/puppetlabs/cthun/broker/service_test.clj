@@ -107,8 +107,7 @@
     broker-config
     (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
       (let [request (-> (message/make-message)
-                        (assoc :id (ks/uuid)
-                               :message_type "http://puppetlabs.com/inventory_request"
+                        (assoc :message_type "http://puppetlabs.com/inventory_request"
                                :targets ["cth:///server"]
                                :sender "cth://client01.example.com/test")
                         (message/set-expiry 3 :seconds)
@@ -125,8 +124,7 @@
     broker-config
     (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
       (let [request (-> (message/make-message)
-                        (assoc :id (ks/uuid)
-                               :message_type "http://puppetlabs.com/inventory_request"
+                        (assoc :message_type "http://puppetlabs.com/inventory_request"
                                :targets ["cth:///server"]
                                :sender "cth://client01.example.com/test")
                         (message/set-expiry 3 :seconds)
@@ -144,8 +142,7 @@
     (with-open [client (client/connect "client02.example.com" "cth://client02.example.com/test" true)])
     (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
       (let [request (-> (message/make-message)
-                        (assoc :id (ks/uuid)
-                               :message_type "http://puppetlabs.com/inventory_request"
+                        (assoc :message_type "http://puppetlabs.com/inventory_request"
                                :targets ["cth:///server"]
                                :sender "cth://client01.example.com/test")
                         (message/set-expiry 3 :seconds)
@@ -163,8 +160,7 @@
     broker-config
     (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :id (ks/uuid)
-                               :sender "cth://client01.example.com/test"
+                        (assoc :sender "cth://client01.example.com/test"
                                :targets ["cth://client01.example.com/test"]
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)
@@ -181,8 +177,7 @@
     broker-config
     (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :id (ks/uuid)
-                               :sender "cth://client01.example.com/test"
+                        (assoc :sender "cth://client01.example.com/test"
                                :targets ["cth://*/test"]
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)
@@ -200,8 +195,7 @@
     (with-open [sender   (client/connect "client01.example.com" "cth://client01.example.com/test" true)
                 receiver (client/connect "client02.example.com" "cth://client02.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :id (ks/uuid)
-                               :sender "cth://client01.example.com/test"
+                        (assoc :sender "cth://client01.example.com/test"
                                :targets ["cth://client02.example.com/test"]
                                :destination_report true
                                :message_type "greeting")
@@ -224,8 +218,7 @@
     broker-config
     (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :id (ks/uuid)
-                               :sender "cth://client01.example.com/test"
+                        (assoc :sender "cth://client01.example.com/test"
                                :targets ["cth://client02.example.com/*"]
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)
@@ -242,8 +235,7 @@
     broker-config
     (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :id (ks/uuid)
-                               :sender "cth://client01.example.com/test"
+                        (assoc :sender "cth://client01.example.com/test"
                                :targets ["cth://client02.example.com/test"]
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)

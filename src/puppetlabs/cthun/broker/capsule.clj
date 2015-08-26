@@ -43,9 +43,7 @@
   [capsule :- Capsule]
   (let [message (:message capsule)
         hops    (:hops capsule)]
-    ;; TODO(richardc) this should really be
-    ;; (message/append-debug-json message {:hops hops})
-    (message/encode (assoc message :_hops hops))))
+    (message/encode (message/set-json-debug message {:hops hops}))))
 
 (s/defn ^:always-validate wrap :- Capsule
   "Wrap a Message producing a Capsule"

@@ -137,8 +137,7 @@
   (let [message (:message capsule)
         response_data {:id (:id message)}
         response (-> (message/make-message)
-                     (assoc :id           (ks/uuid)
-                            :message_type "http://puppetlabs.com/ttl_expired"
+                     (assoc :message_type "http://puppetlabs.com/ttl_expired"
                             :targets      [(:sender message)]
                             :sender       "cth:///server")
                      (message/set-expiry 3 :seconds)
@@ -170,8 +169,7 @@
     (let [report {:id (:id message)
                   :targets targets}
           reply (-> (message/make-message)
-                    (assoc :id (ks/uuid)
-                           :targets [(:sender message)]
+                    (assoc :targets [(:sender message)]
                            :message_type "http://puppetlabs.com/destination_report"
                            :sender "cth:///server")
                     (message/set-expiry 3 :seconds)
@@ -258,8 +256,7 @@
                         (association-response broker ws request))]
     (s/validate schemas/AssociateResponse response)
     (let [message (-> (message/make-message)
-                      (assoc :id (ks/uuid)
-                             :message_type "http://puppetlabs.com/associate_response"
+                      (assoc :message_type "http://puppetlabs.com/associate_response"
                              :targets [ (:sender request) ]
                              :sender "cth:///server")
                       (message/set-expiry 3 :seconds)
@@ -278,8 +275,7 @@
     (let [uris ((:find-clients broker) (:query data))
           response-data {:uris uris}
           response (-> (message/make-message)
-                       (assoc :id (ks/uuid)
-                              :message_type "http://puppetlabs.com/inventory_response"
+                       (assoc :message_type "http://puppetlabs.com/inventory_response"
                               :targets [(:sender message)]
                               :sender "cth:///server")
                        (message/set-expiry 3 :seconds)

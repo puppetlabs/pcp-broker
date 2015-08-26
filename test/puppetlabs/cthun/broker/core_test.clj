@@ -75,15 +75,14 @@
   (with-redefs [accept-message-for-delivery (fn [broker response] response)]
     (testing "It will create and send a ttl expired message"
       (let [expired (-> (message/make-message)
-                        (assoc :id "12347890"
-                               :sender "cth://client2.com/tester"))
+                        (assoc :sender "cth://client2.com/tester"))
             broker (make-test-broker)
             capsule (process-expired-message broker (capsule/wrap expired))
             response (:message capsule)
             response-data (message/get-json-data response)]
         (is (= ["cth://client2.com/tester"] (:targets response)))
         (is (= "http://puppetlabs.com/ttl_expired" (:message_type response)))
-        (is (= "12347890" (:id response-data)))))))
+        (is (= (:id expired) (:id response-data)))))))
 
 (deftest session-association-message?-test
   (testing "It returns true when passed a sessions association messge"
