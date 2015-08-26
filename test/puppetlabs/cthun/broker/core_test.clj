@@ -1,6 +1,7 @@
 (ns puppetlabs.cthun.broker.core-test
   (:require [clojure.test :refer :all]
             [puppetlabs.cthun.broker.core :refer :all]
+            [puppetlabs.cthun.broker.capsule :as capsule]
             [puppetlabs.cthun.message :as message]
             [schema.core :as s]
             [slingshot.test]))
@@ -74,14 +75,14 @@
   (with-redefs [accept-message-for-delivery (fn [broker response] response)]
     (testing "It will create and send a ttl expired message"
       (let [expired (-> (message/make-message)
-                        (assoc :id "12347890"
-                               :sender "cth://client2.com/tester"))
+                        (assoc :sender "cth://client2.com/tester"))
             broker (make-test-broker)
-            response (process-expired-message broker expired)
+            capsule (process-expired-message broker (capsule/wrap expired))
+            response (:message capsule)
             response-data (message/get-json-data response)]
         (is (= ["cth://client2.com/tester"] (:targets response)))
         (is (= "http://puppetlabs.com/ttl_expired" (:message_type response)))
-        (is (= "12347890" (:id response-data)))))))
+        (is (= (:id expired) (:id response-data)))))))
 
 (deftest session-association-message?-test
   (testing "It returns true when passed a sessions association messge"
@@ -134,34 +135,39 @@
     (let [broker (make-test-broker)
           message (message/make-message)]
       (testing "It should identify a session association message from the data schema"
-        (is (= (process-server-message broker "w" (assoc message :message_type "http://puppetlabs.com/associate_request")) true)))
+        (is (= true
+               (process-server-message broker "w"
+                                       (capsule/wrap (assoc message :message_type "http://puppetlabs.com/associate_request"))))))
       (testing "It should not process an unkown type of server message"
-        (is (= (process-server-message broker "w" (assoc message :message_type "http://puppetlabs.com")) nil))))))
+        (is (= nil
+               (process-server-message broker "w"
+                                       (capsule/wrap (assoc message :message_type "http://puppetlabs.com")))))))))
 
 (deftest process-message-test
   (let [message (-> (message/make-message)
                     (message/set-expiry 3 :seconds))
+        capsule (capsule/wrap message)
         broker  (make-test-broker)]
   (testing "It will ignore messages until the the client is associated"
-    (is (= (process-message broker "ws" message) nil)))
+    (is (= (process-message broker "ws" capsule) nil)))
   (testing "It will process an association message if the client is not associated"
     (with-redefs [process-server-message (fn [broker ws message] "login")
                   session-association-message? (constantly true)]
-      (is (= (process-message broker "ws" message) "login"))))
+      (is (= (process-message broker "ws" capsule) "login"))))
   (testing "It will process a client message"
     (with-redefs [session-associated? (fn [broker ws] true)
                   accept-message-for-delivery (constantly "client")]
       (let [message (assoc message :targets ["cth://client1.com/somerole"])]
-        (is (= (process-message broker "ws" message) "client")))))
+        (is (= (process-message broker "ws" capsule) "client")))))
   (testing "It will process a server message"
     (let [message (assoc message :targets ["cth:///server"])]
       (with-redefs [session-associated? (constantly true)
                     process-server-message (constantly "server")]
-        (is (= (process-message broker "ws" message) "server")))))
+        (is (= (process-message broker "ws" (capsule/wrap message)) "server")))))
   (testing "It will process an expired message"
-    (with-redefs [message-expired? (constantly true)
+    (with-redefs [capsule/expired? (constantly true)
                   process-expired-message (constantly :processed-expired)]
-      (is (= (process-message broker "ws" message) :processed-expired))))))
+      (is (= (process-message broker "ws" capsule) :processed-expired))))))
 
 (deftest validate-certname-test
   (testing "simple match, no exception"

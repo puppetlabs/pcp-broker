@@ -38,8 +38,7 @@
 (defn make-association-request
   [uri]
   (-> (message/make-message)
-      (assoc :id (ks/uuid)
-             :message_type "http://puppetlabs.com/associate_request"
+      (assoc :message_type "http://puppetlabs.com/associate_request"
              :targets ["cth:///server"]
              :sender uri)
       (message/set-expiry 3 :seconds)))
