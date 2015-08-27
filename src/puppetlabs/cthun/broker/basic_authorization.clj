@@ -1,9 +1,7 @@
 (ns puppetlabs.cthun.broker.basic-authorization
   (:require [clojure.tools.logging :as log]
             [puppetlabs.cthun.message :as message]
-            ;; TODO(richardc): explode-uri should probably move to
-            ;; puppetlabs.cthun.protocol.helpers
-            [puppetlabs.cthun.broker.core :refer [explode-uri]]
+            [puppetlabs.cthun.protocol :refer [explode-uri]]
             [schema.core :as s]))
 
 (def Decision
