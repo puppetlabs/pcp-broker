@@ -1,6 +1,6 @@
 (ns puppetlabs.cthun.broker.in-memory-inventory
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.cthun.broker.core :refer [explode-uri]]
+            [puppetlabs.cthun.protocol :refer [explode-uri]]
             [schema.core :as s]))
 
 (defn endpoint-pattern-match?

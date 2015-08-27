@@ -43,7 +43,7 @@
                  ;; try+/throw+
                  [slingshot "0.12.2"]
 
-                 [puppetlabs/cthun-message "0.2.0"]
+                 [puppetlabs/cthun-message "0.3.0"]
 
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4"]

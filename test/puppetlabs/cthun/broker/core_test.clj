@@ -19,18 +19,6 @@
    :metrics-registry   ""
    :metrics            {}})
 
-(deftest explode-uri-test
-  (testing "It raises on invalid uris"
-    (is (thrown? Exception (explode-uri ""))))
-  (testing "It returns component chunks"
-    (is (= [ "localhost" "agent"] (explode-uri "cth://localhost/agent")))
-    (is (= [ "localhost" "*" ] (explode-uri "cth://localhost/*")))
-    (is (= [ "*" "agent" ] (explode-uri "cth://*/agent")))))
-
-(deftest uri-wildcard?-test
-  (is (= true  (uri-wildcard? "cth://*/agent")))
-  (is (= true  (uri-wildcard? "cth://agent01.example.com/*")))
-  (is (= false (uri-wildcard? "cth://agent01.example.com/agent"))))
 
 (deftest new-socket-test
   (testing "It returns a map that matches represents a new socket"

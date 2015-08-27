@@ -3,14 +3,13 @@
             [clj-time.coerce :as time-coerce]
             [clj-time.core :as time]
             [clojure.tools.logging :as log]
-            [clojure.string :as str]
             [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.cthun.broker.activemq :as activemq]
             [puppetlabs.cthun.broker.capsule :as capsule :refer [Capsule]]
             [puppetlabs.cthun.broker.metrics :as metrics]
             [puppetlabs.cthun.message :as message :refer [Message]]
-            [puppetlabs.cthun.protocol.schemas :as schemas]
+            [puppetlabs.cthun.protocol :as p]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.puppetdb.mq :as mq]
@@ -21,8 +20,8 @@
 (def Connection
   "The state of a websocket in the connections map"
   {:state (s/enum :open :associated)
-   (s/optional-key :uri) message/Uri
-   :created-at message/ISO8601})
+   (s/optional-key :uri) p/Uri
+   :created-at p/ISO8601})
 
 (def Websocket
   "Schema for a websocket session"
@@ -30,7 +29,7 @@
 
 (def UriMap
   "Mapping of Uri to Websocket, for sending"
-  {message/Uri Websocket})
+  {p/Uri Websocket})
 
 (def Connections
   "Mapping of Websocket session to Connection state"
@@ -70,21 +69,10 @@
 
 (def delivery-queue "delivery")
 
-(s/defn ^:always-validate broker-uri :- message/Uri
+(s/defn ^:always-validate broker-uri :- p/Uri
   [broker :- Broker]
   ;; TODO(richardc) should come from config or the cert of this instance
   "cth:///server")
-
-;; protocol helpers - probably should move
-(s/defn ^:always-validate explode-uri :- [s/Str]
-  "Parse an Uri string into its component parts.  Raises if incomplete"
-  [endpoint :- message/Uri]
-  (str/split (subs endpoint 6) #"/"))
-
-(s/defn ^:always-validate uri-wildcard? :- s/Bool
-  [uri :- message/Uri]
-  (let [chunks (explode-uri uri)]
-    (some? (some (partial = "*") chunks))))
 
 ;; connection lifecycle
 (s/defn ^:always-validate new-socket :- Connection
@@ -111,7 +99,7 @@
 
 (s/defn ^:always-validate get-websocket :- (s/maybe Websocket)
   "Return the websocket a node identified by a uri is connected to, false if not connected"
-  [broker :- Broker uri :- message/Uri]
+  [broker :- Broker uri :- p/Uri]
   (get @(:uri-map broker) uri))
 
 (s/defn ^:always-validate session-associated?
@@ -142,7 +130,7 @@
                             :sender       "cth:///server")
                      (message/set-expiry 3 :seconds)
                      (message/set-json-data response_data))]
-    (s/validate schemas/TTLExpiredMessage response_data)
+    (s/validate p/TTLExpiredMessage response_data)
     (accept-message-for-delivery broker (capsule/wrap response))))
 
 (s/defn ^:always-validate handle-delivery-failure
@@ -164,7 +152,7 @@
 
 (s/defn ^:always-validate maybe-send-destination-report
   "Send a destination report about the given message, if requested"
-  [broker :- Broker message :- Message targets :- [message/Uri]]
+  [broker :- Broker message :- Message targets :- [p/Uri]]
   (when (:destination_report message)
     (let [report {:id (:id message)
                   :targets targets}
@@ -174,7 +162,7 @@
                            :sender "cth:///server")
                     (message/set-expiry 3 :seconds)
                     (message/set-json-data report))]
-      (s/validate schemas/DestinationReport report)
+      (s/validate p/DestinationReport report)
       (accept-message-for-delivery broker (capsule/wrap reply)))))
 
 ;; ActiveMQ queue consumers
@@ -199,8 +187,8 @@
   destinations, and enqueues to the `delivery-queue`"
   [broker :- Broker capsule :- Capsule]
   (let [message   (:message capsule)
-        explicit  (filter (complement uri-wildcard?) (:targets message))
-        wildcards (filter uri-wildcard? (:targets message))
+        explicit  (filter (complement p/uri-wildcard?) (:targets message))
+        wildcards (filter p/uri-wildcard? (:targets message))
         targets   (flatten [explicit ((:find-clients broker) wildcards)])
         capsules  (map #(assoc capsule :target %) targets)]
     (maybe-send-destination-report broker message targets)
@@ -220,10 +208,10 @@
   (and (= (:targets message) ["cth:///server"])
        (= (:message_type message) "http://puppetlabs.com/associate_request")))
 
-(s/defn ^:always-validate association-response :- (dissoc schemas/AssociateResponse :id)
+(s/defn ^:always-validate association-response :- (dissoc p/AssociateResponse :id)
   [broker :- Broker ws :- Websocket message :- Message]
   (let [uri (:sender message)
-        [certname type] (explode-uri uri)]
+        [certname type] (p/explode-uri uri)]
     (log/info "Processing associate_request for" uri)
     (if (= type "server") ;; currently we don't support inter-server connects
       {:success false
@@ -254,7 +242,7 @@
   [broker :- Broker ws :- Websocket request :- Message]
   (let [response (merge {:id (:id request)}
                         (association-response broker ws request))]
-    (s/validate schemas/AssociateResponse response)
+    (s/validate p/AssociateResponse response)
     (let [message (-> (message/make-message)
                       (assoc :message_type "http://puppetlabs.com/associate_response"
                              :targets [ (:sender request) ]
@@ -271,7 +259,7 @@
   [broker :- Broker ws :- Websocket message :- Message]
   (log/info "Processing inventory message")
   (let [data (message/get-json-data message)]
-    (s/validate schemas/InventoryRequest data)
+    (s/validate p/InventoryRequest data)
     (let [uris ((:find-clients broker) (:query data))
           response-data {:uris uris}
           response (-> (message/make-message)
@@ -280,7 +268,7 @@
                               :sender "cth:///server")
                        (message/set-expiry 3 :seconds)
                        (message/set-json-data response-data))]
-      (s/validate schemas/InventoryResponse response-data)
+      (s/validate p/InventoryResponse response-data)
       (accept-message-for-delivery broker (capsule/wrap response)))))
 
 (s/defn ^:always-validate process-server-message
@@ -315,8 +303,8 @@
 
 (s/defn ^:always-validate validate-certname :- s/Bool
   "Validate that the cert name advertised by the client matches the cert name in the certificate"
-  [endpoint :- message/Uri certname :- s/Str]
-  (let [[client] (explode-uri endpoint)]
+  [endpoint :- p/Uri certname :- s/Str]
+  (let [[client] (p/explode-uri endpoint)]
     (if-not (= client certname)
       (throw+ {:type ::identity-invalid
                :message (str "Certificate mismatch.  Sender: '" client "' CN: '" certname "'")})
@@ -359,7 +347,7 @@
                                                :message_type "http://puppetlabs.com/error_message"
                                                :sender "cth:///server")
                                         (message/set-json-data error-body))]
-                  (s/validate schemas/ErrorMessage error-body)
+                  (s/validate p/ErrorMessage error-body)
                   (log/warn "sending error message" error-body)
                   (websockets-client/send! ws (message/encode error-message))))
               (catch Throwable e

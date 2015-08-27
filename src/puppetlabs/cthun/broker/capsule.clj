@@ -3,6 +3,7 @@
             [clj-time.core :as time]
             [clojure.tools.logging :as log]
             [puppetlabs.cthun.message :as message :refer [Message]]
+            [puppetlabs.cthun.protocol :as p]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as s])
   (:import (org.joda.time DateTime)))
@@ -17,14 +18,14 @@
   "Schema for a message moving through the broker"
   {:expires                 DateTime
    :message                 Message
-   :hops                    [message/MessageHop]
-   (s/optional-key :target) message/Uri})
+   :hops                    (:hops p/DebugChunk)
+   (s/optional-key :target) p/Uri})
 
 (s/defn ^:always-validate add-hop :- Capsule
   "Adds a debug hop to the message state"
-  ([capsule :- Capsule server :- message/Uri stage :- s/Str]
+  ([capsule :- Capsule server :- p/Uri stage :- s/Str]
    (add-hop capsule server stage (ks/timestamp)))
-  ([state :- Capsule server :- message/Uri stage :- s/Str timestamp :- message/ISO8601]
+  ([state :- Capsule server :- p/Uri stage :- s/Str timestamp :- p/ISO8601]
    (let [hop {:server server
               :time   timestamp
               :stage  stage}]
@@ -42,8 +43,9 @@
   the debug chunk to the message"
   [capsule :- Capsule]
   (let [message (:message capsule)
-        hops    (:hops capsule)]
-    (message/encode (message/set-json-debug message {:hops hops}))))
+        debug   {:hops (:hops capsule)}]
+    (s/validate p/DebugChunk debug)
+    (message/encode (message/set-json-debug message debug))))
 
 (s/defn ^:always-validate wrap :- Capsule
   "Wrap a Message producing a Capsule"
