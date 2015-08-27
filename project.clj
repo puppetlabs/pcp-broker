@@ -23,10 +23,13 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.logging "0.3.1"]
 
+                 ;; Transitive dependency for puppetlabs/trapperkeeper-metrics and org.slf4j/jcl-over-slf4
+                 [org.slf4j/slf4j-api "1.7.10"]
+
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/trapperkeeper-webserver-jetty9 "1.4.0"]
-                 [puppetlabs/trapperkeeper-metrics "0.1.1" :exclusions [org.slf4j/slf4j-api]]
+                 [puppetlabs/trapperkeeper-metrics "0.1.1"]
 
                  [cheshire "5.5.0"]
                  [prismatic/schema "0.4.3"]
@@ -43,8 +46,9 @@
                  [puppetlabs/cthun-message "0.2.0"]
 
                  ;; MQ - activemq
-                 [clamq/clamq-activemq "0.4" :exclusions [org.slf4j/slf4j-api]]
-                 [org.apache.activemq/activemq-core "5.6.0" :exclusions [org.slf4j/slf4j-api org.fusesource.fuse-extra/fusemq-leveldb]]
+                 [clamq/clamq-activemq "0.4"]
+                 [org.apache.activemq/activemq-core "5.6.0"
+                  :exclusions [org.fusesource.fuse-extra/fusemq-leveldb]]
                  ;; bridge to allow some spring/activemq stuff to log over slf4j
                  [org.slf4j/jcl-over-slf4j "1.7.10"]]
 
