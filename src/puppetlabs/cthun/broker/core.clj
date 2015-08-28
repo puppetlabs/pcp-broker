@@ -123,15 +123,20 @@
   [broker :- Broker capsule :- Capsule]
   (log/warn "Message " capsule " has expired. Replying with a ttl_expired.")
   (let [message (:message capsule)
-        response_data {:id (:id message)}
-        response (-> (message/make-message)
-                     (assoc :message_type "http://puppetlabs.com/ttl_expired"
-                            :targets      [(:sender message)]
-                            :sender       "cth:///server")
-                     (message/set-expiry 3 :seconds)
-                     (message/set-json-data response_data))]
-    (s/validate p/TTLExpiredMessage response_data)
-    (accept-message-for-delivery broker (capsule/wrap response))))
+        sender  (:sender message)]
+    (if (= "cth:///server" sender)
+      (do
+        (log/error "Server generated message expired.  Dropping")
+        capsule)
+      (let [response_data {:id (:id message)}
+            response (-> (message/make-message)
+                         (assoc :message_type "http://puppetlabs.com/ttl_expired"
+                                :targets      [sender]
+                                :sender       "cth:///server")
+                         (message/set-expiry 3 :seconds)
+                         (message/set-json-data response_data))]
+        (s/validate p/TTLExpiredMessage response_data)
+        (accept-message-for-delivery broker (capsule/wrap response))))))
 
 (s/defn ^:always-validate handle-delivery-failure
   "If the message is not expired schedule for a future delivery by
