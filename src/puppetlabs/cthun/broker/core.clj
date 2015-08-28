@@ -265,6 +265,7 @@
           response (-> (message/make-message)
                        (assoc :message_type "http://puppetlabs.com/inventory_response"
                               :targets [(:sender message)]
+                              :in-reply-to (:id message)
                               :sender "cth:///server")
                        (message/set-expiry 3 :seconds)
                        (message/set-json-data response-data))]
