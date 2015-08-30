@@ -1,10 +1,9 @@
 (ns puppetlabs.cthun.broker.activemq
-  (:require [clojure.edn :as edn]
-            [taoensso.nippy :as nippy]
-            [puppetlabs.puppetdb.mq :as mq]
+  (:require [clamq.protocol.connection :as mq-conn]
             [clamq.protocol.consumer :as mq-cons]
-            [clamq.protocol.connection :as mq-conn]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [puppetlabs.puppetdb.mq :as mq]
+            [taoensso.nippy :as nippy]))
 
 ;; This is a bit rude/lazy, reaching right into puppetdb sources we've
 ;; copied into our tree.  If this proves out we should talk to
