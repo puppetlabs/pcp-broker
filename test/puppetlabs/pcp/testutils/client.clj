@@ -1,9 +1,9 @@
-(ns puppetlabs.cthun.testutils.client
+(ns puppetlabs.pcp.testutils.client
   (:require [clojure.test :refer :all]
             [clojure.core.async :as async :refer [timeout alts!! chan >!! <!!]]
             [http.async.client :as http]
             [puppetlabs.kitchensink.core :as ks]
-            [puppetlabs.cthun.message :as message]
+            [puppetlabs.pcp.message :as message]
             [puppetlabs.ssl-utils.core :as ssl-utils]))
 
 ;; A simple websockets client with some assertions - for non-testing uses use pcp-client.
@@ -49,7 +49,7 @@
   (let [association-request (make-association-request identity)
         client              (http-client-with-cert certname)
         message-chan        (chan)
-        ws                  (http/websocket client "wss://127.0.0.1:8081/cthun"
+        ws                  (http/websocket client "wss://127.0.0.1:8081/pcp"
                                             :open  (fn [ws]
                                                      (http/send ws :byte (message/encode association-request)))
                                             :byte  (fn [ws msg]

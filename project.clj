@@ -1,6 +1,6 @@
 (def tk-version "1.1.1")
 (def ks-version "1.1.0")
-(def cthun-version "0.2.0-SNAPSHOT")
+(def pcp-broker-version "0.2.0-SNAPSHOT")
 
 (defn deploy-info
   [url]
@@ -9,9 +9,9 @@
     :password :env/nexus_jenkins_password
     :sign-releases false })
 
-(defproject puppetlabs/cthun cthun-version
-  :description "cthun fabric messaging server"
-  :url "https://github.com/puppetlabs/cthun"
+(defproject puppetlabs/pcp-broker pcp-broker-version
+  :description "PCP fabric messaging broker"
+  :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name ""
             :url ""}
 
@@ -43,7 +43,7 @@
                  ;; try+/throw+
                  [slingshot "0.12.2"]
 
-                 [puppetlabs/cthun-message "0.3.1"]
+                 [puppetlabs/pcp-common "0.4.0"]
 
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4"]
@@ -62,7 +62,7 @@
 
   :lein-release {:scm :git, :deploy-via :lein-deploy}
 
-  :uberjar-name "cthun-release.jar"
+  :uberjar-name "pcp-broker-release.jar"
 
   :lein-ezbake {:resources {:type jar
                             :dir "tmp/config"}
@@ -79,9 +79,9 @@
                                   [puppetlabs/ssl-utils "0.8.1"]
                                   [me.raynes/fs "1.4.5"]
                                   [org.clojure/tools.namespace "0.2.4"]]}
-             :ezbake {:dependencies ^:replace [[puppetlabs/cthun ~cthun-version]]
+             :ezbake {:dependencies ^:replace [[puppetlabs/pcp-broker ~pcp-broker-version]]
                       :plugins [[puppetlabs/lein-ezbake "0.3.11"]]
-                      :name "cthun"}}
+                      :name "pcp-broker"}}
 
   :repl-options {:init-ns user}
 
@@ -89,6 +89,6 @@
   ; :global-vars {*warn-on-reflection* true}
 
   :aliases {"tk" ["trampoline" "run" "--config" "test-resources/conf.d"]
-            "certs" ["trampoline" "run" "-m" "puppetlabs.cthun.testutils.certs" "--config" "test-resources/conf.d" "--"]}
+            "certs" ["trampoline" "run" "-m" "puppetlabs.pcp.testutils.certs" "--config" "test-resources/conf.d" "--"]}
 
   :main puppetlabs.trapperkeeper.main)

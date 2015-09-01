@@ -1,9 +1,9 @@
-(ns puppetlabs.cthun.broker.capsule
+(ns puppetlabs.pcp.broker.capsule
   (:require [clj-time.coerce :as time-coerce]
             [clj-time.core :as time]
             [clojure.tools.logging :as log]
-            [puppetlabs.cthun.message :as message :refer [Message]]
-            [puppetlabs.cthun.protocol :as p]
+            [puppetlabs.pcp.message :as message :refer [Message]]
+            [puppetlabs.pcp.protocol :as p]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as s])
   (:import (org.joda.time DateTime)))

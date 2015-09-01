@@ -1,15 +1,15 @@
-(ns puppetlabs.cthun.broker.core
+(ns puppetlabs.pcp.broker.core
   (:require [clamq.protocol.consumer :as mq-cons]
             [clj-time.coerce :as time-coerce]
             [clj-time.core :as time]
             [clojure.tools.logging :as log]
             [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
-            [puppetlabs.cthun.broker.activemq :as activemq]
-            [puppetlabs.cthun.broker.capsule :as capsule :refer [Capsule]]
-            [puppetlabs.cthun.broker.metrics :as metrics]
-            [puppetlabs.cthun.message :as message :refer [Message]]
-            [puppetlabs.cthun.protocol :as p]
+            [puppetlabs.pcp.broker.activemq :as activemq]
+            [puppetlabs.pcp.broker.capsule :as capsule :refer [Capsule]]
+            [puppetlabs.pcp.broker.metrics :as metrics]
+            [puppetlabs.pcp.message :as message :refer [Message]]
+            [puppetlabs.pcp.protocol :as p]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.puppetdb.mq :as mq]
@@ -56,13 +56,13 @@
 (s/defn ^:always-validate build-and-register-metrics :- {s/Keyword Object}
   [broker :- Broker]
   (let [registry (:metrics-registry broker)]
-    (gauges/gauge-fn registry ["puppetlabs.cthun.connections"]
+    (gauges/gauge-fn registry ["puppetlabs.pcp.connections"]
                      (fn [] (count (keys @(:connections broker)))))
-    {:on-connect       (.timer registry "puppetlabs.cthun.on-connect")
-     :on-close         (.timer registry "puppetlabs.cthun.on-close")
-     :on-message       (.timer registry "puppetlabs.cthun.on-message")
-     :message-queueing (.timer registry "puppetlabs.cthun.message-queueing")
-     :on-send          (.timer registry "puppetlabs.cthun.on-send")}))
+    {:on-connect       (.timer registry "puppetlabs.pcp.on-connect")
+     :on-close         (.timer registry "puppetlabs.pcp.on-close")
+     :on-message       (.timer registry "puppetlabs.pcp.on-message")
+     :message-queueing (.timer registry "puppetlabs.pcp.message-queueing")
+     :on-send          (.timer registry "puppetlabs.pcp.on-send")}))
 
 ;; names of activemq queues - as vars so they're harder to typo
 (def accept-queue "accept")
