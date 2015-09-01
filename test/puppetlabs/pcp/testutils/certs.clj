@@ -1,4 +1,4 @@
-(ns puppetlabs.cthun.testutils.certs
+(ns puppetlabs.pcp.testutils.certs
   (:require [me.raynes.fs :as fs]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.ssl-utils.simple :as ssl-simple]))
@@ -18,7 +18,7 @@
     (ssl-utils/cert->pem! (:cert cert) (fs/file cert-dir (str (:certname cert) ".pem")))
     (println "saved pems for" (:certname cert))))
 
-(defn gen-cthun-certs
+(defn gen-pcp-certs
   [ssl-dir names]
   (let [cacert (ssl-simple/gen-self-signed-cert "ca" (swap! cert-serial-num inc))]
     (save-pems ssl-dir cacert)
@@ -33,4 +33,4 @@
 (defn -main
   [& args]
   (let [certs (rest (drop-while (fn [s] (not (= s "--"))) args))]
-    (gen-cthun-certs "./test-resources/ssl" certs)))
+    (gen-pcp-certs "./test-resources/ssl" certs)))

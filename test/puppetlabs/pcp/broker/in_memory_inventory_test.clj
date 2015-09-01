@@ -1,6 +1,6 @@
-(ns puppetlabs.cthun.broker.in-memory-inventory-test
+(ns puppetlabs.pcp.broker.in-memory-inventory-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.cthun.broker.in-memory-inventory :refer :all]))
+            [puppetlabs.pcp.broker.in-memory-inventory :refer :all]))
 
 (deftest endpoint-pattern-match?-test
   (testing "direct matches"

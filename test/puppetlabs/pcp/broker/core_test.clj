@@ -1,8 +1,8 @@
-(ns puppetlabs.cthun.broker.core-test
+(ns puppetlabs.pcp.broker.core-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.cthun.broker.core :refer :all]
-            [puppetlabs.cthun.broker.capsule :as capsule]
-            [puppetlabs.cthun.message :as message]
+            [puppetlabs.pcp.broker.core :refer :all]
+            [puppetlabs.pcp.broker.capsule :as capsule]
+            [puppetlabs.pcp.message :as message]
             [schema.core :as s]
             [slingshot.test]))
 
@@ -161,10 +161,10 @@
   (testing "simple match, no exception"
     (is (validate-certname "cth://lolcathost/agent" "lolcathost")))
   (testing "simple mismatch"
-    (is (thrown+? [:type :puppetlabs.cthun.broker.core/identity-invalid
+    (is (thrown+? [:type :puppetlabs.pcp.broker.core/identity-invalid
                    :message "Certificate mismatch.  Sender: 'lolcathost' CN: 'remotecat'"]
                   (validate-certname "cth://lolcathost/agent" "remotecat"))))
   (testing "accidental regex collisions"
-    (is (thrown+? [:type :puppetlabs.cthun.broker.core/identity-invalid
+    (is (thrown+? [:type :puppetlabs.pcp.broker.core/identity-invalid
                    :message "Certificate mismatch.  Sender: 'lolcathost' CN: 'lol.athost'"]
                   (validate-certname "cth://lolcathost/agent" "lol.athost")))))

@@ -1,11 +1,11 @@
-(ns puppetlabs.cthun.broker.service-test
+(ns puppetlabs.pcp.broker.service-test
   (:require [clojure.test :refer :all]
             [clojure.tools.logging :as log]
             [http.async.client :as http]
             [me.raynes.fs :as fs]
-            [puppetlabs.cthun.broker.service :refer [broker-service]]
-            [puppetlabs.cthun.testutils.client :as client]
-            [puppetlabs.cthun.message :as message]
+            [puppetlabs.pcp.broker.service :refer [broker-service]]
+            [puppetlabs.pcp.testutils.client :as client]
+            [puppetlabs.pcp.message :as message]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
@@ -25,19 +25,19 @@
                :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
 
    :web-router-service
-   {:puppetlabs.cthun.broker.service/broker-service {:websocket "/cthun"
-                                                     :metrics "/"}}
+   {:puppetlabs.pcp.broker.service/broker-service {:websocket "/pcp"
+                                                   :metrics "/"}}
 
    :metrics {:enabled true}
 
-   :cthun {:broker-spool "test-resources/tmp/spool"
-           :accept-consumers 2
-           :delivery-consumers 2}})
+   :pcp-broker {:broker-spool "test-resources/tmp/spool"
+                :accept-consumers 2
+                :delivery-consumers 2}})
 
 (defn cleanup-spool-fixture
   "Deletes the broker-spool before each test"
   [f]
-  (fs/delete-dir (get-in broker-config [:cthun :broker-spool]))
+  (fs/delete-dir (get-in broker-config [:pcp-broker :broker-spool]))
   (f))
 
 (use-fixtures :each cleanup-spool-fixture)
@@ -50,7 +50,7 @@
     (let [connected (promise)]
       (with-open [client (client/http-client-with-cert "client01.example.com")
                   ws     (http/websocket client
-                                         "wss://127.0.0.1:8081/cthun"
+                                         "wss://127.0.0.1:8081/pcp"
                                          :open (fn [ws] (deliver connected true)))]
         (is (= true (deref connected (* 2 1000) false)) "Connected within 2 seconds")))))
 

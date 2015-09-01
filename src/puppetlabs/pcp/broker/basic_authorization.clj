@@ -1,7 +1,7 @@
-(ns puppetlabs.cthun.broker.basic-authorization
+(ns puppetlabs.pcp.broker.basic-authorization
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.cthun.message :as message]
-            [puppetlabs.cthun.protocol :refer [explode-uri]]
+            [puppetlabs.pcp.message :as message]
+            [puppetlabs.pcp.protocol :refer [explode-uri]]
             [schema.core :as s]))
 
 (def Decision

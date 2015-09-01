@@ -1,12 +1,12 @@
-(ns puppetlabs.cthun.broker.metrics
+(ns puppetlabs.pcp.broker.metrics
   (:require [clojure.java.jmx :as jmx]
             [metrics.counters :as counters]
             [metrics.meters :as meters]
             [metrics.timers :as timers]
             [cheshire.core :as cheshire]))
 
-(defn- get-cthun-metrics
-  "Returns cthun specific metrics as a map"
+(defn- get-pcp-metrics
+  "Returns pcp specific metrics as a map"
   [registry]
   (reduce into {}
           [(map (fn [[k v]] {k (meters/rates v)}) (.getMeters registry))
@@ -34,5 +34,5 @@
   [registry]
   (cheshire/generate-string (-> (assoc {} :memory (get-memory-metrics))
                                 (assoc :threads (get-thread-metrics))
-                                (assoc :cthun (get-cthun-metrics registry)))
+                                (assoc :pcp-broker (get-pcp-metrics registry)))
                             {:pretty true}))

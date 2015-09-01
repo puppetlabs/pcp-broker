@@ -1,8 +1,8 @@
-(ns puppetlabs.cthun.broker.service
+(ns puppetlabs.pcp.broker.service
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.cthun.broker.core :as core]
-            [puppetlabs.cthun.broker.basic-authorization :as authz]
-            [puppetlabs.cthun.broker.in-memory-inventory :refer [make-inventory record-client find-clients]]
+            [puppetlabs.pcp.broker.core :as core]
+            [puppetlabs.pcp.broker.basic-authorization :as authz]
+            [puppetlabs.pcp.broker.in-memory-inventory :refer [make-inventory record-client find-clients]]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
             [puppetlabs.trapperkeeper.services :refer [service-context]]))
 
@@ -12,10 +12,10 @@
    [:MetricsService get-metrics-registry]]
   (init [this context]
         (log/info "Initializing broker service")
-        (let [activemq-spool     (get-in-config [:cthun :broker-spool])
-              accept-consumers   (get-in-config [:cthun :accept-consumers] 4)
-              delivery-consumers (get-in-config [:cthun :delivery-consumers] 16)
-              authorization      (get-in-config [:cthun :authorization] {:accept {:default :allow}})
+        (let [activemq-spool     (get-in-config [:pcp-broker :broker-spool])
+              accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
+              delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
+              authorization      (get-in-config [:pcp-broker :authorization] {:accept {:default :allow}})
               inventory          (make-inventory)
               broker             (core/init {:activemq-spool activemq-spool
                                              :accept-consumers accept-consumers

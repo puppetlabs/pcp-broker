@@ -1,4 +1,4 @@
-(ns puppetlabs.cthun.broker.activemq
+(ns puppetlabs.pcp.broker.activemq
   (:require [clamq.protocol.connection :as mq-conn]
             [clamq.protocol.consumer :as mq-cons]
             [clojure.tools.logging :as log]

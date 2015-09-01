@@ -1,7 +1,7 @@
-(ns puppetlabs.cthun.broker.basic-authorization-test
+(ns puppetlabs.pcp.broker.basic-authorization-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.cthun.broker.basic-authorization :refer :all]
-            [puppetlabs.cthun.message :as message]
+            [puppetlabs.pcp.broker.basic-authorization :refer :all]
+            [puppetlabs.pcp.message :as message]
             [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]))
 
 (deftest rule-matches?-test
