@@ -1,6 +1,5 @@
 (def tk-version "1.1.1")
 (def ks-version "1.1.0")
-(def pcp-broker-version "0.2.0-SNAPSHOT")
 
 (defn deploy-info
   [url]
@@ -9,7 +8,7 @@
     :password :env/nexus_jenkins_password
     :sign-releases false })
 
-(defproject puppetlabs/pcp-broker pcp-broker-version
+(defproject puppetlabs/pcp-broker "0.2.0-SNAPSHOT"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name ""
@@ -62,13 +61,6 @@
 
   :lein-release {:scm :git, :deploy-via :lein-deploy}
 
-  :uberjar-name "pcp-broker-release.jar"
-
-  :lein-ezbake {:resources {:type jar
-                            :dir "tmp/config"}
-                :config-dir "ezbake/config"
-                :build-type "pe" }
-
   :test-paths ["test" "test-resources"]
 
   :profiles {:dev {:source-paths ["dev"]
@@ -78,10 +70,7 @@
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
                                   [puppetlabs/ssl-utils "0.8.1"]
                                   [me.raynes/fs "1.4.5"]
-                                  [org.clojure/tools.namespace "0.2.4"]]}
-             :ezbake {:dependencies ^:replace [[puppetlabs/pcp-broker ~pcp-broker-version]]
-                      :plugins [[puppetlabs/lein-ezbake "0.3.11"]]
-                      :name "pcp-broker"}}
+                                  [org.clojure/tools.namespace "0.2.4"]]}}
 
   :repl-options {:init-ns user}
 
