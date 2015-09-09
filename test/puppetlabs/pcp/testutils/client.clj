@@ -39,7 +39,7 @@
   [uri]
   (-> (message/make-message)
       (assoc :message_type "http://puppetlabs.com/associate_request"
-             :targets ["cth:///server"]
+             :targets ["pcp:///server"]
              :sender uri)
       (message/set-expiry 3 :seconds)))
 

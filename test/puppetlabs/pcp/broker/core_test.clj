@@ -42,64 +42,64 @@
 
 (deftest get-websocket-test
   (let [broker (assoc (make-test-broker)
-                      :uri-map (atom {"cth://bill/agent" "ws1"
-                                      "cth://bob/agent" "ws2"}))]
+                      :uri-map (atom {"pcp://bill/agent" "ws1"
+                                      "pcp://bob/agent" "ws2"}))]
     (testing "it finds a single websocket explictly"
-      (is (= "ws1" (get-websocket broker "cth://bill/agent"))))
+      (is (= "ws1" (get-websocket broker "pcp://bill/agent"))))
     (testing "it finds nothing by wildcard"
-      (is (not (get-websocket broker "cth://*/agent"))))
+      (is (not (get-websocket broker "pcp://*/agent"))))
     (testing "it finds nothing when it's not there"
-      (is (not (get-websocket broker "cth://bob/nonsuch"))))))
+      (is (not (get-websocket broker "pcp://bob/nonsuch"))))))
 
 (deftest process-expired-message-test
   (with-redefs [accept-message-for-delivery (fn [broker response] response)]
     (testing "It will create and send a ttl expired message"
       (let [expired (-> (message/make-message)
-                        (assoc :sender "cth://client2.com/tester"))
+                        (assoc :sender "pcp://client2.com/tester"))
             broker (make-test-broker)
             capsule (process-expired-message broker (capsule/wrap expired))
             response (:message capsule)
             response-data (message/get-json-data response)]
-        (is (= ["cth://client2.com/tester"] (:targets response)))
+        (is (= ["pcp://client2.com/tester"] (:targets response)))
         (is (= "http://puppetlabs.com/ttl_expired" (:message_type response)))
         (is (= (:id expired) (:id response-data)))))))
 
 (deftest session-association-message?-test
   (testing "It returns true when passed a sessions association messge"
     (let [message (-> (message/make-message)
-                      (assoc :targets ["cth:///server"]
+                      (assoc :targets ["pcp:///server"]
                              :message_type "http://puppetlabs.com/associate_request"))]
       (is (= true (session-association-message? message)))))
   (testing "It returns false when passed a message of an unknown type"
     (let [message (-> (message/make-message)
-                      (assoc :targets ["cth:///server"]
+                      (assoc :targets ["pcp:///server"]
                              ;; OLDJOKE(richardc): we used to call association_request the loginschema
                              :message_type "http://puppetlabs.com/kennylogginsschema"))]
       (is (= false (session-association-message? message)))))
   (testing "It returns false when passed a message not aimed to the server target"
     (let [message (-> (message/make-message)
-                      (assoc :targets ["cth://other/server"]
+                      (assoc :targets ["pcp://other/server"]
                              :message_type "http://puppetlabs.com/associate_request"))]
       (is (= false (session-association-message? message))))))
 
 (deftest reason-to-deny-association-test
   (let [broker     (make-test-broker)
         connection (make-connection "websocket")
-        associated (assoc connection :state :associated :uri "cth://test/foo")]
-    (is (= nil (reason-to-deny-association broker connection "cth://test/foo")))
+        associated (assoc connection :state :associated :uri "pcp://test/foo")]
+    (is (= nil (reason-to-deny-association broker connection "pcp://test/foo")))
     (is (= "'server' type connections not accepted"
-           (reason-to-deny-association broker connection "cth://test/server")))
+           (reason-to-deny-association broker connection "pcp://test/server")))
     (is (= "session already associated"
-           (reason-to-deny-association broker associated "cth://test/foo")))
+           (reason-to-deny-association broker associated "pcp://test/foo")))
     (is (= "session already associated"
-           (reason-to-deny-association broker associated "cth://test/bar")))))
+           (reason-to-deny-association broker associated "pcp://test/bar")))))
 
 (deftest process-associate-message-test
   (let [closed (atom (promise))]
     (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
                   puppetlabs.experimental.websockets.client/send! (constantly false)]
       (let [message (-> (message/make-message)
-                        (assoc  :sender "cth://localhost/controller"
+                        (assoc  :sender "pcp://localhost/controller"
                                 :message_type "http://puppetlabs.com/login_message"))
             capsule (capsule/wrap message)]
         (testing "It should return an associated session"
@@ -109,7 +109,7 @@
                 connection (process-associate-message broker capsule connection)]
             (is (not (realized? @closed)))
             (is (= :associated (:state connection)))
-            (is (= "cth://localhost/controller" (:uri connection)))))
+            (is (= "pcp://localhost/controller" (:uri connection)))))
 
         (testing "It allows a login to from two locations for the same uri, but disconnects the first"
           (reset! closed (promise))
@@ -132,15 +132,15 @@
 
 (deftest validate-certname-test
   (testing "simple match, no exception"
-    (is (validate-certname "cth://lolcathost/agent" "lolcathost")))
+    (is (validate-certname "pcp://lolcathost/agent" "lolcathost")))
   (testing "simple mismatch"
     (is (thrown+? [:type :puppetlabs.pcp.broker.core/identity-invalid
                    :message "Certificate mismatch.  Sender: 'lolcathost' CN: 'remotecat'"]
-                  (validate-certname "cth://lolcathost/agent" "remotecat"))))
+                  (validate-certname "pcp://lolcathost/agent" "remotecat"))))
   (testing "accidental regex collisions"
     (is (thrown+? [:type :puppetlabs.pcp.broker.core/identity-invalid
                    :message "Certificate mismatch.  Sender: 'lolcathost' CN: 'lol.athost'"]
-                  (validate-certname "cth://lolcathost/agent" "lol.athost")))))
+                  (validate-certname "pcp://lolcathost/agent" "lol.athost")))))
 
 (deftest determine-next-state-test
   (testing "illegal next states raise due to schema validation"

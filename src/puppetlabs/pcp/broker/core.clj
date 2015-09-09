@@ -78,7 +78,7 @@
 (s/defn ^:always-validate broker-uri :- p/Uri
   [broker :- Broker]
   ;; TODO(richardc) should come from config or the cert of this instance
-  "cth:///server")
+  "pcp:///server")
 
 ;; connection lifecycle
 (s/defn ^:always-validate make-connection :- Connection
@@ -128,7 +128,7 @@
   (log/warn "Message " capsule " has expired. Replying with a ttl_expired.")
   (let [message (:message capsule)
         sender  (:sender message)]
-    (if (= "cth:///server" sender)
+    (if (= "pcp:///server" sender)
       (do
         (log/error "Server generated message expired.  Dropping")
         capsule)
@@ -136,7 +136,7 @@
             response (-> (message/make-message)
                          (assoc :message_type "http://puppetlabs.com/ttl_expired"
                                 :targets      [sender]
-                                :sender       "cth:///server")
+                                :sender       "pcp:///server")
                          (message/set-expiry 3 :seconds)
                          (message/set-json-data response_data))]
         (s/validate p/TTLExpiredMessage response_data)
@@ -168,7 +168,7 @@
           reply (-> (message/make-message)
                     (assoc :targets [(:sender message)]
                            :message_type "http://puppetlabs.com/destination_report"
-                           :sender "cth:///server")
+                           :sender "pcp:///server")
                     (message/set-expiry 3 :seconds)
                     (message/set-json-data report))]
       (s/validate p/DestinationReport report)
@@ -214,7 +214,7 @@
 (s/defn ^:always-validate session-association-message? :- s/Bool
   "Return true if message is a session association message"
   [message :- Message]
-  (and (= (:targets message) ["cth:///server"])
+  (and (= (:targets message) ["pcp:///server"])
        (= (:message_type message) "http://puppetlabs.com/associate_request")))
 
 (s/defn ^:always-validate reason-to-deny-association :- (s/maybe s/Str)
@@ -246,7 +246,7 @@
     (s/validate p/AssociateResponse response)
     (let [message (-> (message/make-message :message_type "http://puppetlabs.com/associate_response"
                                             :targets [uri]
-                                            :sender "cth:///server")
+                                            :sender "pcp:///server")
                       (message/set-expiry 3 :seconds)
                       (message/set-json-data response))]
       (websockets-client/send! ws (message/encode message)))
@@ -279,7 +279,7 @@
                        (assoc :message_type "http://puppetlabs.com/inventory_response"
                               :targets [(:sender message)]
                               :in-reply-to (:id message)
-                              :sender "cth:///server")
+                              :sender "pcp:///server")
                        (message/set-expiry 3 :seconds)
                        (message/set-json-data response-data))]
       (s/validate p/InventoryResponse response-data)
@@ -336,7 +336,7 @@
 (s/defn ^:always-validate connection-associated :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
   (let [targets (get-in capsule [:message :targets])]
-    (if (= ["cth:///server"] targets)
+    (if (= ["pcp:///server"] targets)
       (process-server-message broker capsule connection)
       (do
         (accept-message-for-delivery broker capsule)
@@ -377,7 +377,7 @@
             (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
                   error-message (-> (message/make-message
                                      :message_type "http://puppetlabs.com/error_message"
-                                     :sender "cth:///server")
+                                     :sender "pcp:///server")
                                     (message/set-json-data error-body))]
               (s/validate p/ErrorMessage error-body)
               (log/warn "sending error message" error-body)
