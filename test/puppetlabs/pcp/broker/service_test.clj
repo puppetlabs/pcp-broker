@@ -59,7 +59,7 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client02.example.com/test" false)]
+    (with-open [client (client/connect "client01.example.com" "pcp://client02.example.com/test" false)]
       (let [response (client/recv! client)]
         (is (= "http://puppetlabs.com/error_message" (:message_type response)))
         (is (re-matches #"Error .*?/identity-invalid.*" (:description (message/get-json-data response))))))))
@@ -70,15 +70,15 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)])))
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)])))
 
 (deftest second-association-new-connection-closes-first-test
   (with-app-with-config
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [first-client  (client/connect "client01.example.com" "cth://client01.example.com/test" true)
-                second-client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+    (with-open [first-client  (client/connect "client01.example.com" "pcp://client01.example.com/test" true)
+                second-client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [response (client/recv! first-client)]
         (is (= [4000 "superceded"] response))))))
 
@@ -87,8 +87,8 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
-      (let [request (client/make-association-request "cth://client01.example.com/test")]
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
+      (let [request (client/make-association-request "pcp://client01.example.com/test")]
         (client/send! client request)
         (let [response (client/recv! client)]
           (is (= "http://puppetlabs.com/associate_response" (:message_type response)))
@@ -105,52 +105,52 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [request (-> (message/make-message)
                         (assoc :message_type "http://puppetlabs.com/inventory_request"
-                               :targets ["cth:///server"]
-                               :sender "cth://client01.example.com/test")
+                               :targets ["pcp:///server"]
+                               :sender "pcp://client01.example.com/test")
                         (message/set-expiry 3 :seconds)
-                        (message/set-json-data {:query ["cth://client01.example.com/test"]}))]
+                        (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
         (client/send! client request)
         (let [response (client/recv! client)]
           (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
-          (is (= {:uris ["cth://client01.example.com/test"]} (message/get-json-data response))))))))
+          (is (= {:uris ["pcp://client01.example.com/test"]} (message/get-json-data response))))))))
 
 (deftest inventory-node-can-find-itself-wildcard-test
   (with-app-with-config
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [request (-> (message/make-message)
                         (assoc :message_type "http://puppetlabs.com/inventory_request"
-                               :targets ["cth:///server"]
-                               :sender "cth://client01.example.com/test")
+                               :targets ["pcp:///server"]
+                               :sender "pcp://client01.example.com/test")
                         (message/set-expiry 3 :seconds)
-                        (message/set-json-data {:query ["cth://*/test"]}))]
+                        (message/set-json-data {:query ["pcp://*/test"]}))]
         (client/send! client request)
         (let [response (client/recv! client)]
           (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
-          (is (= {:uris ["cth://client01.example.com/test"]} (message/get-json-data response))))))))
+          (is (= {:uris ["pcp://client01.example.com/test"]} (message/get-json-data response))))))))
 
 (deftest inventory-node-can-find-previously-connected-node-test
   (with-app-with-config
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client02.example.com" "cth://client02.example.com/test" true)])
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+    (with-open [client (client/connect "client02.example.com" "pcp://client02.example.com/test" true)])
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [request (-> (message/make-message)
                         (assoc :message_type "http://puppetlabs.com/inventory_request"
-                               :targets ["cth:///server"]
-                               :sender "cth://client01.example.com/test")
+                               :targets ["pcp:///server"]
+                               :sender "pcp://client01.example.com/test")
                         (message/set-expiry 3 :seconds)
-                        (message/set-json-data {:query ["cth://client02.example.com/test"]}))]
+                        (message/set-json-data {:query ["pcp://client02.example.com/test"]}))]
         (client/send! client request))
       (let [response (client/recv! client)]
         (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
-        (is (= {:uris ["cth://client02.example.com/test"]} (message/get-json-data response)))))))
+        (is (= {:uris ["pcp://client02.example.com/test"]} (message/get-json-data response)))))))
 
 ;; Message sending
 (deftest send-to-self-explicit-test
@@ -158,10 +158,10 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :sender "cth://client01.example.com/test"
-                               :targets ["cth://client01.example.com/test"]
+                        (assoc :sender "pcp://client01.example.com/test"
+                               :targets ["pcp://client01.example.com/test"]
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)
                         (message/set-json-data "Hello"))]
@@ -175,10 +175,10 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :sender "cth://client01.example.com/test"
-                               :targets ["cth://*/test"]
+                        (assoc :sender "pcp://client01.example.com/test"
+                               :targets ["pcp://*/test"]
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)
                         (message/set-json-data "Hello"))]
@@ -192,11 +192,11 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [sender   (client/connect "client01.example.com" "cth://client01.example.com/test" true)
-                receiver (client/connect "client02.example.com" "cth://client02.example.com/test" true)]
+    (with-open [sender   (client/connect "client01.example.com" "pcp://client01.example.com/test" true)
+                receiver (client/connect "client02.example.com" "pcp://client02.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :sender "cth://client01.example.com/test"
-                               :targets ["cth://client02.example.com/test"]
+                        (assoc :sender "pcp://client01.example.com/test"
+                               :targets ["pcp://client02.example.com/test"]
                                :destination_report true
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)
@@ -206,7 +206,7 @@
               message (client/recv! receiver)]
           (is (= "http://puppetlabs.com/destination_report" (:message_type report)))
           (is (= {:id (:id message)
-                  :targets ["cth://client02.example.com/test"]}
+                  :targets ["pcp://client02.example.com/test"]}
                  (message/get-json-data report)))
           (is (= "greeting" (:message_type message)))
           (is (= "Hello" (message/get-json-data message))))))))
@@ -216,10 +216,10 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :sender "cth://client01.example.com/test"
-                               :targets ["cth://client02.example.com/*"]
+                        (assoc :sender "pcp://client01.example.com/test"
+                               :targets ["pcp://client02.example.com/*"]
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)
                         (message/set-json-data "Hello"))]
@@ -233,10 +233,10 @@
     app
     [broker-service jetty9-service webrouting-service metrics-service]
     broker-config
-    (with-open [client (client/connect "client01.example.com" "cth://client01.example.com/test" true)]
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
-                        (assoc :sender "cth://client01.example.com/test"
-                               :targets ["cth://client02.example.com/test"]
+                        (assoc :sender "pcp://client01.example.com/test"
+                               :targets ["pcp://client02.example.com/test"]
                                :message_type "greeting")
                         (message/set-expiry 3 :seconds)
                         (message/set-json-data "Hello"))]

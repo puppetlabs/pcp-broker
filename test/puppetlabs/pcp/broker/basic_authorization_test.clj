@@ -7,7 +7,7 @@
 (deftest rule-matches?-test
   (testing "simplest matcher"
     (let [message (-> (message/make-message)
-                      (assoc :sender "cth://maverick/pilot"
+                      (assoc :sender "pcp://maverick/pilot"
                              :message_type "cheque"))
           rule-matches? (fn [rule message] (rule-matches? (assoc rule :action :allow) message))]
       (is (= true  (rule-matches? {} message)))
@@ -28,7 +28,7 @@
   (testing "loop detection"
     (with-test-logging
       (let [message (-> (message/make-message)
-                        (assoc :sender "cth://zz/top"))
+                        (assoc :sender "pcp://zz/top"))
             rules   {:accept {:default :allow
                               :rules [{:action {:target :accept}}]}}]
         (is (= false (authorized rules message)))
@@ -41,13 +41,13 @@
                                           :rules [{:sender "admin"
                                                    :action :allow}]}}
           allow-unrelated (-> (message/make-message)
-                              (assoc :sender "cth://anybody/agent"
+                              (assoc :sender "pcp://anybody/agent"
                                      :message_type "random_noise"))
           allowed-command (-> (message/make-message)
-                              (assoc :sender "cth://admin/run"
+                              (assoc :sender "pcp://admin/run"
                                      :message_type "cnc_request"))
           denied-command  (-> (message/make-message)
-                              (assoc :sender "cth://anybody/run"
+                              (assoc :sender "pcp://anybody/run"
                                      :message_type "cnc_request"))]
       (is (= true  (authorized rules allow-unrelated)))
       (is (= true  (authorized rules allowed-command)))
