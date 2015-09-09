@@ -17,13 +17,14 @@
    :uri-map            (atom {})
    :connections        (atom {})
    :metrics-registry   ""
-   :metrics            {}})
+   :metrics            {}
+   :transitions        {}})
 
-
-(deftest new-socket-test
+(deftest make-connection-test
   (testing "It returns a map that matches represents a new socket"
-    (let [socket (new-socket)]
-      (is (= (:state socket) :open))
+    (let [socket (make-connection "ws")]
+      (is (= :open (:state socket)))
+      (is (= "ws" (:websocket socket)))
       (is (= nil (:endpoint socket))))))
 
 (deftest add-connection!-test
@@ -34,7 +35,7 @@
 
 (deftest remove-connection!-test
   (testing "It should remove a connection from the connection map"
-    (let [connections (atom {"ws" (new-socket)})
+    (let [connections (atom {"ws" (make-connection "ws")})
           broker      (assoc (make-test-broker) :connections connections)]
       (remove-connection! broker "ws")
       (is (= {} @(:connections broker))))))
@@ -49,15 +50,6 @@
       (is (not (get-websocket broker "cth://*/agent"))))
     (testing "it finds nothing when it's not there"
       (is (not (get-websocket broker "cth://bob/nonsuch"))))))
-
-(deftest session-associated?-test
-  (let [connections (atom {"ws1" (assoc (new-socket) :state :associated)
-                           "ws2" (new-socket)})
-        broker (assoc (make-test-broker) :connections connections)]
-    (testing "It returns true if the websocket is associated"
-      (is (= true (session-associated? broker "ws1"))))
-    (testing "It returns false if the websocket is not associated"
-      (is (= false (session-associated? broker "ws2"))))))
 
 (deftest process-expired-message-test
   (with-redefs [accept-message-for-delivery (fn [broker response] response)]
@@ -90,72 +82,53 @@
                              :message_type "http://puppetlabs.com/associate_request"))]
       (is (= false (session-association-message? message))))))
 
-(deftest process-session-association-message-test
-  (with-redefs [puppetlabs.experimental.websockets.client/close! (constantly false)
-                puppetlabs.experimental.websockets.client/send! (constantly false)]
-    (let [message (-> (message/make-message)
-                      (assoc  :sender "cth://localhost/controller"
-                              :message_type "http://puppetlabs.com/login_message"))]
-      (testing "It should perform a login"
-        (let [broker (make-test-broker)]
-          (add-connection! broker "ws")
-          (process-session-association-message broker "ws" message)
-          (let [connection (get @(:connections broker) "ws")]
+(deftest reason-to-deny-association-test
+  (let [broker     (make-test-broker)
+        connection (make-connection "websocket")
+        associated (assoc connection :state :associated :uri "cth://test/foo")]
+    (is (= nil (reason-to-deny-association broker connection "cth://test/foo")))
+    (is (= "'server' type connections not accepted"
+           (reason-to-deny-association broker connection "cth://test/server")))
+    (is (= "session already associated"
+           (reason-to-deny-association broker associated "cth://test/foo")))
+    (is (= "session already associated"
+           (reason-to-deny-association broker associated "cth://test/bar")))))
+
+(deftest process-associate-message-test
+  (let [closed (atom (promise))]
+    (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
+                  puppetlabs.experimental.websockets.client/send! (constantly false)]
+      (let [message (-> (message/make-message)
+                        (assoc  :sender "cth://localhost/controller"
+                                :message_type "http://puppetlabs.com/login_message"))
+            capsule (capsule/wrap message)]
+        (testing "It should return an associated session"
+          (reset! closed (promise))
+          (let [broker     (make-test-broker)
+                connection (add-connection! broker "ws")
+                connection (process-associate-message broker capsule connection)]
+            (is (not (realized? @closed)))
             (is (= :associated (:state connection)))
-            (is (= "cth://localhost/controller" (:uri connection))))))
+            (is (= "cth://localhost/controller" (:uri connection)))))
 
-      (testing "It allows a login to from two locations for the same uri, but disconnects the first"
-        (let [broker (make-test-broker)]
-          (add-connection! broker "ws1")
-          (add-connection! broker "ws2")
-          (process-session-association-message broker "ws1" message)
-          (is (process-session-association-message broker "ws2" message))
-          (is (= ["ws2"] (keys @(:connections broker))))))
+        (testing "It allows a login to from two locations for the same uri, but disconnects the first"
+          (reset! closed (promise))
+          (let [broker (make-test-broker)
+                connection1 (add-connection! broker "ws1")
+                connection2 (add-connection! broker "ws2")]
+            (process-associate-message broker capsule connection1)
+            (is (process-associate-message broker capsule connection2))
+            (is (= ["ws1" 4000 "superceded"] @@closed))
+            (is (= ["ws2"] (keys @(:connections broker))))))
 
-      (testing "It does not allow a login to happen twice on the same websocket"
-        (let [broker (make-test-broker)]
-          (add-connection! broker "ws")
-          (process-session-association-message broker "ws" message)
-          (is (not (process-session-association-message broker "ws" message))))))))
-
-(deftest process-server-message-test
-  (with-redefs [process-session-association-message (constantly true)]
-    (let [broker (make-test-broker)
-          message (message/make-message)]
-      (testing "It should identify a session association message from the data schema"
-        (is (= true
-               (process-server-message broker "w"
-                                       (capsule/wrap (assoc message :message_type "http://puppetlabs.com/associate_request"))))))
-      (testing "It should not process an unkown type of server message"
-        (is (= nil
-               (process-server-message broker "w"
-                                       (capsule/wrap (assoc message :message_type "http://puppetlabs.com")))))))))
-
-(deftest process-message-test
-  (let [message (-> (message/make-message)
-                    (message/set-expiry 3 :seconds))
-        capsule (capsule/wrap message)
-        broker  (make-test-broker)]
-  (testing "It will ignore messages until the the client is associated"
-    (is (= (process-message broker "ws" capsule) nil)))
-  (testing "It will process an association message if the client is not associated"
-    (with-redefs [process-server-message (fn [broker ws message] "login")
-                  session-association-message? (constantly true)]
-      (is (= (process-message broker "ws" capsule) "login"))))
-  (testing "It will process a client message"
-    (with-redefs [session-associated? (fn [broker ws] true)
-                  accept-message-for-delivery (constantly "client")]
-      (let [message (assoc message :targets ["cth://client1.com/somerole"])]
-        (is (= (process-message broker "ws" capsule) "client")))))
-  (testing "It will process a server message"
-    (let [message (assoc message :targets ["cth:///server"])]
-      (with-redefs [session-associated? (constantly true)
-                    process-server-message (constantly "server")]
-        (is (= (process-message broker "ws" (capsule/wrap message)) "server")))))
-  (testing "It will process an expired message"
-    (with-redefs [capsule/expired? (constantly true)
-                  process-expired-message (constantly :processed-expired)]
-      (is (= (process-message broker "ws" capsule) :processed-expired))))))
+        (testing "It does not allow a login to happen twice on the same websocket"
+          (reset! closed (promise))
+          (let [broker (make-test-broker)
+                connection (add-connection! broker "ws")
+                connection (process-associate-message broker capsule connection)
+                connection (process-associate-message broker capsule connection)]
+            (is (= :associated (:state connection)))
+            (is (= ["ws" 4002 "association unsuccessful"] @@closed))))))))
 
 (deftest validate-certname-test
   (testing "simple match, no exception"
@@ -168,3 +141,22 @@
     (is (thrown+? [:type :puppetlabs.pcp.broker.core/identity-invalid
                    :message "Certificate mismatch.  Sender: 'lolcathost' CN: 'lol.athost'"]
                   (validate-certname "cth://lolcathost/agent" "lol.athost")))))
+
+(deftest determine-next-state-test
+  (testing "illegal next states raise due to schema validation"
+    (let [broker (make-test-broker)
+          broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :badbadbad))})
+          connection (make-connection "ws")
+          message (message/make-message)
+          capsule (capsule/wrap message)]
+      (is (= :open (:state connection)))
+      (is (thrown+? [:type :schema.core/error]
+                    (determine-next-state broker capsule connection)))))
+  (testing "legal next states are accepted"
+    (let [broker (make-test-broker)
+          broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :associated))})
+          connection (make-connection "ws")
+          message (message/make-message)
+          capsule (capsule/wrap message)
+          next (determine-next-state broker capsule connection)]
+      (is (= :associated (:state next))))))
