@@ -3,10 +3,10 @@
 
 (defn deploy-info
   [url]
-  { :url url
-    :username :env/nexus_jenkins_username
-    :password :env/nexus_jenkins_password
-    :sign-releases false })
+  {:url url
+   :username :env/nexus_jenkins_username
+   :password :env/nexus_jenkins_password
+   :sign-releases false})
 
 (defproject puppetlabs/pcp-broker "0.2.2-SNAPSHOT"
   :description "PCP fabric messaging broker"

@@ -48,17 +48,17 @@
   "Thinly wraps cheshire.core/generate-string, adding the PuppetDB default date format
    and pretty printing from `default-pretty-opts`"
   ([obj]
-     (generate-pretty-string obj default-pretty-opts))
+   (generate-pretty-string obj default-pretty-opts))
   ([obj opts]
-     (generate-string obj (merge default-pretty-opts opts))))
+   (generate-string obj (merge default-pretty-opts opts))))
 
 (defn generate-pretty-stream
   "Thinly wraps cheshire.core/generate-stream, adding the PuppetDB default date format
    and pretty printing from `default-pretty-opts`"
   ([obj writer]
-     (generate-pretty-stream obj writer default-pretty-opts))
+   (generate-pretty-stream obj writer default-pretty-opts))
   ([obj writer opts]
-     (generate-stream obj writer (merge default-pretty-opts opts))))
+   (generate-stream obj writer (merge default-pretty-opts opts))))
 
 (def parse-string core/parse-string)
 
