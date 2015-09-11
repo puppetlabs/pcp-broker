@@ -8,7 +8,6 @@
             [schema.core :as s])
   (:import (org.joda.time DateTime)))
 
-
 ;; A Capsule is a message as it moves across the broker from queue to
 ;; queue.  Currently it contains an actual Message, but in future it
 ;; might make sense to just contain a message-id with the message

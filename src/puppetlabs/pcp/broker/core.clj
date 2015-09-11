@@ -366,22 +366,22 @@
   [broker ws bytes]
   (time! (:on-message (:metrics broker))
          (try+
-          (let [connection  (get-connection broker ws)
-                message     (decode-and-check bytes connection)
-                uri         (broker-uri broker)
-                capsule     (capsule/wrap message)
-                capsule     (capsule/add-hop capsule uri "accepted")
-                next        (determine-next-state broker capsule connection)]
-            (swap! (:connections broker) assoc ws next))
-          (catch map? m
-            (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
-                  error-message (-> (message/make-message
-                                     :message_type "http://puppetlabs.com/error_message"
-                                     :sender "pcp:///server")
-                                    (message/set-json-data error-body))]
-              (s/validate p/ErrorMessage error-body)
-              (log/warn "sending error message" error-body)
-              (websockets-client/send! ws (message/encode error-message)))))))
+           (let [connection  (get-connection broker ws)
+                 message     (decode-and-check bytes connection)
+                 uri         (broker-uri broker)
+                 capsule     (capsule/wrap message)
+                 capsule     (capsule/add-hop capsule uri "accepted")
+                 next        (determine-next-state broker capsule connection)]
+             (swap! (:connections broker) assoc ws next))
+           (catch map? m
+             (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
+                   error-message (-> (message/make-message
+                                      :message_type "http://puppetlabs.com/error_message"
+                                      :sender "pcp:///server")
+                                     (message/set-json-data error-body))]
+               (s/validate p/ErrorMessage error-body)
+               (log/warn "sending error message" error-body)
+               (websockets-client/send! ws (message/encode error-message)))))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"

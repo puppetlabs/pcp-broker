@@ -14,10 +14,10 @@
     (is (not (endpoint-pattern-match? "pcp://pies/agent" "pcp://pies/*")))))
 
 (deftest find-clients-test
-  (let [clients (atom #{ "pcp://bill/agent"
-                         "pcp://bob/agent"
-                         "pcp://eric/controller"
-                         "pcp://bob/controller" })]
+  (let [clients (atom #{"pcp://bill/agent"
+                        "pcp://bob/agent"
+                        "pcp://eric/controller"
+                        "pcp://bob/controller"})]
     (testing "it finds a single client explictly"
       (is (= '("pcp://bill/agent")
              (find-clients clients ["pcp://bill/agent"]))))

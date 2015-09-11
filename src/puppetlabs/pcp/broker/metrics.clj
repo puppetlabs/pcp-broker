@@ -16,7 +16,7 @@
                                 :std-dev (timers/std-dev v)
                                 :percentiles (timers/percentiles v)
                                 :largest (timers/largest v)
-                                :smallest (timers/smallest v)} }) (.getTimers registry))]))
+                                :smallest (timers/smallest v)}}) (.getTimers registry))]))
 
 (defn- get-memory-metrics
   "Returns memory related metrics as a map"
