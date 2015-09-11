@@ -70,7 +70,11 @@
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
                                   [puppetlabs/ssl-utils "0.8.1"]
                                   [me.raynes/fs "1.4.5"]
-                                  [org.clojure/tools.namespace "0.2.4"]]}}
+                                  [org.clojure/tools.namespace "0.2.4"]]}
+             :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
+                                [lein-parent "0.2.1"]]
+                      :parent-project {:path "../pl-clojure-style/project.clj"
+                                       :inherit [:cljfmt]}}}
 
   :repl-options {:init-ns user}
 
@@ -78,6 +82,7 @@
   ; :global-vars {*warn-on-reflection* true}
 
   :aliases {"tk" ["trampoline" "run" "--config" "test-resources/conf.d"]
-            "certs" ["trampoline" "run" "-m" "puppetlabs.pcp.testutils.certs" "--config" "test-resources/conf.d" "--"]}
+            "certs" ["trampoline" "run" "-m" "puppetlabs.pcp.testutils.certs" "--config" "test-resources/conf.d" "--"]
+            "cljfmt" ["with-profile" "+cljfmt" "cljfmt"]}
 
   :main puppetlabs.trapperkeeper.main)
