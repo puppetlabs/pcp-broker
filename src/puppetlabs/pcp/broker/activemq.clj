@@ -21,7 +21,7 @@
 (defn subscribe-to-queue
   [queue callback-fn consumer-count]
   (let [mq-spec "vm://localhost?create=false"]
-    (with-open [conn (mq/activemq-connection mq-spec)]
+    (let [conn (mq/activemq-connection mq-spec)]
       (doall (for [i (range consumer-count)]
                (let [consumer (mq-conn/consumer conn
                                                 {:endpoint   queue

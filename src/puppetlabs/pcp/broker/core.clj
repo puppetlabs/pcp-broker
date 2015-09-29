@@ -42,7 +42,9 @@
 
 (def Broker
   {:activemq-broker    Object
-   :activemq-consumers [Object]
+   :accept-consumers   s/Int
+   :delivery-consumers s/Int
+   :activemq-consumers Atom
    :record-client      IFn
    :find-clients       IFn
    :authorized         IFn
@@ -206,10 +208,12 @@
     (time! (:message-queueing (:metrics broker))
            (doall (map #(activemq/queue-message delivery-queue %) capsules)))))
 
-(s/defn ^:always-validate subscribe-to-queues
-  [broker :- Broker accept-count delivery-count]
-  (concat (activemq/subscribe-to-queue accept-queue (partial expand-destinations broker) accept-count)
-          (activemq/subscribe-to-queue delivery-queue (partial deliver-message broker) delivery-count)))
+(s/defn ^:always-validate subscribe-to-queues!
+  [broker :- Broker]
+  (let [{:keys [activemq-consumers accept-consumers delivery-consumers]} broker]
+    (reset! activemq-consumers
+            (concat (activemq/subscribe-to-queue accept-queue (partial expand-destinations broker) accept-consumers)
+                    (activemq/subscribe-to-queue delivery-queue (partial deliver-message broker) delivery-consumers)))))
 
 (s/defn ^:always-validate session-association-message? :- s/Bool
   "Return true if message is a session association message"
@@ -434,7 +438,9 @@
                 record-client find-clients authorized get-metrics-registry]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
           broker             {:activemq-broker    activemq-broker
-                              :activemq-consumers []
+                              :accept-consumers   accept-consumers
+                              :delivery-consumers delivery-consumers
+                              :activemq-consumers (atom [])
                               :record-client      record-client
                               :find-clients       find-clients
                               :authorized         authorized
@@ -445,9 +451,7 @@
                               :transitions        {:open connection-open
                                                    :associated connection-associated}}
           metrics            (build-and-register-metrics broker)
-          broker             (assoc broker :metrics metrics)
-          activemq-consumers (subscribe-to-queues broker accept-consumers delivery-consumers)
-          broker             (assoc broker :activemq-consumers activemq-consumers)]
+          broker             (assoc broker :metrics metrics)]
       (add-ring-handler (partial metrics-app broker) {:route-id :metrics})
       (add-websocket-handler (build-websocket-handlers broker) {:route-id :websocket})
       broker)))
@@ -455,11 +459,12 @@
 (s/defn ^:always-validate start
   [broker :- Broker]
   (let [{:keys [activemq-broker]} broker]
-    (mq/start-broker! activemq-broker)))
+    (mq/start-broker! activemq-broker)
+    (subscribe-to-queues! broker)))
 
 (s/defn ^:always-validate stop
   [broker :- Broker]
   (let [{:keys [activemq-broker activemq-consumers]} broker]
-    (doseq [consumer activemq-consumers]
+    (doseq [consumer @activemq-consumers]
       (mq-cons/close consumer))
     (mq/stop-broker! activemq-broker)))
