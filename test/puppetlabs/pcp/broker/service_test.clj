@@ -247,3 +247,21 @@
           ;; in case we only expire for 1 of the expanded
           ;; destinations
           (is (= {:id (:id message)} (message/get-json-data response))))))))
+
+(deftest send-disconnect-connect-receive
+  (with-app-with-config
+   app
+   [broker-service jetty9-service webrouting-service metrics-service]
+   broker-config
+   (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
+     (let [message (-> (message/make-message)
+                       (assoc :sender "pcp://client01.example.com/test"
+                              :targets ["pcp://client02.example.com/test"]
+                              :message_type "greeting")
+                       (message/set-expiry 3 :seconds)
+                       (message/set-json-data "Hello"))]
+       (client/send! client message)))
+   (with-open [client (client/connect "client02.example.com" "pcp://client02.example.com/test" true)]
+     (let [message (client/recv! client)]
+       (is (= "Hello" (message/get-json-data message)))))))
+
