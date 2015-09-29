@@ -10,7 +10,9 @@
   "Return a minimal clean broker state"
   []
   {:activemq-broker    "JMSOMGBBQ"
-   :activemq-consumers []
+   :accept-consumers   2
+   :delivery-consumers 2
+   :activemq-consumers (atom [])
    :record-client      (constantly true)
    :find-clients       (constantly true)
    :authorized         (constantly true)
