@@ -16,17 +16,19 @@
 
 (def broker-config
   "A broker with ssl and own spool"
-  {:webserver {:ssl-host "127.0.0.1"
-               :ssl-port 8081
-               :client-auth "want"
-               :ssl-key "./test-resources/ssl/private_keys/broker.example.com.pem"
-               :ssl-cert "./test-resources/ssl/certs/broker.example.com.pem"
-               :ssl-ca-cert "./test-resources/ssl/ca/ca_crt.pem"
-               :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
+  {:webserver {:pcp-broker {:ssl-host "127.0.0.1"
+                            :ssl-port 8081
+                            :client-auth "want"
+                            :ssl-key "./test-resources/ssl/private_keys/broker.example.com.pem"
+                            :ssl-cert "./test-resources/ssl/certs/broker.example.com.pem"
+                            :ssl-ca-cert "./test-resources/ssl/ca/ca_crt.pem"
+                            :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}}
 
    :web-router-service
-   {:puppetlabs.pcp.broker.service/broker-service {:websocket "/pcp"
-                                                   :metrics "/"}}
+   {:puppetlabs.pcp.broker.service/broker-service {:websocket {:route "/pcp"
+                                                               :server "pcp-broker"}
+                                                   :metrics {:route "/"
+                                                             :server "pcp-broker"}}}
 
    :metrics {:enabled true}
 
