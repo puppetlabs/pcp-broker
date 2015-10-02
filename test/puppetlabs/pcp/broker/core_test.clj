@@ -20,7 +20,13 @@
    :connections        (atom {})
    :metrics-registry   ""
    :metrics            {}
-   :transitions        {}})
+   :transitions        {}
+   :broker-cn          "broker.example.com"})
+
+(deftest get-broker-cn-test
+  (testing "It returns the correct cn"
+    (let [cn (get-broker-cn "./test-resources/ssl/certs/broker.example.com.pem")]
+      (is (= "broker.example.com" cn)))))
 
 (deftest make-connection-test
   (testing "It returns a map that matches represents a new socket"
