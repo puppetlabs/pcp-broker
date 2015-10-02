@@ -27,7 +27,7 @@
 
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/kitchensink ~ks-version]
-                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.4.0"]
+                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.0"]
                  [puppetlabs/trapperkeeper-metrics "0.1.1"]
 
                  [cheshire "5.5.0"]

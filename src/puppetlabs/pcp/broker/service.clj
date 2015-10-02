@@ -8,7 +8,7 @@
 
 (trapperkeeper/defservice broker-service
   [[:ConfigService get-in-config]
-   [:WebroutingService add-ring-handler add-websocket-handler]
+   [:WebroutingService add-ring-handler add-websocket-handler get-server]
    [:MetricsService get-metrics-registry]]
   (init [this context]
     (log/info "Initializing broker service")
@@ -17,6 +17,9 @@
           delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
           authorization      (get-in-config [:pcp-broker :authorization] {:accept {:default :allow}})
           inventory          (make-inventory)
+          ssl-cert           (if-let [server (get-server this :websocket)]
+                               (get-in-config [:webserver (keyword server) :ssl-cert])
+                               (get-in-config [:webserver :ssl-cert]))
           broker             (core/init {:activemq-spool activemq-spool
                                          :accept-consumers accept-consumers
                                          :delivery-consumers delivery-consumers
@@ -25,7 +28,8 @@
                                          :record-client  (partial record-client inventory)
                                          :find-clients   (partial find-clients inventory)
                                          :authorized (partial authz/authorized authorization)
-                                         :get-metrics-registry get-metrics-registry})]
+                                         :get-metrics-registry get-metrics-registry
+                                         :ssl-cert ssl-cert})]
       (assoc context :broker broker)))
   (start [this context]
     (log/info "Starting broker service")

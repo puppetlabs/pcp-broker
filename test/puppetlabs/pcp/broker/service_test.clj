@@ -252,8 +252,8 @@
           (is (= {:id (:id message)} (message/get-json-data response))))))))
 
 (deftest send-disconnect-connect-receive
-  (with-app-with-config
-   app
+ (with-app-with-config
+  app
    [broker-service jetty9-service webrouting-service metrics-service]
    broker-config
    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
