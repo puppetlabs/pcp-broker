@@ -17,7 +17,10 @@
 (def broker-config
   "A broker with ssl and own spool"
   {:webserver {:ssl-host "127.0.0.1"
-               :ssl-port 8081
+               ;; usual port is 8142.  Here we use 8143 so if we're developing
+               ;; we can run a long-running instance and this one for the
+               ;; tests.
+               :ssl-port 8143
                :client-auth "want"
                :ssl-key "./test-resources/ssl/private_keys/broker.example.com.pem"
                :ssl-cert "./test-resources/ssl/certs/broker.example.com.pem"
@@ -50,7 +53,7 @@
     (let [connected (promise)]
       (with-open [client (client/http-client-with-cert "client01.example.com")
                   ws     (http/websocket client
-                                         "wss://127.0.0.1:8081/pcp"
+                                         "wss://127.0.0.1:8143/pcp"
                                          :open (fn [ws] (deliver connected true)))]
         (is (= true (deref connected (* 2 1000) false)) "Connected within 2 seconds")))))
 

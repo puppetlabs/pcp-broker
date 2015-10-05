@@ -49,7 +49,7 @@
   (let [association-request (make-association-request identity)
         client              (http-client-with-cert certname)
         message-chan        (chan)
-        ws                  (http/websocket client "wss://127.0.0.1:8081/pcp"
+        ws                  (http/websocket client "wss://127.0.0.1:8143/pcp"
                                             :open  (fn [ws]
                                                      (http/send ws :byte (message/encode association-request)))
                                             :byte  (fn [ws msg]
