@@ -25,3 +25,8 @@ following command:
 ## Documentation
 
 Look [here](docs/).
+
+## Support
+
+We use the [Puppet Communications Protocol project on JIRA](https://tickets.puppetlabs.com/browse/PCP)
+with the component `pcp-broker` for tickets on `puppetlabs/pcp-broker`.
