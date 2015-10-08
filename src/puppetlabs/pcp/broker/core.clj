@@ -13,6 +13,7 @@
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.puppetdb.mq :as mq]
+            [puppetlabs.ssl-utils.core :as ssl-utils]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]])
   (:import (clojure.lang IFn Atom)))
@@ -52,7 +53,8 @@
    :connections        Atom ;; atom with schema Connections. will be checked with :validator
    :metrics-registry   Object
    :metrics            {s/Keyword Object}
-   :transitions        {ConnectionState IFn}})
+   :transitions        {ConnectionState IFn}
+   :broker-cn          s/Str})
 
 ;; Metrics
 (s/defn metrics-app
@@ -77,10 +79,14 @@
 
 (def delivery-queue "delivery")
 
+(s/defn ^:always-validate get-broker-cn :- s/Str
+  [certificate :- s/Str]
+  (let [x509     (ssl-utils/pem->cert certificate)]
+    (ssl-utils/get-cn-from-x509-certificate x509)))
+
 (s/defn ^:always-validate broker-uri :- p/Uri
   [broker :- Broker]
-  ;; TODO(richardc) should come from config or the cert of this instance
-  "pcp:///server")
+  (str "pcp://" (:broker-cn broker) "/server"))
 
 ;; connection lifecycle
 (s/defn ^:always-validate make-connection :- Connection
@@ -429,13 +435,14 @@
    :record-client IFn
    :find-clients IFn
    :authorized IFn
-   :get-metrics-registry IFn})
+   :get-metrics-registry IFn
+   :ssl-cert s/Str})
 
 (s/defn ^:always-validate init :- Broker
   [options :- InitOptions]
   (let [{:keys [path activemq-spool accept-consumers delivery-consumers
                 add-ring-handler add-websocket-handler
-                record-client find-clients authorized get-metrics-registry]} options]
+                record-client find-clients authorized get-metrics-registry ssl-cert]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
           broker             {:activemq-broker    activemq-broker
                               :accept-consumers   accept-consumers
@@ -449,7 +456,8 @@
                               :connections        (atom {} :validator (partial s/validate Connections))
                               :uri-map            (atom {} :validator (partial s/validate UriMap))
                               :transitions        {:open connection-open
-                                                   :associated connection-associated}}
+                                                   :associated connection-associated}
+                              :broker-cn          (get-broker-cn ssl-cert)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
       (add-ring-handler (partial metrics-app broker) {:route-id :metrics})
