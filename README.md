@@ -24,7 +24,7 @@ following command:
 
 ## Documentation
 
-Look [here](docs/).
+Look [here](doc/).
 
 ## Support
 
