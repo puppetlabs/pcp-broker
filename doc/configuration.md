@@ -12,12 +12,38 @@ service, and a Metrics service.
 ```
 # bootstrap.cfg
 puppetlabs.pcp.broker.service/broker-service
+puppetlabs.trapperkeeper.services.authorization.authorization-service/authorization-service
 puppetlabs.trapperkeeper.services.webrouting.webrouting-service/webrouting-service
 puppetlabs.trapperkeeper.services.webserver.jetty9-service/jetty9-service
 puppetlabs.trapperkeeper.services.metrics.metrics-service/metrics-service
 ```
 
 ## Service configuration
+
+
+The authorization subsystem will need to be configured following the notes on
+mapping messages to ring requests in [authentication](authentication.md) and
+the notes on how to [configure trapperkeeper-authorization](https://github.com/puppetlabs/trapperkeeper-authorization/blob/master/doc/authorization-config.md).
+
+To disable all authorization you will need a null policy like so:
+
+```
+# authorization.conf
+authorization: {
+  version: 1
+  rules: [
+    {
+      name: "no limits"
+      match-request: {
+        path: "^/"
+        type: regex
+      }
+      sort-order: 1
+      allow-unauthenticated: true
+    }
+  ]
+}
+```
 
 The webserver needs to be configured for ssl against the puppet CA for
 your install (see [authentication](authentication.md)), with

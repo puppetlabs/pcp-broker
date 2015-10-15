@@ -1,3 +1,11 @@
+## 0.4.0
+
+This is a feature release
+
+* [PCP-88](https://tickets.puppetlabs.com/browse/PCP-88) Authorization system
+  switched to trapperkeeper-authorization.  See [authorization](doc/authorization.md)
+  for notes on how to configure this.
+
 ## 0.3.0
 
 This is a feature and maintance release
