@@ -7,6 +7,7 @@
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.message :as message]
             [puppetlabs.kitchensink.core :as ks]
+            [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
@@ -16,7 +17,14 @@
 
 (def broker-config
   "A broker with ssl and own spool"
-  {:webserver {:ssl-host "127.0.0.1"
+  {:authorization {:version 1
+                   :rules [{:name "allow all"
+                            :match-request {:type "regex"
+                                            :path "^/.*$"}
+                            :allow-unauthenticated true
+                            :sort-order 1}]}
+
+   :webserver {:ssl-host "127.0.0.1"
                ;; usual port is 8142.  Here we use 8143 so if we're developing
                ;; we can run a long-running instance and this one for the
                ;; tests.
@@ -48,7 +56,7 @@
 (deftest it-talks-websockets-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (let [connected (promise)]
       (with-open [client (client/http-client-with-cert "client01.example.com")
@@ -60,7 +68,7 @@
 (deftest certificate-must-match-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client02.example.com/test" false)]
       (let [response (client/recv! client)]
@@ -71,14 +79,14 @@
 (deftest basic-session-association-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)])))
 
 (deftest second-association-new-connection-closes-first-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [first-client  (client/connect "client01.example.com" "pcp://client01.example.com/test" true)
                 second-client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
@@ -88,7 +96,7 @@
 (deftest second-association-same-connection-should-fail-and-disconnect-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [request (client/make-association-request "pcp://client01.example.com/test")]
@@ -106,7 +114,7 @@
 (deftest inventory-node-can-find-itself-explicit-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [request (-> (message/make-message)
@@ -123,7 +131,7 @@
 (deftest inventory-node-can-find-itself-wildcard-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [request (-> (message/make-message)
@@ -140,7 +148,7 @@
 (deftest inventory-node-can-find-previously-connected-node-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client02.example.com" "pcp://client02.example.com/test" true)])
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
@@ -159,7 +167,7 @@
 (deftest send-to-self-explicit-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
@@ -176,7 +184,7 @@
 (deftest send-to-self-wildcard-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
@@ -193,7 +201,7 @@
 (deftest send-with-destination-report-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [sender   (client/connect "client01.example.com" "pcp://client01.example.com/test" true)
                 receiver (client/connect "client02.example.com" "pcp://client02.example.com/test" true)]
@@ -217,7 +225,7 @@
 (deftest send-expired-wildcard-gets-no-expiry-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
@@ -234,7 +242,7 @@
 (deftest send-expired-explicit-gets-expiry-test
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
@@ -254,7 +262,7 @@
 (deftest send-disconnect-connect-receive
   (with-app-with-config
     app
-    [broker-service jetty9-service webrouting-service metrics-service]
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
       (let [message (-> (message/make-message)
@@ -267,4 +275,3 @@
     (with-open [client (client/connect "client02.example.com" "pcp://client02.example.com/test" true)]
       (let [message (client/recv! client)]
         (is (= "Hello" (message/get-json-data message)))))))
-

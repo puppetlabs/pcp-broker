@@ -32,6 +32,6 @@
                                                                  (callback-fn thawed)))
                                                  :transacted true
                                                  :on-failure (fn [error]
-                                                               (log/errorf "error consuming message from %s: %s" queue (:exception error)))})]
+                                                               (log/errorf (:exception error) "error consuming message from %s" queue))})]
                  (mq-cons/start consumer)
                  consumer))))))
