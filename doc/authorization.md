@@ -1,72 +1,31 @@
 # Message authorization
 
-Messages can be allowed or denied following a simple table-based model
-of configuration.
+Messages can be allowed or denied using the trapperkeeper-authorization subsystem.
 
-Message processing starts at the `accept` table, and applies all
-`rules` from that table until a terminal state is reached.
+https://github.com/puppetlabs/trapperkeeper-authorization/blob/master/doc/authorization-config.md
 
-## Table
+## Message mapping
 
-A table has a `default` state (`allow` or `deny`) which applies when
-no rules in that table match, and an optional list of `rules` rules
-which are applied in order.
+PCP Message are mapped into ring requests, on the `/pcp-broker/send` path.
 
-## Rule
+As a worked example, the envelope of a message used by the ping
+application would look something like this:
 
-A rule specifies a `message_type` or `sender` that the rule matches,
-and an `action` which may be `allow`, `deny`, or a map indicating a
-table to jump to.
 
-# Default ruleset
+    {:id "3790c4a2-dd71-41bf-bd6d-573779b38657"
+     :sender "pcp://client01.example.com/ruby-pcp-client-2251"
+     :targets [ "pcp://client02.example.com/agent" ]
+     :message_type "http://puppetlabs.com/rpc_blocking_request"}
 
-The default ruleset when specified is as follows:
+This would be transformed into the following ring request:
 
-```
-pcp-broker: {
-    authorization: {
-        accept: {
-            default: allow
-        }
-    }
-}
-```
+    {:request-method :post
+     :remote-addr "192.168.1.22:36362"
+     :uri "/pcp-broker/send"
+     :ssl-client-cert (X509-certificate-for "client01.example.com")
+     :params {:message_type "http://puppetlabs.com/rpc_blocking_request"
+              :targets "pcp://client02.example.com/agent"}}
 
-# Worked example
-
-Given a PXP-like system we can imagine we have two request types
-`pxp_request` and `pxp_status` that we want to group and then allow
-access to only if the sender matches `pxp-controller`.
-
-```
-pcp-broker: {
-    authorization: {
-        accept: {
-            default: allow
-            rules: [
-                {
-                    message_type: "pxp_request"
-                    action: {
-                        target: pxp_commands
-                    }
-                }
-                {
-                    message_type: "pxp_status"
-                    action: {
-                        target: pxp_commands
-                    }
-                }
-            ]
-        }
-        pxp_commands: {
-            default: deny
-            rules: [
-                {
-                    sender: pxp-controller
-                    action: allow
-                }
-            ]
-        }
-    }
-}
-```
+And then matched by trapperkeeper-authorization.  For notes on how to
+configure tk-auth see
+https://github.com/puppetlabs/trapperkeeper-authorization/blob/master/doc/authorization-config.md

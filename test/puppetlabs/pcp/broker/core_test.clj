@@ -15,7 +15,7 @@
    :activemq-consumers (atom [])
    :record-client      (constantly true)
    :find-clients       (constantly true)
-   :authorized         (constantly true)
+   :authorization-check (constantly true)
    :uri-map            (atom {})
    :connections        (atom {})
    :metrics-registry   ""
@@ -58,6 +58,51 @@
       (is (not (get-websocket broker "pcp://*/agent"))))
     (testing "it finds nothing when it's not there"
       (is (not (get-websocket broker "pcp://bob/nonsuch"))))))
+
+(deftest make-ring-request-test
+  (let [broker (make-test-broker)]
+    (testing "it should return a ring request - one target"
+      (let [message (message/make-message :message_type "example1"
+                                          :sender "pcp://example01.example.com/agent"
+                                          :targets ["pcp://example02.example.com/agent"])
+            capsule (capsule/wrap message)]
+        (is (= {:uri "/pcp-broker/send"
+                :request-method :post
+                :remote-addr ""
+                :params {:sender "pcp://example01.example.com/agent"
+                         :targets "pcp://example02.example.com/agent"
+                         :message_type "example1"}}
+               (make-ring-request broker capsule)))))
+    (testing "it should return a ring request - two targets"
+      (let [message (message/make-message :message_type "example1"
+                                          :sender "pcp://example01.example.com/agent"
+                                          :targets ["pcp://example02.example.com/agent"
+                                                    "pcp://example03.example.com/agent"])
+            capsule (capsule/wrap message)]
+        (is (= {:uri "/pcp-broker/send"
+                :request-method :post
+                :remote-addr ""
+                :params {:sender "pcp://example01.example.com/agent"
+                         :targets ["pcp://example02.example.com/agent"
+                                   "pcp://example03.example.com/agent"]
+                         :message_type "example1"}}
+               (make-ring-request broker capsule)))))))
+
+(deftest authorized?-test
+  (let [yes-check (fn [r] {:authorized true
+                           :message ""
+                           :request r})
+        no-check (fn [r] {:authorized false
+                          :message "Danger Zone"
+                          :request r})
+        yes-broker (assoc (make-test-broker) :authorization-check yes-check)
+        no-broker (assoc (make-test-broker) :authorization-check no-check)
+        message (message/make-message :message_type "example1"
+                                      :sender "pcp://example01.example.com/agent"
+                                      :targets ["pcp://example02.example.com/agent"])
+        capsule (capsule/wrap message)]
+    (is (= true (authorized? yes-broker capsule)))
+    (is (= false (authorized? no-broker capsule)))))
 
 (deftest process-expired-message-test
   (with-redefs [accept-message-for-delivery (fn [broker response] response)]

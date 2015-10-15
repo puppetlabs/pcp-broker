@@ -14,6 +14,7 @@
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.puppetdb.mq :as mq]
             [puppetlabs.ssl-utils.core :as ssl-utils]
+            [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]])
   (:import (clojure.lang IFn Atom)))
@@ -48,7 +49,7 @@
    :activemq-consumers Atom
    :record-client      IFn
    :find-clients       IFn
-   :authorized         IFn
+   :authorization-check IFn
    :uri-map            Atom ;; atom with schema UriMap. will be checked with :validator
    :connections        Atom ;; atom with schema Connections. will be checked with :validator
    :metrics-registry   Object
@@ -119,11 +120,41 @@
   [broker :- Broker uri :- p/Uri]
   (get @(:uri-map broker) uri))
 
+(s/defn ^:always-validate make-ring-request :- ring/Request
+  [broker :- Broker capsule :- Capsule]
+  (let [{:keys [sender targets message_type]} (:message capsule)
+        request {:uri "/pcp-broker/send"
+                 :request-method :post
+                 :remote-addr ""
+                 :params {:sender sender
+                          :targets (if (= 1 (count targets)) (first targets) targets)
+                          :message_type message_type}}]
+    ;; some things we can only know when sender is connected
+    (if-let [websocket (get-websocket broker sender)]
+      (let [remote-addr (.. websocket (getSession) (getRemoteAddress) (toString))
+            ssl-client-cert (first (websockets-client/peer-certs websocket))]
+        (merge request {:remote-addr remote-addr
+                        :ssl-client-cert ssl-client-cert}))
+      request)))
+
+(s/defn ^:always-validate authorized? :- s/Bool
+  "Check if the message is authorized"
+  [broker :- Broker capsule :- Capsule]
+  (let [ring-request (make-ring-request broker capsule)
+        {:keys [authorization-check]} broker]
+    (log/debug "Checking rules against " ring-request)
+    (let [{:keys [authorized message]} (authorization-check ring-request)]
+      (if authorized
+        true
+        (do
+          (log/info "Message not authorized:" message)
+          false)))))
+
 ;; message lifecycle
 (s/defn ^:always-validate accept-message-for-delivery :- Capsule
   "Accept a message for later delivery"
   [broker :- Broker capsule :- Capsule]
-  (if ((:authorized broker) (:message capsule))
+  (if (authorized? broker capsule)
     (time! (:message-queueing (:metrics broker))
            (let [capsule (capsule/add-hop capsule (broker-uri broker) "accept-to-queue")]
              (activemq/queue-message accept-queue capsule)))
@@ -434,7 +465,7 @@
    :add-websocket-handler IFn
    :record-client IFn
    :find-clients IFn
-   :authorized IFn
+   :authorization-check IFn
    :get-metrics-registry IFn
    :ssl-cert s/Str})
 
@@ -442,7 +473,8 @@
   [options :- InitOptions]
   (let [{:keys [path activemq-spool accept-consumers delivery-consumers
                 add-ring-handler add-websocket-handler
-                record-client find-clients authorized get-metrics-registry ssl-cert]} options]
+                record-client find-clients authorization-check
+                get-metrics-registry ssl-cert]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
           broker             {:activemq-broker    activemq-broker
                               :accept-consumers   accept-consumers
@@ -450,7 +482,7 @@
                               :activemq-consumers (atom [])
                               :record-client      record-client
                               :find-clients       find-clients
-                              :authorized         authorized
+                              :authorization-check authorization-check
                               :metrics            {}
                               :metrics-registry   (get-metrics-registry)
                               :connections        (atom {} :validator (partial s/validate Connections))

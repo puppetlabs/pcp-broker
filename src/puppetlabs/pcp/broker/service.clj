@@ -1,13 +1,13 @@
 (ns puppetlabs.pcp.broker.service
   (:require [clojure.tools.logging :as log]
             [puppetlabs.pcp.broker.core :as core]
-            [puppetlabs.pcp.broker.basic-authorization :as authz]
             [puppetlabs.pcp.broker.in-memory-inventory :refer [make-inventory record-client find-clients]]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
             [puppetlabs.trapperkeeper.services :refer [service-context]]))
 
 (trapperkeeper/defservice broker-service
-  [[:ConfigService get-in-config]
+  [[:AuthorizationService authorization-check]
+   [:ConfigService get-in-config]
    [:WebroutingService add-ring-handler add-websocket-handler get-server]
    [:MetricsService get-metrics-registry]]
   (init [this context]
@@ -15,7 +15,6 @@
     (let [activemq-spool     (get-in-config [:pcp-broker :broker-spool])
           accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
           delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
-          authorization      (get-in-config [:pcp-broker :authorization] {:accept {:default :allow}})
           inventory          (make-inventory)
           ssl-cert           (if-let [server (get-server this :websocket)]
                                (get-in-config [:webserver (keyword server) :ssl-cert])
@@ -27,7 +26,7 @@
                                          :add-websocket-handler (partial add-websocket-handler this)
                                          :record-client  (partial record-client inventory)
                                          :find-clients   (partial find-clients inventory)
-                                         :authorized (partial authz/authorized authorization)
+                                         :authorization-check authorization-check
                                          :get-metrics-registry get-metrics-registry
                                          :ssl-cert ssl-cert})]
       (assoc context :broker broker)))

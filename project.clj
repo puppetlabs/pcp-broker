@@ -25,14 +25,20 @@
                  ;; Transitive dependency for puppetlabs/trapperkeeper-metrics and org.slf4j/jcl-over-slf4
                  [org.slf4j/slf4j-api "1.7.10"]
 
-                 [puppetlabs/trapperkeeper ~tk-version]
+                 ;; Transitive dependency for puppetlabs/trapperkeeper-authorization, and a direct dependency
+                 [clj-time "0.10.0"]
+
+                 ;; Transitive dependency for puppetlabs/trapperkeeper and puppetlabs/trapperkeeper-authorization
+                 [puppetlabs/typesafe-config "0.1.4"]
+
                  [puppetlabs/kitchensink ~ks-version]
-                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.0"]
+                 [puppetlabs/trapperkeeper ~tk-version]
+                 [puppetlabs/trapperkeeper-authorization "0.1.5"]
                  [puppetlabs/trapperkeeper-metrics "0.1.1"]
+                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.0"]
 
                  [cheshire "5.5.0"]
                  [prismatic/schema "0.4.3"]
-                 [clj-time "0.9.0"]
 
                  [com.taoensso/nippy "2.9.0"]
 
