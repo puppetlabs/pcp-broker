@@ -23,9 +23,49 @@ This would be transformed into the following ring request:
      :remote-addr "192.168.1.22:36362"
      :uri "/pcp-broker/send"
      :ssl-client-cert (X509-certificate-for "client01.example.com")
-     :params {:message_type "http://puppetlabs.com/rpc_blocking_request"
-              :targets "pcp://client02.example.com/agent"}}
+     :form-params {}
+     :query-params {"message_type" "http://puppetlabs.com/rpc_blocking_request"
+                    "sender" "pcp://client01.example.com/ruby-pcp-client-2251"
+                    "targets" "pcp://client02.example.com/agent"}
+     :params {"message_type" "http://puppetlabs.com/rpc_blocking_request"
+              "sender" "pcp://client01.example.com/ruby-pcp-client-2251"
+              "targets" "pcp://client02.example.com/agent"}}
 
-And then matched by trapperkeeper-authorization.  For notes on how to
-configure tk-auth see
+And then this can be matched by trapperkeeper-authorization with the following `authorization.conf`.
+
+``` HOCON
+# authorization.conf
+authorization: {
+  version: 1
+  rules: [
+    {
+      name: "pxp command message"
+      match-request: {
+         type: path
+         path: "/pcp-broker/send"
+         query-params: {
+           message_type: [
+             "http://puppetlabs.com/rpc_blocking_request"
+           ]
+         }
+      }
+      allow: [
+        client01.example.com
+      ]
+      sort-order: 400
+    },
+    {
+      name: "pcp message"
+      match-request: {
+         type: path
+         path: "/pcp-broker/send"
+      }
+      allow-unauthenticated: true
+      sort-order: 420
+    },
+  ]
+}
+```
+
+For further notes on how to configure trapperkeeper-authorization see
 https://github.com/puppetlabs/trapperkeeper-authorization/blob/master/doc/authorization-config.md

@@ -69,9 +69,13 @@
         (is (= {:uri "/pcp-broker/send"
                 :request-method :post
                 :remote-addr ""
-                :params {:sender "pcp://example01.example.com/agent"
-                         :targets "pcp://example02.example.com/agent"
-                         :message_type "example1"}}
+                :form-params {}
+                :query-params {"sender" "pcp://example01.example.com/agent"
+                               "targets" "pcp://example02.example.com/agent"
+                               "message_type" "example1"}
+                :params {"sender" "pcp://example01.example.com/agent"
+                         "targets" "pcp://example02.example.com/agent"
+                         "message_type" "example1"}}
                (make-ring-request broker capsule)))))
     (testing "it should return a ring request - two targets"
       (let [message (message/make-message :message_type "example1"
@@ -82,10 +86,15 @@
         (is (= {:uri "/pcp-broker/send"
                 :request-method :post
                 :remote-addr ""
-                :params {:sender "pcp://example01.example.com/agent"
-                         :targets ["pcp://example02.example.com/agent"
-                                   "pcp://example03.example.com/agent"]
-                         :message_type "example1"}}
+                :form-params {}
+                :query-params {"sender" "pcp://example01.example.com/agent"
+                               "targets" ["pcp://example02.example.com/agent"
+                                          "pcp://example03.example.com/agent"]
+                               "message_type" "example1"}
+                :params {"sender" "pcp://example01.example.com/agent"
+                         "targets" ["pcp://example02.example.com/agent"
+                                    "pcp://example03.example.com/agent"]
+                         "message_type" "example1"}}
                (make-ring-request broker capsule)))))))
 
 (deftest authorized?-test

@@ -275,3 +275,40 @@
     (with-open [client (client/connect "client02.example.com" "pcp://client02.example.com/test" true)]
       (let [message (client/recv! client)]
         (is (= "Hello" (message/get-json-data message)))))))
+
+(def strict-broker-config
+  "A broker that only allows test/sensitive message types from client01"
+  (assoc-in broker-config [:authorization :rules]
+            [{:name "must be client01 to send test/sensitive"
+              :sort-order 400
+              :match-request {:type "path"
+                              :path "/pcp-broker/send"
+                              :query-params {:message_type "test/sensitive"}}
+              :allow ["client01.example.com"]}
+             {:name "allow all"
+              :sort-order 420
+              :match-request {:type "path"
+                              :path "/pcp-broker/send"}
+              :allow-unauthenticated true}]))
+
+(deftest authorization-will-stop-some-fun-test
+  (with-app-with-config
+    app
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
+    strict-broker-config
+    (with-open [client01 (client/connect "client01.example.com" "pcp://client01.example.com/test" true)
+                client02 (client/connect "client02.example.com" "pcp://client02.example.com/test" true)]
+      (testing "client01 -> client02 should work"
+        (let [message (message/make-message :sender "pcp://client01.example.com/test"
+                                            :message_type "test/sensitive"
+                                            :targets ["pcp://client02.example.com/test"])]
+          (client/send! client01 message)
+          (let [received (client/recv! client02)]
+            (is (= (:id message) (:id received))))))
+      (testing "client02 -> client01 should not work"
+        (let [message (message/make-message :sender "pcp://client02.example.com/test"
+                                            :message_type "test/sensitive"
+                                            :targets ["pcp://client01.example.com/test"])]
+          (client/send! client02 message)
+          (let [received (client/recv! client01)]
+            (is (= nil received))))))))
