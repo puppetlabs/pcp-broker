@@ -1,3 +1,10 @@
+## 0.4.1
+
+This is a bugfix release
+
+* [#80](https://github.com/puppetlabs/pcp-broker/pull/80) Fix the fake ring
+  request maker allow query-params to be matched.
+
 ## 0.4.0
 
 This is a feature release
