@@ -8,7 +8,7 @@
    :password :env/nexus_jenkins_password
    :sign-releases false})
 
-(defproject puppetlabs/pcp-broker "0.4.1-SNAPSHOT"
+(defproject puppetlabs/pcp-broker "0.4.1"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name "Apache License, Version 2.0"
