@@ -259,7 +259,7 @@
           ;; destinations
           (is (= {:id (:id message)} (message/get-json-data response))))))))
 
-(deftest send-disconnect-connect-receive
+(deftest send-disconnect-connect-receive-test
   (with-app-with-config
     app
     [authorization-service broker-service jetty9-service webrouting-service metrics-service]
