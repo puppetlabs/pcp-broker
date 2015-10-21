@@ -1,13 +1,6 @@
 (def tk-version "1.1.1")
 (def ks-version "1.1.0")
 
-(defn deploy-info
-  [url]
-  {:url url
-   :username :env/nexus_jenkins_username
-   :password :env/nexus_jenkins_password
-   :sign-releases false})
-
 (defproject puppetlabs/pcp-broker "0.4.2-SNAPSHOT"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
@@ -48,7 +41,7 @@
                  ;; try+/throw+
                  [slingshot "0.12.2"]
 
-                 [puppetlabs/pcp-common "0.4.1"]
+                 [puppetlabs/pcp-common "0.5.0"]
 
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4"]
@@ -59,13 +52,13 @@
 
   :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
 
-  :repositories [["releases" "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"]
-                 ["snapshots"  "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
+  :lein-release {:scm :git
+                 :deploy-via :lein-deploy}
 
-  :deploy-repositories [["releases" ~(deploy-info "http://nexus.delivery.puppetlabs.net/content/repositories/releases/")]
-                        ["snapshots" ~(deploy-info "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/")]]
-
-  :lein-release {:scm :git, :deploy-via :lein-deploy}
+  :deploy-repositories [["releases" {:url "https://clojars.org/repo"
+                                     :username :env/clojars_jenkins_username
+                                     :password :env/clojars_jenkins_password
+                                     :sign-releases false}]]
 
   :test-paths ["test" "test-resources"]
 
