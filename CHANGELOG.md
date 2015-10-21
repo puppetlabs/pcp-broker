@@ -1,3 +1,10 @@
+## 0.5.0
+
+This is the first public release to clojars.
+
+* [PCP-46](https://tickets.puppetlabs.com/browse/PCP-46) Release to clojars
+  rather than internal nexus servers.
+
 ## 0.4.1
 
 This is a bugfix release
