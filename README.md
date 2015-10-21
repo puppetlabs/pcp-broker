@@ -1,18 +1,15 @@
-# pcp-broker
+## pcp-broker
 
 A message broker for the PCP protocol
 
 ## Installing
 
-We currently publish to the internal nexus server.  To get access to
-these you will need to add the following to your project.clj.
+To use this service in your trapperkeeper application, simply add this
+project as a dependency in your leiningen project file:
 
-```
-:dependencies [[puppetlabs/pcp-broker "0.2.0-SNAPSHOT"]]
+[![Clojars Project](http://clojars.org/puppetlabs/pcp-broker/latest-version.svg)](http://clojars.org/puppetlabs/pcp-broker)
 
-:repositories [["releases" "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"]
-               ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
-```
+And then see [these notes on configuring](doc/configuration.md)
 
 ## Running the server
 

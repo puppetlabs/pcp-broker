@@ -1,5 +1,9 @@
 language: clojure
+sudo: false
 lein: lein2
-script: ./ext/travisci/test.sh
+jdk:
+  - oraclejdk7
+  - openjdk7
+script: lein2 test
 notifications:
   email: false
