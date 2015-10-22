@@ -2,11 +2,11 @@
   (:require [clamq.protocol.consumer :as mq-cons]
             [clj-time.coerce :as time-coerce]
             [clj-time.core :as time]
-            [clojure.tools.logging :as log]
             [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.pcp.broker.activemq :as activemq]
             [puppetlabs.pcp.broker.capsule :as capsule :refer [Capsule]]
+            [puppetlabs.pcp.broker.connection :as connection :refer [Websocket ConnectionState Connection]]
             [puppetlabs.pcp.broker.metrics :as metrics]
             [puppetlabs.pcp.message :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
@@ -14,25 +14,11 @@
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.puppetdb.mq :as mq]
             [puppetlabs.ssl-utils.core :as ssl-utils]
+            [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]])
   (:import (clojure.lang IFn Atom)))
-
-(def ConnectionState
-  "The states it is possible for a Connection to be in"
-  (s/enum :open :associated))
-
-(def Connection
-  "The state of a connection as managed by the broker in the connections map"
-  {:state ConnectionState
-   :websocket Object
-   (s/optional-key :uri) p/Uri
-   :created-at p/ISO8601})
-
-(def Websocket
-  "Schema for a websocket session"
-  Object)
 
 (def UriMap
   "Mapping of Uri to Websocket, for sending"
@@ -89,18 +75,11 @@
   [broker :- Broker]
   (str "pcp://" (:broker-cn broker) "/server"))
 
-;; connection lifecycle
-(s/defn ^:always-validate make-connection :- Connection
-  "Return the initial state for a websocket"
-  [ws :- Websocket]
-  {:state :open
-   :websocket ws
-   :created-at (ks/timestamp)})
-
+;; connection map lifecycle
 (s/defn ^:always-validate add-connection! :- Connection
   "Add a Connection to the connections to track a websocket"
   [broker :- Broker ws :- Websocket]
-  (let [connection (make-connection ws)]
+  (let [connection (connection/make-connection ws)]
     (swap! (:connections broker) assoc ws connection)
     connection))
 
@@ -146,10 +125,13 @@
   [broker :- Broker capsule :- Capsule]
   (let [ring-request (make-ring-request broker capsule)
         {:keys [authorization-check]} broker]
-    (log/debug "Checking rules against " ring-request)
     (let [{:keys [authorized message]} (authorization-check ring-request)
           allowed (boolean authorized)]
-      (log/infof "Message authorization %s: %s" allowed message)
+      (sl/maplog :trace (assoc (capsule/summarize capsule)
+                               :type :message-authorization
+                               :allowed allowed
+                               :message message)
+                 "Authorizing {messageid} for {destination} - {allowed}: {message}")
       allowed)))
 
 ;; message lifecycle
@@ -159,19 +141,21 @@
   (if (authorized? broker capsule)
     (time! (:message-queueing (:metrics broker))
            (let [capsule (capsule/add-hop capsule (broker-uri broker) "accept-to-queue")]
-             (activemq/queue-message accept-queue capsule)))
-    (log/info "Message not authorized, dropping" capsule))
+             (activemq/queue-message accept-queue capsule))))
   capsule)
 
 (s/defn ^:always-validate process-expired-message :- Capsule
   "Reply with a ttl_expired message to the original message sender"
   [broker :- Broker capsule :- Capsule]
-  (log/warn "Message " capsule " has expired. Replying with a ttl_expired.")
+  (sl/maplog :trace (assoc (capsule/summarize)
+                           :type :message-expired)
+             "Message {messageid} for {destination} has expired. Sending a ttl_expired.")
   (let [message (:message capsule)
         sender  (:sender message)]
     (if (= "pcp:///server" sender)
       (do
-        (log/error "Server generated message expired.  Dropping")
+        (sl/maplog :trace {:type :message-expired-from-server}
+                   "Server generated message expired.  Dropping")
         capsule)
       (let [response_data {:id (:id message)}
             response (-> (message/make-message)
@@ -188,14 +172,20 @@
   adding to the delivery queue with a delay property, otherwise reply
   with a TTL expired message"
   [broker :- Broker capsule :- Capsule reason :- s/Str]
-  (log/error "Failed to deliver message" capsule reason)
+  (sl/maplog :trace (assoc (capsule/summarize capsule)
+                           :type :message-delivery-failure
+                           :reason reason)
+             "Failed to deliver {messageid} for {destination}: {reason}")
   (let [expires (:expires capsule)
         now     (time/now)]
     (if (time/after? expires now)
       (let [difference  (time/in-seconds (time/interval now expires))
             retry-delay (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
             capsule     (capsule/add-hop capsule (broker-uri broker) "redelivery")]
-        (log/info "Moving message to the redeliver queue for redelivery in" retry-delay "seconds")
+        (sl/maplog :trace (assoc (capsule/summarize capsule)
+                                 :type :message-redelivery
+                                 :delay retry-delay)
+                   "Scheduling message {messageid} to be delivered in {delay} seconds")
         (time! (:message-queueing (:metrics broker))
                (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))
       (process-expired-message broker capsule))))
@@ -222,13 +212,19 @@
   (let [message (:message capsule)]
     (if-let [websocket (get-websocket broker (:target capsule))]
       (try
-        (log/info "delivering message to websocket" capsule)
-        (locking websocket
-          (time! (:on-send (:metrics broker))
-                 (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
-                   (websockets-client/send! websocket (capsule/encode capsule)))))
+        (let [connection (get-connection broker websocket)]
+          (sl/maplog :debug (merge (capsule/summarize capsule)
+                                   (connection/summarize connection)
+                                   {:type :message-delivery})
+                     "Delivering {messageid} for {destination} to {commonname} at {remoteaddress}")
+          (locking websocket
+            (time! (:on-send (:metrics broker))
+                   (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
+                     (websockets-client/send! websocket (capsule/encode capsule))))))
         (catch Exception e
-          (log/error e "deliver-message")
+          (sl/maplog :error e
+                     {:type :message-delivery-error}
+                     "Error in deliver-message")
           (handle-delivery-failure broker capsule (str e))))
       (handle-delivery-failure broker capsule "not connected"))))
 
@@ -265,16 +261,17 @@
   allowed, if it should be denied"
   [broker :- Broker connection :- Connection as :- p/Uri]
   (let [[_ type] (p/explode-uri as)]
-    (log/info "Processing associate_request for" as)
     (cond
       (= type "server")
       "'server' type connections not accepted"
 
       (= :associated (:state connection))
-      (let [{:keys [websocket created-at uri]} connection]
-        (log/errorf (str "Received session association for '%s' on socket '%s'.  "
-                         "Socket was already associated as '%s' connected since %s.")
-                    as websocket uri created-at)
+      (let [{:keys [uri]} connection]
+        (sl/maplog :debug (assoc (connection/summarize connection)
+                                 :uri as
+                                 :existinguri uri
+                                 :type :connection-already-associated)
+                   "Received session association for {uri} from {commonname} {remoteaddress}.  Session was already associated as {existinguri}")
         "session already associated"))))
 
 (s/defn ^:always-validate process-associate-message :- Connection
@@ -300,7 +297,10 @@
       (let [{:keys [uri-map record-client]} broker]
         (when-let [old-ws (get-websocket broker uri)]
           (let [connections (:connections broker)]
-            (log/infof "Node with uri %s already associated at with socket '%s'. Closing old connection." uri old-ws)
+            (sl/maplog :debug (assoc (connection/summarize connection)
+                                     :uri uri
+                                     :type :connection-association-failed)
+                       "Node with uri {uri} already associated with connection {commonname} {remoteaddress}")
             (websockets-client/close! old-ws 4000 "superceded")
             (swap! connections dissoc old-ws)))
         (swap! uri-map assoc uri ws)
@@ -312,7 +312,6 @@
 (s/defn ^:always-validate process-inventory-message :- Connection
   "Process a request for inventory data"
   [broker :- Broker capsule :- Capsule connection :- Connection]
-  (log/info "Processing inventory message")
   (let [message (:message capsule)
         data (message/get-json-data message)]
     (s/validate p/InventoryRequest data)
@@ -332,14 +331,15 @@
 (s/defn ^:always-validate process-server-message :- Connection
   "Process a message directed at the middleware"
   [broker :- Broker capsule :- Capsule connection :- Connection]
-  (log/info "Procesesing server message")
   (let [message-type (get-in capsule [:message :message_type])]
     (case message-type
       "http://puppetlabs.com/associate_request" (process-associate-message broker capsule connection)
       "http://puppetlabs.com/inventory_request" (process-inventory-message broker capsule connection)
       (do
-        (log/warn "Unhandled server message type received: " message-type)
-        connection))))
+        (sl/maplog :debug (assoc (connection/summarize connection)
+                                 :messagetype message-type
+                                 :type :broker-unhandled-message)
+                   "Unhandled message type {messagetype} received from {commonname} {remoteaddr}")))))
 
 (s/defn ^:always-validate validate-certname :- s/Bool
   "Validate that the cert name advertised by the client matches the cert name in the certificate"
@@ -351,21 +351,18 @@
       true)))
 
 ;; Websocket event handlers
-(defn get-cn
-  "Get the client certificate name from a websocket"
-  [ws]
-  (when-let [cert (first (websockets-client/peer-certs ws))]
-    (ks/cn-for-cert cert)))
 
 (defn- on-connect!
   "OnConnect websocket event handler"
   [broker ws]
   (time! (:on-connect (:metrics broker))
-         (let [host (get-cn ws)
+         (let [connection (add-connection! broker ws)
                idle-timeout (* 1000 60 15)]
-           (log/infof "Connection established from client %s on %s" host ws)
            (websockets-client/idle-timeout! ws idle-timeout)
-           (add-connection! broker ws))))
+           (sl/maplog :debug (assoc (connection/summarize connection)
+                                    :type :connection-open)
+                      "client {commonname} connected from {remoteaddress}"))))
+
 
 (s/defn ^:always-validate connection-open :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
@@ -373,7 +370,10 @@
     (if (session-association-message? message)
       (process-associate-message broker capsule connection)
       (do
-        (log/warn "Connection cannot accept messages until session has been associated.  Dropping message.")
+        (sl/maplog :warn (merge (connection/summarize connection)
+                                (capsule/summarize capsule)
+                                {:type :connection-message-before-association})
+                   "client {commonname} from {remoteaddress}: cannot accept messages until session has been associated.  Dropping message.")
         connection))))
 
 (s/defn ^:always-validate connection-associated :- Connection
@@ -387,8 +387,7 @@
 
 (s/defn ^:always-validate decode-and-check :- (s/maybe Message)
   [bytes :- message/ByteArray connection :- Connection]
-  (let [socket  (:websocket connection)
-        cn      (get-cn socket)
+  (let [cn      (connection/get-cn connection)
         message (message/decode bytes)
         sender  (:sender message)]
     (validate-certname sender cn)
@@ -402,7 +401,9 @@
     (if-let [transition (get transitions state)]
       (transition broker capsule connection)
       (do
-        (log/errorf "Cannot find transition for state %s" state)
+        (sl/maplog :error {:type :broker-state-transition-unknown
+                           :state state}
+                   "Cannot find transition for state {state}")
         connection))))
 
 (defn on-message!
@@ -413,9 +414,13 @@
                  message     (decode-and-check bytes connection)
                  uri         (broker-uri broker)
                  capsule     (capsule/wrap message)
-                 capsule     (capsule/add-hop capsule uri "accepted")
-                 next        (determine-next-state broker capsule connection)]
-             (swap! (:connections broker) assoc ws next))
+                 capsule     (capsule/add-hop capsule uri "accepted")]
+             (sl/maplog :trace (merge (connection/summarize connection)
+                                      (capsule/summarize capsule)
+                                      {:type :connection-message})
+                        "Message {messageid} for {destination} from {commonname} {remoteaddress}")
+             (let [next        (determine-next-state broker capsule connection)]
+               (swap! (:connections broker) assoc ws next)))
            (catch map? m
              (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
                    error-message (-> (message/make-message
@@ -423,7 +428,6 @@
                                       :sender "pcp:///server")
                                      (message/set-json-data error-body))]
                (s/validate p/ErrorMessage error-body)
-               (log/warn "sending error message" error-body)
                (websockets-client/send! ws (message/encode error-message)))))))
 
 (defn- on-text!
@@ -439,15 +443,21 @@
 (defn- on-error
   "OnError websocket event handler"
   [broker ws e]
-  (log/error e))
+  (let [connection (get-connection broker ws)]
+    (sl/maplog :error e (assoc (connection/summarize connection)
+                               :type :connection-error)
+               "Websocket error {commonname} {remoteaddress}")))
 
 (defn- on-close!
   "OnClose websocket event handler"
   [broker ws status-code reason]
   (time! (:on-close (:metrics broker))
-         (let [cn (get-cn ws)]
-           (log/infof "Connection from %s on %s terminated with statuscode: %s Reason: %s"
-                      cn ws status-code reason)
+         (let [connection (get-connection broker ws)]
+           (sl/maplog :debug (assoc (connection/summarize connection)
+                                    :type :connection-close
+                                    :statuscode status-code
+                                    :reason reason)
+                      "client {commonname} disconnected from {remoteaddress} {statuscode} {reason}")
            (remove-connection! broker ws))))
 
 (s/defn ^:always-validate build-websocket-handlers :- {s/Keyword IFn}

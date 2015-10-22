@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.broker.service
-  (:require [clojure.tools.logging :as log]
-            [puppetlabs.pcp.broker.core :as core]
+  (:require [puppetlabs.pcp.broker.core :as core]
             [puppetlabs.pcp.broker.in-memory-inventory :refer [make-inventory record-client find-clients]]
+            [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
             [puppetlabs.trapperkeeper.services :refer [service-context]]))
 
@@ -11,7 +11,7 @@
    [:WebroutingService add-ring-handler add-websocket-handler get-server]
    [:MetricsService get-metrics-registry]]
   (init [this context]
-    (log/info "Initializing broker service")
+    (sl/maplog :info {:type :broker-init} "Initializing broker service")
     (let [activemq-spool     (get-in-config [:pcp-broker :broker-spool])
           accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
           delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
@@ -31,12 +31,14 @@
                                          :ssl-cert ssl-cert})]
       (assoc context :broker broker)))
   (start [this context]
-    (log/info "Starting broker service")
+    (sl/maplog :info {:type :broker-start} "Starting broker service")
     (let [broker (:broker (service-context this))]
       (core/start broker))
+    (sl/maplog :debug {:type :broker-started} "Broker service started")
     context)
   (stop [this context]
-    (log/info "Shutting down broker service")
+    (sl/maplog :info {:type :broker-stop} "Shutting down broker service")
     (let [broker (:broker (service-context this))]
       (core/stop broker))
+    (sl/maplog :debug {:type :broker-stopped} "Broker service stopped")
     context))

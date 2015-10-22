@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.capsule :as capsule]
+            [puppetlabs.pcp.broker.connection :as connection]
             [puppetlabs.pcp.message :as message]
             [schema.core :as s]
             [slingshot.test]))
@@ -28,13 +29,6 @@
     (let [cn (get-broker-cn "./test-resources/ssl/certs/broker.example.com.pem")]
       (is (= "broker.example.com" cn)))))
 
-(deftest make-connection-test
-  (testing "It returns a map that matches represents a new socket"
-    (let [socket (make-connection "ws")]
-      (is (= :open (:state socket)))
-      (is (= "ws" (:websocket socket)))
-      (is (= nil (:endpoint socket))))))
-
 (deftest add-connection!-test
   (testing "It should add a connection to the connection map"
     (let [broker (make-test-broker)]
@@ -43,7 +37,7 @@
 
 (deftest remove-connection!-test
   (testing "It should remove a connection from the connection map"
-    (let [connections (atom {"ws" (make-connection "ws")})
+    (let [connections (atom {"ws" (connection/make-connection "ws")})
           broker      (assoc (make-test-broker) :connections connections)]
       (remove-connection! broker "ws")
       (is (= {} @(:connections broker))))))
@@ -146,7 +140,7 @@
 
 (deftest reason-to-deny-association-test
   (let [broker     (make-test-broker)
-        connection (make-connection "websocket")
+        connection (connection/make-connection "websocket")
         associated (assoc connection :state :associated :uri "pcp://test/foo")]
     (is (= nil (reason-to-deny-association broker connection "pcp://test/foo")))
     (is (= "'server' type connections not accepted"
@@ -208,7 +202,7 @@
   (testing "illegal next states raise due to schema validation"
     (let [broker (make-test-broker)
           broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :badbadbad))})
-          connection (make-connection "ws")
+          connection (connection/make-connection "ws")
           message (message/make-message)
           capsule (capsule/wrap message)]
       (is (= :open (:state connection)))
@@ -217,7 +211,7 @@
   (testing "legal next states are accepted"
     (let [broker (make-test-broker)
           broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :associated))})
-          connection (make-connection "ws")
+          connection (connection/make-connection "ws")
           message (message/make-message)
           capsule (capsule/wrap message)
           next (determine-next-state broker capsule connection)]
