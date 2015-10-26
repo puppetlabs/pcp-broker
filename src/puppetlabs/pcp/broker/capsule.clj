@@ -1,7 +1,6 @@
 (ns puppetlabs.pcp.broker.capsule
   (:require [clj-time.coerce :as time-coerce]
             [clj-time.core :as time]
-            [clojure.tools.logging :as log]
             [puppetlabs.pcp.message :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.kitchensink.core :as ks]
@@ -19,6 +18,19 @@
    :message                 Message
    :hops                    (:hops p/DebugChunk)
    (s/optional-key :target) p/Uri})
+
+(def CapsuleLog
+  "Schema for a loggable summary of a capsule"
+  {:messageid p/MessageId
+   :source p/Uri
+   :destination (s/either p/Uri [p/Uri])})
+
+(s/defn ^:always-validate summarize :- CapsuleLog
+  [capsule :- Capsule]
+  {:messageid (get-in capsule [:message :id])
+   :source (get-in capsule [:message :sender])
+   :destination (or (:target capsule)
+                    (get-in capsule [:message :targets]))})
 
 (s/defn ^:always-validate add-hop :- Capsule
   "Adds a debug hop to the message state"

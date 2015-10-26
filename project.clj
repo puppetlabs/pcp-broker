@@ -15,8 +15,16 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.logging "0.3.1"]
 
-                 ;; Transitive dependency for puppetlabs/trapperkeeper-metrics and org.slf4j/jcl-over-slf4
-                 [org.slf4j/slf4j-api "1.7.10"]
+                 ;; Transitive dependency for:
+                 ;;   puppetlabs/trapperkeeper-metrics
+                 ;;   puppetlabs/structured-logging
+                 ;;   org.slf4j/jcl-over-slf4
+                 [org.slf4j/slf4j-api "1.7.12"]
+
+                 ;; Transitive dependency for:
+                 ;;   ch.qos.logback/logback-classic via puppetlabs/trapperkeeper
+                 ;;   net.logstash.logback/logstash-logback-encoder via puppetlabs/structured-logging
+                 [ch.qos.logback/logback-core "1.1.2"]
 
                  ;; Transitive dependency for puppetlabs/trapperkeeper-authorization, and a direct dependency
                  [clj-time "0.10.0"]
@@ -29,6 +37,9 @@
                  [puppetlabs/trapperkeeper-authorization "0.1.5"]
                  [puppetlabs/trapperkeeper-metrics "0.1.1"]
                  [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.0"]
+
+                 ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
+                 [puppetlabs/structured-logging "0.1.0" :exclusions [org.clojure/clojure]]
 
                  [cheshire "5.5.0"]
                  [prismatic/schema "0.4.3"]
