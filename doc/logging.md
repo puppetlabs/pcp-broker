@@ -89,6 +89,13 @@ A client failed to become associated with the broker
 * `uri` String - PCP uri of the association
 
 
+### `connection-no-peer-certificate`
+
+A client didn't provide a x509 peer certifcate when connecting.
+
+* [`remoteaddress`](#remoteaddress)
+
+
 ### `connection-message-before-association`
 
 A client sent a message before it was associated with the broker
