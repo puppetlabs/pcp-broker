@@ -65,6 +65,18 @@
                                          :open (fn [ws] (deliver connected true)))]
         (is (= true (deref connected (* 2 1000) false)) "Connected within 2 seconds")))))
 
+(deftest it-expects-ssl-client-auth-test
+  (with-app-with-config
+    app
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
+    broker-config
+    (let [closed (promise)]
+      (with-open [client (http/create-client)
+                  ws (http/websocket client
+                                     "wss://127.0.0.1:8143/pcp"
+                                     :close (fn [ws code reason] (deliver closed [code reason])))]
+        (is (= [4003 "No client certificate"] (deref closed (* 2 1000) false)) "Disconnected due to no client certificate")))))
+
 (deftest certificate-must-match-test
   (with-app-with-config
     app

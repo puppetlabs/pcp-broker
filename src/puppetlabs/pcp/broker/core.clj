@@ -358,10 +358,17 @@
   (time! (:on-connect (:metrics broker))
          (let [connection (add-connection! broker ws)
                idle-timeout (* 1000 60 15)]
-           (websockets-client/idle-timeout! ws idle-timeout)
-           (sl/maplog :debug (assoc (connection/summarize connection)
-                                    :type :connection-open)
-                      "client {commonname} connected from {remoteaddress}"))))
+           (if (not (first (websockets-client/peer-certs ws)))
+             (do
+               (sl/maplog :debug (assoc (connection/summarize connection)
+                                        :type :connection-no-peer-certificate)
+                          "No client certificate, closing {remoteaddress}")
+               (websockets-client/close! ws 4003 "No client certificate"))
+             (do
+               (websockets-client/idle-timeout! ws idle-timeout)
+               (sl/maplog :debug (assoc (connection/summarize connection)
+                                        :type :connection-open)
+                          "client {commonname} connected from {remoteaddress}"))))))
 
 
 (s/defn ^:always-validate connection-open :- Connection
