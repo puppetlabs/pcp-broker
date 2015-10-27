@@ -18,32 +18,31 @@
   {:state ConnectionState
    :websocket Websocket
    :remote-address s/Str
+   :common-name (s/maybe s/Str)
    (s/optional-key :uri) p/Uri
    :created-at p/ISO8601})
 
 (def ConnectionLog
   "summarize a connection for logging"
-  {:commonname s/Str
+  {:commonname (s/maybe s/Str)
    :remoteaddress s/Str})
 
 (s/defn ^:always-validate make-connection :- Connection
   "Return the initial state for a websocket"
-  [ws :- Websocket]
+  [websocket :- Websocket]
   {:state :open
-   :websocket ws
-   :remote-address (try+ (.. ws (getSession) (getRemoteAddress) (toString))
-                         (catch Object _
-                           "[UNKNOWN ADDRESS]"))
+   :websocket websocket
+   :remote-address (try+ (.. websocket (getSession) (getRemoteAddress) (toString))
+                         (catch Exception _
+                           ""))
+   :common-name (try+ (when-let [cert (first (websockets-client/peer-certs websocket))]
+                        (ks/cn-for-cert cert))
+                      (catch Exception _
+                        nil))
    :created-at (ks/timestamp)})
-
-(s/defn ^:always-validate get-cn :- s/Str
-  "Get the client certificate name from a websocket"
-  [connection :- Connection]
-  (let [{:keys [websocket]} connection]
-    (when-let [cert (first (websockets-client/peer-certs websocket))]
-      (ks/cn-for-cert cert))))
 
 (s/defn ^:always-validate summarize :- ConnectionLog
   [connection :- Connection]
-  {:commonname (get-cn connection)
-   :remoteaddress (:remote-address connection)})
+  (let [{:keys [common-name remote-address]} connection]
+    {:commonname common-name
+     :remoteaddress remote-address}))
