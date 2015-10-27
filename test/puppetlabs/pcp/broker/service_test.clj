@@ -157,7 +157,7 @@
           (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
           (is (= {:uris ["pcp://client01.example.com/test"]} (message/get-json-data response))))))))
 
-(deftest inventory-node-can-find-previously-connected-node-test
+(deftest inventory-node-cannot-find-previously-connected-node-test
   (with-app-with-config
     app
     [authorization-service broker-service jetty9-service webrouting-service metrics-service]
@@ -173,7 +173,7 @@
         (client/send! client request))
       (let [response (client/recv! client)]
         (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
-        (is (= {:uris ["pcp://client02.example.com/test"]} (message/get-json-data response)))))))
+        (is (= {:uris []} (message/get-json-data response)))))))
 
 ;; Message sending
 (deftest send-to-self-explicit-test
