@@ -167,6 +167,17 @@
         (s/validate p/TTLExpiredMessage response_data)
         (accept-message-for-delivery broker (capsule/wrap response))))))
 
+(s/defn ^:always-validate retry-delay :- s/Num
+  "Compute the delay we should pause for before retrying the delivery of this Capsule"
+  [capsule :- Capsule]
+  (let [expires (:expires capsule)
+        now (time/now)]
+    ;; time/interval will raise if the times are not different
+    (if (or (= expires now) (time/after? now expires))
+      1
+      (let [difference (time/in-seconds (time/interval now expires))]
+        (min (max 1 (/ difference 2)) 15)))))
+
 (s/defn ^:always-validate handle-delivery-failure
   "If the message is not expired schedule for a future delivery by
   adding to the delivery queue with a delay property, otherwise reply
@@ -179,8 +190,7 @@
   (let [expires (:expires capsule)
         now     (time/now)]
     (if (time/after? expires now)
-      (let [difference  (time/in-seconds (time/interval now expires))
-            retry-delay (if (<= (/ difference 2) 1) 1 (float (/ difference 2)))
+      (let [retry-delay (retry-delay capsule)
             capsule     (capsule/add-hop capsule (broker-uri broker) "redelivery")]
         (sl/maplog :trace (assoc (capsule/summarize capsule)
                                  :type :message-redelivery
