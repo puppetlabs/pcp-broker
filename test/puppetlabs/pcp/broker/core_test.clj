@@ -53,6 +53,19 @@
     (testing "it finds nothing when it's not there"
       (is (not (get-websocket broker "pcp://bob/nonsuch"))))))
 
+(deftest retry-delay-test
+  (testing "low bounds should be 1 second"
+    (is (= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) -1 :seconds)))))
+    (is (= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 0 :seconds)))))
+    (is (= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 1 :seconds))))))
+
+  (testing "it's about half the time we have left"
+    (is (= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 2 :seconds)))))
+    (is (= 4 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 9 :seconds))))))
+
+  (testing "high bounds should be 15 seconds"
+    (is (= 15 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 3000000 :seconds)))))))
+
 (deftest make-ring-request-test
   (let [broker (make-test-broker)]
     (testing "it should return a ring request - one target"
