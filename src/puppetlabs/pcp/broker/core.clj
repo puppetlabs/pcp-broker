@@ -353,7 +353,7 @@
 
 (s/defn ^:always-validate validate-certname :- s/Bool
   "Validate that the cert name advertised by the client matches the cert name in the certificate"
-  [endpoint :- p/Uri certname :- s/Str]
+  [endpoint :- p/Uri certname :- (s/maybe s/Str)]
   (let [[client] (p/explode-uri endpoint)]
     (if-not (= client certname)
       (throw+ {:type ::identity-invalid
@@ -367,8 +367,9 @@
   [broker ws]
   (time! (:on-connect (:metrics broker))
          (let [connection (add-connection! broker ws)
+               {:keys [common-name]} connection
                idle-timeout (* 1000 60 15)]
-           (if (not (first (websockets-client/peer-certs ws)))
+           (if (nil? common-name)
              (do
                (sl/maplog :debug (assoc (connection/summarize connection)
                                         :type :connection-no-peer-certificate)
@@ -404,10 +405,10 @@
 
 (s/defn ^:always-validate decode-and-check :- (s/maybe Message)
   [bytes :- message/ByteArray connection :- Connection]
-  (let [cn      (connection/get-cn connection)
+  (let [{:keys [common-name]} connection
         message (message/decode bytes)
         sender  (:sender message)]
-    (validate-certname sender cn)
+    (validate-certname sender common-name)
     message))
 
 (s/defn ^:always-validate determine-next-state :- Connection
