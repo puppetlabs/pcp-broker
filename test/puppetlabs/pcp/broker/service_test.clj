@@ -74,8 +74,18 @@
       (with-open [client (http/create-client)
                   ws (http/websocket client
                                      "wss://127.0.0.1:8143/pcp"
-                                     :close (fn [ws code reason] (deliver closed [code reason])))]
-        (is (= [4003 "No client certificate"] (deref closed (* 2 1000) false)) "Disconnected due to no client certificate")))))
+                                     :close (fn [ws code reason] (deliver closed code)))]
+        ;; NOTE(richardc): This test should only check for close-code 4003, but it
+        ;; is a little unreliable and so may sometimes yield the close-code 1006 due
+        ;; to a race between the client (netty) becoming connected and the server (jetty)
+        ;; closing a connected session because we asked it to.
+        ;; This failure is more commonly observed when using Linux
+        ;; than on OSX, so we suspect the underlying races to be due
+        ;; to thread scheduling.
+        ;; See the comments of http://tickets.puppetlabs.com/browse/PCP-124 for more.
+        (is (contains? #{ 4003 1006 }
+                       (deref closed (* 2 1000) false))
+            "Disconnected due to no client certificate")))))
 
 (deftest certificate-must-match-test
   (with-app-with-config
