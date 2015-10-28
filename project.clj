@@ -74,7 +74,11 @@
   :test-paths ["test" "test-resources"]
 
   :profiles {:dev {:source-paths ["dev"]
-                   :dependencies [[http.async.client "0.6.1" :exclusions [org.clojure/clojure]]
+                   :dependencies [;; Transient dependency of http.async.client
+                                  ;; - it actually brings in netty 3.9.2.Final, but we
+                                  ;; want some fixes to websocket handling that are in later .x releases
+                                  [io.netty/netty "3.9.9.Final"]
+                                  [http.async.client "0.6.1" :exclusions [org.clojure/clojure]]
                                   [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                                   [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
