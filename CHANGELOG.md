@@ -1,3 +1,16 @@
+## 0.6.0
+
+This is an improvement and bugfix release
+
+* [PCP-115](https://tickets.puppetlabs.com/browse/PCP-115) Convert logging to
+  use puppetlabs/structured-logging and revisit log levels and messages.
+* [PCP-124](https://tickets.puppetlabs.com/browse/PCP-124) Close
+  unauthenticated websockets sessions with close-code 4003
+* [PCP-132](https://tickets.puppetlabs.com/browse/PCP-132) Change the behaviour
+  of `inventory_request` to limit to currently connected matching identities.
+* [PCP-126](https://tickets.puppetlabs.com/browse/PCP-126) Limit the message
+  redelivery timeout to be between 1..15 seconds.
+
 ## 0.5.0
 
 This is the first public release to clojars.

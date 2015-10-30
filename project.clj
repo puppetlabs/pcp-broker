@@ -1,7 +1,7 @@
 (def tk-version "1.1.1")
 (def ks-version "1.1.0")
 
-(defproject puppetlabs/pcp-broker "0.5.1-SNAPSHOT"
+(defproject puppetlabs/pcp-broker "0.6.0-SNAPSHOT"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name "Apache License, Version 2.0"
