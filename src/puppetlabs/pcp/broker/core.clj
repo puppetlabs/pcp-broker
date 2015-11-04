@@ -147,7 +147,7 @@
 (s/defn ^:always-validate process-expired-message :- Capsule
   "Reply with a ttl_expired message to the original message sender"
   [broker :- Broker capsule :- Capsule]
-  (sl/maplog :trace (assoc (capsule/summarize)
+  (sl/maplog :trace (assoc (capsule/summarize capsule)
                            :type :message-expired)
              "Message {messageid} for {destination} has expired. Sending a ttl_expired.")
   (let [message (:message capsule)
