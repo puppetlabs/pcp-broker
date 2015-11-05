@@ -1,3 +1,10 @@
+## 0.6.1
+
+This is a bugfix release
+
+* [#91](https://github.com/puppetlabs/pcp-broker/pull/91) Correct a logging
+  invocation in the message expired codepath.
+
 ## 0.6.0
 
 This is an improvement and bugfix release
