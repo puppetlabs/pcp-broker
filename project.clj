@@ -71,7 +71,7 @@
                                      :password :env/clojars_jenkins_password
                                      :sign-releases false}]]
 
-  :test-paths ["test" "test-resources"]
+  :test-paths ["test/unit" "test/integration" "test/utils" "test-resources"]
 
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [;; Transient dependency of http.async.client
@@ -84,7 +84,12 @@
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
                                   [puppetlabs/ssl-utils "0.8.1"]
                                   [me.raynes/fs "1.4.5"]
-                                  [org.clojure/tools.namespace "0.2.4"]]}
+                                  [org.clojure/tools.namespace "0.2.4"]
+                                  ;; Transitive dependency for lein-cloverage and puppetlabs/kitchensink
+                                  [org.clojure/tools.cli "0.3.0"]]
+                   :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
+             :integration {:test-paths ^:replace ["test/integration" "test/utils" "test-resources"]}
+             :unit {:test-paths ^:replace ["test/unit" "test/utils" "test-resources"]}
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
                                 [lein-parent "0.2.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
@@ -97,6 +102,7 @@
 
   :aliases {"tk" ["trampoline" "run" "--config" "test-resources/conf.d"]
             "certs" ["trampoline" "run" "-m" "puppetlabs.pcp.testutils.certs" "--config" "test-resources/conf.d" "--"]
-            "cljfmt" ["with-profile" "+cljfmt" "cljfmt"]}
+            "cljfmt" ["with-profile" "+cljfmt" "cljfmt"]
+            "coverage" ["cloverage" "-e" "puppetlabs.puppetdb.*" "-e" "user"]}
 
   :main puppetlabs.trapperkeeper.main)
