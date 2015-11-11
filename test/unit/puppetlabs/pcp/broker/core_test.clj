@@ -1,5 +1,6 @@
 (ns puppetlabs.pcp.broker.core-test
   (:require [clojure.test :refer :all]
+            [metrics.core]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.capsule :as capsule]
             [puppetlabs.pcp.broker.connection :as connection]
@@ -10,19 +11,22 @@
 (s/defn ^:always-validate make-test-broker :- Broker
   "Return a minimal clean broker state"
   []
-  {:activemq-broker    "JMSOMGBBQ"
-   :accept-consumers   2
-   :delivery-consumers 2
-   :activemq-consumers (atom [])
-   :record-client      (constantly true)
-   :find-clients       (constantly true)
-   :authorization-check (constantly true)
-   :uri-map            (atom {})
-   :connections        (atom {})
-   :metrics-registry   ""
-   :metrics            {}
-   :transitions        {}
-   :broker-cn          "broker.example.com"})
+  (let [broker {:activemq-broker    "JMSOMGBBQ"
+                :accept-consumers   2
+                :delivery-consumers 2
+                :activemq-consumers (atom [])
+                :record-client      (constantly true)
+                :find-clients       (constantly true)
+                :authorization-check (constantly true)
+                :uri-map            (atom {})
+                :connections        (atom {})
+                :metrics-registry   metrics.core/default-registry
+                :metrics            {}
+                :transitions        {}
+                :broker-cn          "broker.example.com"}
+        metrics (build-and-register-metrics broker)
+        broker (assoc broker :metrics metrics)]
+    broker))
 
 (deftest get-broker-cn-test
   (testing "It returns the correct cn"
@@ -119,6 +123,17 @@
         capsule (capsule/wrap message)]
     (is (= true (authorized? yes-broker capsule)))
     (is (= false (authorized? no-broker capsule)))))
+
+(deftest accept-message-for-delivery-test
+  (let [broker (make-test-broker)
+        capsule (capsule/wrap (message/make-message))
+        queued (atom [])]
+    (with-redefs [puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule] (swap! queued conj {:queue queue
+                                                                                                       :capsule capsule}))
+                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
+      (accept-message-for-delivery broker capsule)
+      (is (= 1 (count @queued)))
+      (is (= accept-queue (:queue (first @queued)))))))
 
 (deftest process-expired-message-test
   (with-redefs [accept-message-for-delivery (fn [broker response] response)]
