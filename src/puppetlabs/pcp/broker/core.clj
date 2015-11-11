@@ -219,24 +219,23 @@
 (s/defn ^:always-validate deliver-message
   "Message consumer. Delivers a message to the websocket indicated by the :target field"
   [broker :- Broker capsule :- Capsule]
-  (let [message (:message capsule)]
-    (if-let [websocket (get-websocket broker (:target capsule))]
-      (try
-        (let [connection (get-connection broker websocket)]
-          (sl/maplog :debug (merge (capsule/summarize capsule)
-                                   (connection/summarize connection)
-                                   {:type :message-delivery})
-                     "Delivering {messageid} for {destination} to {commonname} at {remoteaddress}")
-          (locking websocket
-            (time! (:on-send (:metrics broker))
-                   (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
-                     (websockets-client/send! websocket (capsule/encode capsule))))))
-        (catch Exception e
-          (sl/maplog :error e
-                     {:type :message-delivery-error}
-                     "Error in deliver-message")
-          (handle-delivery-failure broker capsule (str e))))
-      (handle-delivery-failure broker capsule "not connected"))))
+  (if-let [websocket (get-websocket broker (:target capsule))]
+    (try
+      (let [connection (get-connection broker websocket)]
+        (sl/maplog :debug (merge (capsule/summarize capsule)
+                                 (connection/summarize connection)
+                                 {:type :message-delivery})
+                   "Delivering {messageid} for {destination} to {commonname} at {remoteaddress}")
+        (locking websocket
+          (time! (:on-send (:metrics broker))
+                 (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
+                   (websockets-client/send! websocket (capsule/encode capsule))))))
+      (catch Exception e
+        (sl/maplog :error e
+                   {:type :message-delivery-error}
+                   "Error in deliver-message")
+        (handle-delivery-failure broker capsule (str e))))
+    (handle-delivery-failure broker capsule "not connected")))
 
 (s/defn ^:always-validate expand-destinations
   "Message consumer.  Takes a message from the accept queue, expands
@@ -380,7 +379,6 @@
                (sl/maplog :debug (assoc (connection/summarize connection)
                                         :type :connection-open)
                           "client {commonname} connected from {remoteaddress}"))))))
-
 
 (s/defn ^:always-validate connection-open :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]

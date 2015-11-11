@@ -1,5 +1,6 @@
 (ns puppetlabs.pcp.broker.core-test
   (:require [clojure.test :refer :all]
+            [metrics.core]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.capsule :as capsule]
             [puppetlabs.pcp.broker.connection :as connection]
@@ -10,19 +11,22 @@
 (s/defn ^:always-validate make-test-broker :- Broker
   "Return a minimal clean broker state"
   []
-  {:activemq-broker    "JMSOMGBBQ"
-   :accept-consumers   2
-   :delivery-consumers 2
-   :activemq-consumers (atom [])
-   :record-client      (constantly true)
-   :find-clients       (constantly true)
-   :authorization-check (constantly true)
-   :uri-map            (atom {})
-   :connections        (atom {})
-   :metrics-registry   ""
-   :metrics            {}
-   :transitions        {}
-   :broker-cn          "broker.example.com"})
+  (let [broker {:activemq-broker    "JMSOMGBBQ"
+                :accept-consumers   2
+                :delivery-consumers 2
+                :activemq-consumers (atom [])
+                :record-client      (constantly true)
+                :find-clients       (constantly ())
+                :authorization-check (constantly true)
+                :uri-map            (atom {})
+                :connections        (atom {})
+                :metrics-registry   metrics.core/default-registry
+                :metrics            {}
+                :transitions        {}
+                :broker-cn          "broker.example.com"}
+        metrics (build-and-register-metrics broker)
+        broker (assoc broker :metrics metrics)]
+    broker))
 
 (deftest get-broker-cn-test
   (testing "It returns the correct cn"
@@ -60,11 +64,74 @@
     (is (= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 1 :seconds))))))
 
   (testing "it's about half the time we have left"
-    (is (= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 2 :seconds)))))
-    (is (= 4 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 9 :seconds))))))
+    (is (<= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 2 :seconds))) 2))
+    (is (<= 4 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 9 :seconds))) 5)))
 
   (testing "high bounds should be 15 seconds"
     (is (= 15 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 3000000 :seconds)))))))
+
+(deftest handle-delivery-failure-test
+  (let [broker (make-test-broker)
+        capsule (capsule/wrap (message/set-expiry (message/make-message) 300 :seconds))
+        expired-capsule (capsule/wrap (message/set-expiry (message/make-message) -3 :seconds))
+        queued (atom [])
+        expired (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule delay]
+                                                                 (swap! queued conj {:queue queue
+                                                                                     :capsule capsule
+                                                                                     :delay delay}))
+                  puppetlabs.pcp.broker.core/process-expired-message (fn [broker capsule]
+                                                                       (reset! expired capsule))]
+      (testing "redelivery if not expired"
+        (handle-delivery-failure broker capsule "Out of cheese")
+        (is (= nil @expired))
+        (is (= 1 (count @queued)))
+        (is (= delivery-queue (:queue (first @queued)))))
+      (testing "process-expired if expired"
+        (reset! queued [])
+        (reset! expired nil)
+        (handle-delivery-failure broker expired-capsule "Out of cheese")
+        (is (= expired-capsule @expired)
+            (is (= [] @queued)))))))
+
+(deftest maybe-send-destination-report-test
+  (let [broker (make-test-broker)
+        message (message/make-message)
+        message-requesting (message/make-message :sender "pcp://example01.example.com/fooo"
+                                                 :destination_report true)
+        accepted (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))]
+      (testing "when not requested"
+        (maybe-send-destination-report broker message ["pcp://example01.example.com/example"])
+        (is (= nil @accepted)))
+      (testing "when requested"
+        (maybe-send-destination-report broker message-requesting ["pcp://example01.example.com/example"])
+        (is ["pcp://example01.example.com/example"] (:targets (message/get-json-data (:message @accepted))))))))
+
+(deftest deliver-message-test
+  (let [broker (make-test-broker)
+        message (message/make-message)
+        capsule (assoc (capsule/wrap message) :target "pcp://example01.example.com/foo")
+        failure (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure (fn [broker capsule message]
+                                                                       (reset! failure {:capsule capsule
+                                                                                        :message message}))]
+      (deliver-message broker capsule)
+      (is (= "not connected" (:message @failure))))))
+
+(deftest expand-destinations-test
+  (let [broker (make-test-broker)
+        message (message/make-message :targets ["pcp://example01.example.com/foo"])
+        capsule (capsule/wrap message)
+        queued (atom [])]
+    (with-redefs [puppetlabs.pcp.broker.core/maybe-send-destination-report (constantly true)
+                  puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule]
+                                                                 (swap! queued conj {:queue queue
+                                                                                     :capsule capsule}))]
+      (expand-destinations broker capsule)
+      (is (= 1 (count @queued)))
+      (is (= delivery-queue (:queue (first @queued))))
+      (is (= "pcp://example01.example.com/foo" (:target (:capsule (first @queued))))))))
 
 (deftest make-ring-request-test
   (let [broker (make-test-broker)]
@@ -119,6 +186,17 @@
         capsule (capsule/wrap message)]
     (is (= true (authorized? yes-broker capsule)))
     (is (= false (authorized? no-broker capsule)))))
+
+(deftest accept-message-for-delivery-test
+  (let [broker (make-test-broker)
+        capsule (capsule/wrap (message/make-message))
+        queued (atom [])]
+    (with-redefs [puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule] (swap! queued conj {:queue queue
+                                                                                                       :capsule capsule}))
+                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
+      (accept-message-for-delivery broker capsule)
+      (is (= 1 (count @queued)))
+      (is (= accept-queue (:queue (first @queued)))))))
 
 (deftest process-expired-message-test
   (with-redefs [accept-message-for-delivery (fn [broker response] response)]
@@ -199,6 +277,29 @@
             (is (= :associated (:state connection)))
             (is (= ["ws" 4002 "association unsuccessful"] @@closed))))))))
 
+(deftest process-inventory-message-test
+  (let [broker (make-test-broker)
+        message (-> (message/make-message :sender "pcp://test.example.com/test")
+                    (message/set-json-data  {:query ["pcp://*/*"]}))
+        capsule (capsule/wrap message)
+        connection (connection/make-connection "ws1")
+        accepted (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))]
+      (process-inventory-message broker capsule connection)
+      (is (= [] (:uris (message/get-json-data (:message @accepted))))))))
+
+(deftest process-server-message-test
+  (let [broker (make-test-broker)
+        message (message/make-message :message_type "http://puppetlabs.com/associate_request")
+        capsule (capsule/wrap message)
+        connection (connection/make-connection "ws1")
+        associate-request (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/process-associate-message (fn [broker capsule connection]
+                                                                         (reset! associate-request capsule)
+                                                                         connection)]
+      (process-server-message broker capsule connection)
+      (is (not= nil @associate-request)))))
+
 (deftest validate-certname-test
   (testing "simple match, no exception"
     (is (validate-certname "pcp://lolcathost/agent" "lolcathost")))
@@ -210,6 +311,30 @@
     (is (thrown+? [:type :puppetlabs.pcp.broker.core/identity-invalid
                    :message "Certificate mismatch.  Sender: 'lolcathost' CN: 'lol.athost'"]
                   (validate-certname "pcp://lolcathost/agent" "lol.athost")))))
+
+(deftest connection-open-test
+  (let [broker (make-test-broker)
+        message (message/make-message :targets ["pcp:///server"]
+                                      :message_type "http://puppetlabs.com/associate_request")
+        capsule (capsule/wrap message)
+        connection (connection/make-connection "ws1")
+        associate-request (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/process-associate-message (fn [broker capsule connection]
+                                                                         (reset! associate-request capsule)
+                                                                         connection)]
+      (connection-open broker capsule connection)
+      (is (not= nil @associate-request)))))
+
+(deftest connection-associated-test
+  (let [broker (make-test-broker)
+        message (message/make-message :message_type "http://puppetlabs.com/associate_request")
+        capsule (capsule/wrap message)
+        connection (connection/make-connection "ws1")
+        accepted (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule]
+                                                                           (reset! accepted capsule))]
+      (connection-associated broker capsule connection)
+      (is (not= nil @accepted)))))
 
 (deftest determine-next-state-test
   (testing "illegal next states raise due to schema validation"
