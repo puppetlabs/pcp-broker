@@ -380,7 +380,6 @@
                                         :type :connection-open)
                           "client {commonname} connected from {remoteaddress}"))))))
 
-
 (s/defn ^:always-validate connection-open :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
   (let [message (:message capsule)]
