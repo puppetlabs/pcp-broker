@@ -64,8 +64,8 @@
     (is (= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 1 :seconds))))))
 
   (testing "it's about half the time we have left"
-    (is (= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 2 :seconds)))))
-    (is (= 4 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 9 :seconds))))))
+    (is (<= 1 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 2 :seconds))) 2))
+    (is (<= 4 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 9 :seconds))) 5)))
 
   (testing "high bounds should be 15 seconds"
     (is (= 15 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 3000000 :seconds)))))))
