@@ -108,6 +108,17 @@
         (maybe-send-destination-report broker message-requesting ["pcp://example01.example.com/example"])
         (is ["pcp://example01.example.com/example"] (:targets (message/get-json-data (:message @accepted))))))))
 
+(deftest deliver-message-test
+  (let [broker (make-test-broker)
+        message (message/make-message)
+        capsule (assoc (capsule/wrap message) :target "pcp://example01.example.com/foo")
+        failure (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure (fn [broker capsule message]
+                                                                       (reset! failure {:capsule capsule
+                                                                                        :message message}))]
+      (deliver-message broker capsule)
+      (is (= "not connected" (:message @failure))))))
+
 (deftest make-ring-request-test
   (let [broker (make-test-broker)]
     (testing "it should return a ring request - one target"
