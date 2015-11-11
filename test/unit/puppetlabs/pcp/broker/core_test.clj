@@ -288,6 +288,18 @@
       (process-inventory-message broker capsule connection)
       (is (= [] (:uris (message/get-json-data (:message @accepted))))))))
 
+(deftest process-server-message-test
+  (let [broker (make-test-broker)
+        message (message/make-message :message_type "http://puppetlabs.com/associate_request")
+        capsule (capsule/wrap message)
+        connection (connection/make-connection "ws1")
+        associate-request (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/process-associate-message (fn [broker capsule connection]
+                                                                         (reset! associate-request capsule)
+                                                                         connection)]
+      (process-server-message broker capsule connection)
+      (is (not= nil @associate-request)))))
+
 (deftest validate-certname-test
   (testing "simple match, no exception"
     (is (validate-certname "pcp://lolcathost/agent" "lolcathost")))
