@@ -16,7 +16,7 @@
                 :delivery-consumers 2
                 :activemq-consumers (atom [])
                 :record-client      (constantly true)
-                :find-clients       (constantly true)
+                :find-clients       (constantly ())
                 :authorization-check (constantly true)
                 :uri-map            (atom {})
                 :connections        (atom {})
@@ -118,6 +118,20 @@
                                                                                         :message message}))]
       (deliver-message broker capsule)
       (is (= "not connected" (:message @failure))))))
+
+(deftest expand-destinations-test
+  (let [broker (make-test-broker)
+        message (message/make-message :targets ["pcp://example01.example.com/foo"])
+        capsule (capsule/wrap message)
+        queued (atom [])]
+    (with-redefs [puppetlabs.pcp.broker.core/maybe-send-destination-report (constantly true)
+                  puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule]
+                                                                 (swap! queued conj {:queue queue
+                                                                                     :capsule capsule}))]
+      (expand-destinations broker capsule)
+      (is (= 1 (count @queued)))
+      (is (= delivery-queue (:queue (first @queued))))
+      (is (= "pcp://example01.example.com/foo" (:target (:capsule (first @queued))))))))
 
 (deftest make-ring-request-test
   (let [broker (make-test-broker)]
