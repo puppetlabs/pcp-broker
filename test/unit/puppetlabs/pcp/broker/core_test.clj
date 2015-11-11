@@ -70,6 +70,31 @@
   (testing "high bounds should be 15 seconds"
     (is (= 15 (retry-delay (capsule/wrap (message/set-expiry (message/make-message) 3000000 :seconds)))))))
 
+(deftest handle-delivery-failure-test
+  (let [broker (make-test-broker)
+        capsule (capsule/wrap (message/set-expiry (message/make-message) 300 :seconds))
+        expired-capsule (capsule/wrap (message/set-expiry (message/make-message) -3 :seconds))
+        queued (atom [])
+        expired (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule delay]
+                                                                 (swap! queued conj {:queue queue
+                                                                                     :capsule capsule
+                                                                                     :delay delay}))
+                  puppetlabs.pcp.broker.core/process-expired-message (fn [broker capsule]
+                                                                       (reset! expired capsule))]
+      (testing "redelivery if not expired"
+        (handle-delivery-failure broker capsule "Out of cheese")
+        (is (= nil @expired))
+        (is (= 1 (count @queued)))
+        (is (= delivery-queue (:queue (first @queued)))))
+      (testing "process-expired if expired"
+        (reset! queued [])
+        (reset! expired nil)
+        (handle-delivery-failure broker expired-capsule "Out of cheese")
+        (is (= expired-capsule @expired)
+        (is (= [] @queued)))))))
+
+
 (deftest make-ring-request-test
   (let [broker (make-test-broker)]
     (testing "it should return a ring request - one target"
