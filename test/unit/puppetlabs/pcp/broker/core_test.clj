@@ -92,8 +92,21 @@
         (reset! expired nil)
         (handle-delivery-failure broker expired-capsule "Out of cheese")
         (is (= expired-capsule @expired)
-        (is (= [] @queued)))))))
+            (is (= [] @queued)))))))
 
+(deftest maybe-send-destination-report-test
+  (let [broker (make-test-broker)
+        message (message/make-message)
+        message-requesting (message/make-message :sender "pcp://example01.example.com/fooo"
+                                                 :destination_report true)
+        accepted (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))]
+      (testing "when not requested"
+        (maybe-send-destination-report broker message ["pcp://example01.example.com/example"])
+        (is (= nil @accepted)))
+      (testing "when requested"
+        (maybe-send-destination-report broker message-requesting ["pcp://example01.example.com/example"])
+        (is ["pcp://example01.example.com/example"] (:targets (message/get-json-data (:message @accepted))))))))
 
 (deftest make-ring-request-test
   (let [broker (make-test-broker)]
