@@ -325,6 +325,17 @@
       (connection-open broker capsule connection)
       (is (not= nil @associate-request)))))
 
+(deftest connection-associated-test
+  (let [broker (make-test-broker)
+        message (message/make-message :message_type "http://puppetlabs.com/associate_request")
+        capsule (capsule/wrap message)
+        connection (connection/make-connection "ws1")
+        accepted (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule]
+                                                                           (reset! accepted capsule))]
+      (connection-associated broker capsule connection)
+      (is (not= nil @accepted)))))
+
 (deftest determine-next-state-test
   (testing "illegal next states raise due to schema validation"
     (let [broker (make-test-broker)
