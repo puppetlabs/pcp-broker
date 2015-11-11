@@ -277,6 +277,17 @@
             (is (= :associated (:state connection)))
             (is (= ["ws" 4002 "association unsuccessful"] @@closed))))))))
 
+(deftest process-inventory-message-test
+  (let [broker (make-test-broker)
+        message (-> (message/make-message :sender "pcp://test.example.com/test")
+                    (message/set-json-data  {:query ["pcp://*/*"]}))
+        capsule (capsule/wrap message)
+        connection (connection/make-connection "ws1")
+        accepted (atom nil)]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))]
+      (process-inventory-message broker capsule connection)
+      (is (= [] (:uris (message/get-json-data (:message @accepted))))))))
+
 (deftest validate-certname-test
   (testing "simple match, no exception"
     (is (validate-certname "pcp://lolcathost/agent" "lolcathost")))
