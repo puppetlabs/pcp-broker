@@ -32,11 +32,17 @@
                  ;; Transitive dependency for puppetlabs/trapperkeeper and puppetlabs/trapperkeeper-authorization
                  [puppetlabs/typesafe-config "0.1.4"]
 
+                 ;; Transitive dependency for:
+                 ;;   puppetlabs/trapperkeeper
+                 ;;   compojure via puppetlabs/comidi via puppetlabs/trapperkeeper-status
+                 [org.clojure/tools.macro "0.1.5"]
+
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/trapperkeeper-authorization "0.1.5"]
                  [puppetlabs/trapperkeeper-metrics "0.1.1"]
                  [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.0"]
+                 [puppetlabs/trapperkeeper-status "0.2.1"]
 
                  ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
                  [puppetlabs/structured-logging "0.1.0" :exclusions [org.clojure/clojure]]
