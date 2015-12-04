@@ -5,7 +5,7 @@
             [metrics.timers :as timers]
             [cheshire.core :as cheshire]))
 
-(defn- get-pcp-metrics
+(defn get-pcp-metrics
   "Returns pcp specific metrics as a map"
   [registry]
   (reduce into {}
@@ -18,12 +18,12 @@
                                 :largest (timers/largest v)
                                 :smallest (timers/smallest v)}}) (.getTimers registry))]))
 
-(defn- get-memory-metrics
+(defn get-memory-metrics
   "Returns memory related metrics as a map"
   []
   (dissoc (jmx/mbean "java.lang:type=Memory") :ObjectName))
 
-(defn- get-thread-metrics
+(defn get-thread-metrics
   "Returns thread related metrics as a map"
   []
   (apply dissoc (jmx/mbean "java.lang:type=Threading") [:ObjectName :AllThreadIds]))

@@ -16,6 +16,7 @@
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
+            [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]])
   (:import (clojure.lang IFn Atom)))
@@ -536,3 +537,17 @@
     (doseq [consumer @activemq-consumers]
       (mq-cons/close consumer))
     (mq/stop-broker! activemq-broker)))
+
+(s/defn ^:always-validate status :- status-core/StatusCallbackResponse
+  [broker :- Broker level :- status-core/ServiceStatusDetailLevel]
+  (let [{:keys [metrics-registry]} broker
+        level>= (partial status-core/compare-levels >= level)]
+  {:state :running
+   :status (cond-> {}
+
+             (level>= :info)
+             (assoc :metrics (metrics/get-pcp-metrics metrics-registry))
+
+             (level>= :debug)
+             (assoc :threads (metrics/get-thread-metrics)
+                    :memory (metrics/get-memory-metrics)))}))
