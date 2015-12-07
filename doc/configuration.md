@@ -73,7 +73,6 @@ web-router-service: {
     "puppetlabs.trapperkeeper.services.status.status-service/status-service": "/status"
     "puppetlabs.pcp.broker.service/broker-service": {
        websocket: "/pcp"
-       metrics: "/"
     }
 }
 ```

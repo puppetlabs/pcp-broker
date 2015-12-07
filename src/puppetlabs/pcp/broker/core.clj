@@ -44,13 +44,6 @@
    :transitions        {ConnectionState IFn}
    :broker-cn          s/Str})
 
-;; Metrics
-(s/defn metrics-app
-  [broker :- Broker request]
-  {:status 200
-   :headers {"Content-Type" "application/json"}
-   :body (metrics/render-metrics (:metrics-registry broker))})
-
 (s/defn ^:always-validate build-and-register-metrics :- {s/Keyword Object}
   [broker :- Broker]
   (let [registry (:metrics-registry broker)]
@@ -490,7 +483,6 @@
   {:activemq-spool s/Str
    :accept-consumers s/Num
    :delivery-consumers s/Num
-   :add-ring-handler IFn
    :add-websocket-handler IFn
    :record-client IFn
    :find-clients IFn
@@ -501,7 +493,7 @@
 (s/defn ^:always-validate init :- Broker
   [options :- InitOptions]
   (let [{:keys [path activemq-spool accept-consumers delivery-consumers
-                add-ring-handler add-websocket-handler
+                add-websocket-handler
                 record-client find-clients authorization-check
                 get-metrics-registry ssl-cert]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
@@ -521,7 +513,6 @@
                               :broker-cn          (get-broker-cn ssl-cert)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
-      (add-ring-handler (partial metrics-app broker) {:route-id :metrics})
       (add-websocket-handler (build-websocket-handlers broker) {:route-id :websocket})
       broker)))
 

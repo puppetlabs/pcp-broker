@@ -9,7 +9,7 @@
 (trapperkeeper/defservice broker-service
   [[:AuthorizationService authorization-check]
    [:ConfigService get-in-config]
-   [:WebroutingService add-ring-handler add-websocket-handler get-server]
+   [:WebroutingService add-websocket-handler get-server]
    [:MetricsService get-metrics-registry]
    [:StatusService register-status]]
   (init [this context]
@@ -24,7 +24,6 @@
           broker             (core/init {:activemq-spool activemq-spool
                                          :accept-consumers accept-consumers
                                          :delivery-consumers delivery-consumers
-                                         :add-ring-handler (partial add-ring-handler this)
                                          :add-websocket-handler (partial add-websocket-handler this)
                                          :record-client  (partial record-client inventory)
                                          :find-clients   (partial find-clients inventory)
