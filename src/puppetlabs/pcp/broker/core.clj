@@ -16,6 +16,7 @@
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
+            [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]])
   (:import (clojure.lang IFn Atom)))
@@ -42,13 +43,6 @@
    :metrics            {s/Keyword Object}
    :transitions        {ConnectionState IFn}
    :broker-cn          s/Str})
-
-;; Metrics
-(s/defn metrics-app
-  [broker :- Broker request]
-  {:status 200
-   :headers {"Content-Type" "application/json"}
-   :body (metrics/render-metrics (:metrics-registry broker))})
 
 (s/defn ^:always-validate build-and-register-metrics :- {s/Keyword Object}
   [broker :- Broker]
@@ -489,7 +483,6 @@
   {:activemq-spool s/Str
    :accept-consumers s/Num
    :delivery-consumers s/Num
-   :add-ring-handler IFn
    :add-websocket-handler IFn
    :record-client IFn
    :find-clients IFn
@@ -500,7 +493,7 @@
 (s/defn ^:always-validate init :- Broker
   [options :- InitOptions]
   (let [{:keys [path activemq-spool accept-consumers delivery-consumers
-                add-ring-handler add-websocket-handler
+                add-websocket-handler
                 record-client find-clients authorization-check
                 get-metrics-registry ssl-cert]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
@@ -520,7 +513,6 @@
                               :broker-cn          (get-broker-cn ssl-cert)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
-      (add-ring-handler (partial metrics-app broker) {:route-id :metrics})
       (add-websocket-handler (build-websocket-handlers broker) {:route-id :websocket})
       broker)))
 
@@ -536,3 +528,17 @@
     (doseq [consumer @activemq-consumers]
       (mq-cons/close consumer))
     (mq/stop-broker! activemq-broker)))
+
+(s/defn ^:always-validate status :- status-core/StatusCallbackResponse
+  [broker :- Broker level :- status-core/ServiceStatusDetailLevel]
+  (let [{:keys [metrics-registry]} broker
+        level>= (partial status-core/compare-levels >= level)]
+  {:state :running
+   :status (cond-> {}
+
+             (level>= :info)
+             (assoc :metrics (metrics/get-pcp-metrics metrics-registry))
+
+             (level>= :debug)
+             (assoc :threads (metrics/get-thread-metrics)
+                    :memory (metrics/get-memory-metrics)))}))

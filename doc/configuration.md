@@ -7,7 +7,7 @@ files needed to set up a pcp-broker listening on `wss://0.0.0.0:8142/pcp`
 
 In order to use the pcp-broker you will need to bootstrap a number of
 dependant trapperkeeper services - a Webserver service, a Webrouting
-service, and a Metrics service.
+service, a Status service, and a Metrics service.
 
 ```
 # bootstrap.cfg
@@ -16,6 +16,7 @@ puppetlabs.trapperkeeper.services.authorization.authorization-service/authorizat
 puppetlabs.trapperkeeper.services.webrouting.webrouting-service/webrouting-service
 puppetlabs.trapperkeeper.services.webserver.jetty9-service/jetty9-service
 puppetlabs.trapperkeeper.services.metrics.metrics-service/metrics-service
+puppetlabs.trapperkeeper.services.status.status-service/status-service
 ```
 
 ## Service configuration
@@ -63,15 +64,15 @@ webserver: {
 }
 ```
 
-The broker will need to be mounted at a path using a
+The broker and the status services will need to be mounted using a
 [webrouting](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9/blob/master/doc/webrouting-config.md)
 configuration.
 
 ```
 web-router-service: {
+    "puppetlabs.trapperkeeper.services.status.status-service/status-service": "/status"
     "puppetlabs.pcp.broker.service/broker-service": {
        websocket: "/pcp"
-       metrics: "/"
     }
 }
 ```

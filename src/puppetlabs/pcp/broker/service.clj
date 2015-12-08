@@ -3,13 +3,15 @@
             [puppetlabs.pcp.broker.in-memory-inventory :refer [make-inventory record-client find-clients]]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
-            [puppetlabs.trapperkeeper.services :refer [service-context]]))
+            [puppetlabs.trapperkeeper.services :refer [service-context]]
+            [puppetlabs.trapperkeeper.services.status.status-core :as status-core]))
 
 (trapperkeeper/defservice broker-service
   [[:AuthorizationService authorization-check]
    [:ConfigService get-in-config]
-   [:WebroutingService add-ring-handler add-websocket-handler get-server]
-   [:MetricsService get-metrics-registry]]
+   [:WebroutingService add-websocket-handler get-server]
+   [:MetricsService get-metrics-registry]
+   [:StatusService register-status]]
   (init [this context]
     (sl/maplog :info {:type :broker-init} "Initializing broker service")
     (let [activemq-spool     (get-in-config [:pcp-broker :broker-spool])
@@ -22,13 +24,16 @@
           broker             (core/init {:activemq-spool activemq-spool
                                          :accept-consumers accept-consumers
                                          :delivery-consumers delivery-consumers
-                                         :add-ring-handler (partial add-ring-handler this)
                                          :add-websocket-handler (partial add-websocket-handler this)
                                          :record-client  (partial record-client inventory)
                                          :find-clients   (partial find-clients inventory)
                                          :authorization-check authorization-check
                                          :get-metrics-registry get-metrics-registry
                                          :ssl-cert ssl-cert})]
+      (register-status "broker-service"
+                       (status-core/get-artifact-version "puppetlabs" "pcp-broker")
+                       1
+                       (partial core/status broker))
       (assoc context :broker broker)))
   (start [this context]
     (sl/maplog :info {:type :broker-start} "Starting broker service")
