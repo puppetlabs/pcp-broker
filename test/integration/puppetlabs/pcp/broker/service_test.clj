@@ -37,7 +37,7 @@
                :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
 
    :web-router-service
-   {:puppetlabs.pcp.broker.service/broker-service {:websocket "/pcp"}
+   {:puppetlabs.pcp.broker.service/broker-service {:v1 "/pcp"}
     :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
    :metrics {:enabled true}
