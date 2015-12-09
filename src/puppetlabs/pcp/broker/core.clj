@@ -513,7 +513,7 @@
                               :broker-cn          (get-broker-cn ssl-cert)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
-      (add-websocket-handler (build-websocket-handlers broker) {:route-id :websocket})
+      (add-websocket-handler (build-websocket-handlers broker) {:route-id :v1})
       broker)))
 
 (s/defn ^:always-validate start

@@ -18,7 +18,7 @@
           accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
           delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
           inventory          (make-inventory)
-          ssl-cert           (if-let [server (get-server this :websocket)]
+          ssl-cert           (if-let [server (get-server this :v1)]
                                (get-in-config [:webserver (keyword server) :ssl-cert])
                                (get-in-config [:webserver :ssl-cert]))
           broker             (core/init {:activemq-spool activemq-spool
