@@ -10,6 +10,7 @@
 
 (defprotocol WsClient
   (close [_])
+  (sendbytes! [_ bytes])
   (send! [_ message])
   (recv! [_] [_ timeout]
     "Returns nil on timeout, [code reason] on close, message/Message on message"))
@@ -20,6 +21,8 @@
     (async/close! message-channel)
     (.close ws-client)
     (.close http-client))
+  (sendbytes! [_ bytes]
+    (http/send ws-client :byte bytes))
   (send! [_ message]
     (http/send ws-client :byte (message/encode message)))
   (recv! [this] (recv! this (* 10 1000)))
@@ -60,6 +63,7 @@
     (if check-ok
       (let [response (recv! wrapper)]
         (is (= "http://puppetlabs.com/associate_response" (:message_type response)))
+        (is (= (:id association-request) (:in-reply-to response)))
         (is (= {:id (:id association-request)
                 :success true}
                (message/get-json-data response)))))
