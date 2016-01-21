@@ -86,12 +86,24 @@
                        (deref closed (* 2 1000) false))
             "Disconnected due to no client certificate")))))
 
+(deftest poorly-encoded-message-test
+  (with-app-with-config app broker-services broker-config
+    (with-open [client (client/connect "client01.example.com" "pcp://client01.example.com/test" true)]
+      ;; At time of writing, it's deemed very unlikely that any valid
+      ;; encoding of a pcp message is a 0-length array.  Sorry future people.
+      (client/sendbytes! client (byte-array 0))
+      (let [response (client/recv! client)]
+        (is (= "http://puppetlabs.com/error_message" (:message_type response)))
+        (is (= nil (:in-reply-to response)))
+        (is (= "Could not decode message" (:description (message/get-json-data response))))))))
+
 (deftest certificate-must-match-test
   (with-app-with-config app broker-services broker-config
     (with-open [client (client/connect "client01.example.com" "pcp://client02.example.com/test" false)]
       (let [response (client/recv! client)]
         (is (= "http://puppetlabs.com/error_message" (:message_type response)))
-        (is (re-matches #"Error .*?/identity-invalid.*" (:description (message/get-json-data response))))))))
+        (is (:in-reply-to response))
+        (is (= "Message not authorized" (:description (message/get-json-data response))))))))
 
 ;; Session association tests
 (deftest basic-session-association-test
@@ -132,6 +144,7 @@
         (client/send! client request)
         (let [response (client/recv! client)]
           (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
+          (is (= (:id request) (:in-reply-to response)))
           (is (= {:uris ["pcp://client01.example.com/test"]} (message/get-json-data response))))))))
 
 (deftest inventory-node-can-find-itself-wildcard-test
@@ -207,6 +220,7 @@
         (let [report  (client/recv! sender)
               message (client/recv! receiver)]
           (is (= "http://puppetlabs.com/destination_report" (:message_type report)))
+          (is (= (:id message) (:in-reply-to report)))
           (is (= {:id (:id message)
                   :targets ["pcp://client02.example.com/test"]}
                  (message/get-json-data report)))
@@ -239,6 +253,7 @@
         (client/send! client message)
         (let [response (client/recv! client)]
           (is (= "http://puppetlabs.com/ttl_expired" (:message_type response)))
+          (is (= (:id message) (:in-reply-to response)))
           ;; TODO(richardc): should we say for whom we expired,
           ;; in case we only expire for 1 of the expanded
           ;; destinations

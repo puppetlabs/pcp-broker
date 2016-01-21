@@ -151,11 +151,12 @@
         (sl/maplog :trace {:type :message-expired-from-server}
                    "Server generated message expired.  Dropping")
         capsule)
-      (let [response_data {:id (:id message)}
-            response (-> (message/make-message)
-                         (assoc :message_type "http://puppetlabs.com/ttl_expired"
-                                :targets      [sender]
-                                :sender       "pcp:///server")
+      (let [in-reply-to (:id message)
+            response_data {:id in-reply-to}
+            response (-> (message/make-message :message_type "http://puppetlabs.com/ttl_expired"
+                                               :targets [sender]
+                                               :sender "pcp:///server"
+                                               :in-reply-to in-reply-to)
                          (message/set-expiry 3 :seconds)
                          (message/set-json-data response_data))]
         (s/validate p/TTLExpiredMessage response_data)
@@ -200,10 +201,10 @@
   (when (:destination_report message)
     (let [report {:id (:id message)
                   :targets targets}
-          reply (-> (message/make-message)
-                    (assoc :targets [(:sender message)]
-                           :message_type "http://puppetlabs.com/destination_report"
-                           :sender "pcp:///server")
+          reply (-> (message/make-message :targets [(:sender message)]
+                                          :message_type "http://puppetlabs.com/destination_report"
+                                          :in-reply-to (:id message)
+                                          :sender "pcp:///server")
                     (message/set-expiry 3 :seconds)
                     (message/set-json-data report))]
       (s/validate p/DestinationReport report)
@@ -289,6 +290,7 @@
     (s/validate p/AssociateResponse response)
     (let [message (-> (message/make-message :message_type "http://puppetlabs.com/associate_response"
                                             :targets [uri]
+                                            :in-reply-to id
                                             :sender "pcp:///server")
                       (message/set-expiry 3 :seconds)
                       (message/set-json-data response))]
@@ -320,11 +322,10 @@
     (s/validate p/InventoryRequest data)
     (let [uris (filter (partial get-websocket broker) ((:find-clients broker) (:query data)))
           response-data {:uris uris}
-          response (-> (message/make-message)
-                       (assoc :message_type "http://puppetlabs.com/inventory_response"
-                              :targets [(:sender message)]
-                              :in-reply-to (:id message)
-                              :sender "pcp:///server")
+          response (-> (message/make-message :message_type "http://puppetlabs.com/inventory_response"
+                                             :targets [(:sender message)]
+                                             :in-reply-to (:id message)
+                                             :sender "pcp:///server")
                        (message/set-expiry 3 :seconds)
                        (message/set-json-data response-data))]
       (s/validate p/InventoryResponse response-data)
@@ -344,14 +345,13 @@
                                  :type :broker-unhandled-message)
                    "Unhandled message type {messagetype} received from {commonname} {remoteaddr}")))))
 
-(s/defn ^:always-validate validate-certname :- s/Bool
-  "Validate that the cert name advertised by the client matches the cert name in the certificate"
-  [endpoint :- p/Uri certname :- (s/maybe s/Str)]
-  (let [[client] (p/explode-uri endpoint)]
-    (if-not (= client certname)
-      (throw+ {:type ::identity-invalid
-               :message (str "Certificate mismatch.  Sender: '" client "' CN: '" certname "'")})
-      true)))
+(s/defn ^:always-validate check-sender-matches :- s/Bool
+  "Validate that the cert name advertised by the sender matches the cert name in the certificate"
+  [message :- Message connection :- Connection]
+  (let [{:keys [common-name]} connection
+        {:keys [sender]} message
+        [client] (p/explode-uri sender)]
+    (= client common-name)))
 
 ;; Websocket event handlers
 
@@ -395,14 +395,6 @@
         (accept-message-for-delivery broker capsule)
         connection))))
 
-(s/defn ^:always-validate decode-and-check :- (s/maybe Message)
-  [bytes :- message/ByteArray connection :- Connection]
-  (let [{:keys [common-name]} connection
-        message (message/decode bytes)
-        sender  (:sender message)]
-    (validate-certname sender common-name)
-    message))
-
 (s/defn ^:always-validate determine-next-state :- Connection
   "Determine the next state for a connection given a capsule and some transitions"
   [broker :- Broker capsule :- Capsule connection :- Connection]
@@ -416,29 +408,47 @@
                    "Cannot find transition for state {state}")
         connection))))
 
+(s/defn send-error-message
+  [message :- (s/maybe Message) description :- String ws :- Object]
+  (let [body {:description description}
+        error (-> (message/make-message
+                     :message_type "http://puppetlabs.com/error_message"
+                     :sender "pcp:///server")
+                    (message/set-json-data body))
+        error (if message
+                (assoc error :in-reply-to (:id message))
+                error)]
+    (s/validate p/ErrorMessage body)
+    (websockets-client/send! ws (message/encode error))))
+
 (defn on-message!
   [broker ws bytes]
   (time! (:on-message (:metrics broker))
          (try+
-           (let [connection  (get-connection broker ws)
-                 message     (decode-and-check bytes connection)
-                 uri         (broker-uri broker)
-                 capsule     (capsule/wrap message)
-                 capsule     (capsule/add-hop capsule uri "accepted")]
-             (sl/maplog :trace (merge (connection/summarize connection)
-                                      (capsule/summarize capsule)
-                                      {:type :connection-message})
-                        "Message {messageid} for {destination} from {commonname} {remoteaddress}")
-             (let [next        (determine-next-state broker capsule connection)]
-               (swap! (:connections broker) assoc ws next)))
-           (catch map? m
-             (let [error-body {:description (str "Error " (:type m) " handling message: " (:message &throw-context))}
-                   error-message (-> (message/make-message
-                                      :message_type "http://puppetlabs.com/error_message"
-                                      :sender "pcp:///server")
-                                     (message/set-json-data error-body))]
-               (s/validate p/ErrorMessage error-body)
-               (websockets-client/send! ws (message/encode error-message)))))))
+          (let [message (message/decode bytes)]
+            (try+
+             (let [connection  (get-connection broker ws)]
+               (if (not (check-sender-matches message connection))
+                 ;; TODO(richardc): When we have the message type for
+                 ;; 'authorization_denied' use this instead of
+                 ;; error_message
+                 (send-error-message message "Message not authorized" ws)
+                 (let [uri (broker-uri broker)
+                       capsule (capsule/wrap message)
+                       capsule (capsule/add-hop capsule uri "accepted")]
+                   (sl/maplog :trace (merge (connection/summarize connection)
+                                            (capsule/summarize capsule)
+                                            {:type :connection-message})
+                              "Message {messageid} for {destination} from {commonname} {remoteaddress}")
+                   (let [next (determine-next-state broker capsule connection)]
+                     (swap! (:connections broker) assoc ws next)))))
+             (catch map? m
+               ;; This is a process error, say an uncaught exception in any of the stuff we meant to do
+               (send-error-message message (str "Error " (:type m) " handling message: " (:message &throw-context)) ws))))
+          (catch map? m
+            ;; TODO(richardc): this could use a different message_type to
+            ;; indicate an encoding error rather than a processing error
+            (send-error-message nil "Could not decode message" ws)))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"

@@ -300,17 +300,21 @@
       (process-server-message broker capsule connection)
       (is (not= nil @associate-request)))))
 
-(deftest validate-certname-test
-  (testing "simple match, no exception"
-    (is (validate-certname "pcp://lolcathost/agent" "lolcathost")))
+(s/defn ^:always-validate dummy-connection-from :- connection/Connection
+  [common-name]
+  (assoc (connection/make-connection "ws1")
+         :common-name common-name))
+
+(deftest check-sender-matches-test
+  (testing "simple match"
+    (is (check-sender-matches (message/make-message :sender "pcp://lolcathost/agent")
+                              (dummy-connection-from "lolcathost"))))
   (testing "simple mismatch"
-    (is (thrown+? [:type :puppetlabs.pcp.broker.core/identity-invalid
-                   :message "Certificate mismatch.  Sender: 'lolcathost' CN: 'remotecat'"]
-                  (validate-certname "pcp://lolcathost/agent" "remotecat"))))
+    (is (not (check-sender-matches (message/make-message :sender "pcp://lolcathost/agent")
+                                   (dummy-connection-from "remotecat")))))
   (testing "accidental regex collisions"
-    (is (thrown+? [:type :puppetlabs.pcp.broker.core/identity-invalid
-                   :message "Certificate mismatch.  Sender: 'lolcathost' CN: 'lol.athost'"]
-                  (validate-certname "pcp://lolcathost/agent" "lol.athost")))))
+    (is (not (check-sender-matches (message/make-message :sender "pcp://lolcathost/agent")
+                                   (dummy-connection-from "lol.athost"))))))
 
 (deftest connection-open-test
   (let [broker (make-test-broker)
