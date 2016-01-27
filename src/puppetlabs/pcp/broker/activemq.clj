@@ -1,11 +1,12 @@
 (ns puppetlabs.pcp.broker.activemq
   (:require [clamq.protocol.connection :as mq-conn]
             [clamq.protocol.consumer :as mq-cons]
-            [puppetlabs.pcp.broker.capsule :as capsule :refer [Capsule CapsuleLog]]
+            [puppetlabs.pcp.broker.capsule :as capsule :refer [CapsuleLog]]
             [puppetlabs.puppetdb.mq :as mq]
             [puppetlabs.structured-logging.core :as sl]
             [schema.core :as s]
-            [taoensso.nippy :as nippy]))
+            [taoensso.nippy :as nippy])
+  (:import (puppetlabs.pcp.broker.capsule Capsule)))
 
 ;; This is a bit rude/lazy, reaching right into puppetdb sources we've
 ;; copied into our tree.  If this proves out we should talk to
