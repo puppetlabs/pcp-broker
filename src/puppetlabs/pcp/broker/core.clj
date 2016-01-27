@@ -5,8 +5,8 @@
             [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.pcp.broker.activemq :as activemq]
-            [puppetlabs.pcp.broker.capsule :as capsule :refer [Capsule]]
-            [puppetlabs.pcp.broker.connection :as connection :refer [Websocket ConnectionState Connection]]
+            [puppetlabs.pcp.broker.capsule :as capsule]
+            [puppetlabs.pcp.broker.connection :as connection :refer [Websocket ConnectionState]]
             [puppetlabs.pcp.broker.metrics :as metrics]
             [puppetlabs.pcp.message :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
@@ -19,7 +19,9 @@
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]])
-  (:import (clojure.lang IFn Atom)))
+  (:import (puppetlabs.pcp.broker.capsule Capsule)
+           (puppetlabs.pcp.broker.connection Connection)
+           (clojure.lang IFn Atom)))
 
 (def UriMap
   "Mapping of Uri to Websocket, for sending"

@@ -6,7 +6,8 @@
             [puppetlabs.pcp.broker.connection :as connection]
             [puppetlabs.pcp.message :as message]
             [schema.core :as s]
-            [slingshot.test]))
+            [slingshot.test])
+  (:import (puppetlabs.pcp.broker.connection Connection)))
 
 (s/defn ^:always-validate make-test-broker :- Broker
   "Return a minimal clean broker state"
@@ -300,7 +301,7 @@
       (process-server-message broker capsule connection)
       (is (not= nil @associate-request)))))
 
-(s/defn ^:always-validate dummy-connection-from :- connection/Connection
+(s/defn ^:always-validate dummy-connection-from :- Connection
   [common-name]
   (assoc (connection/make-connection "ws1")
          :common-name common-name))

@@ -13,14 +13,22 @@
   "The states it is possible for a Connection to be in"
   (s/enum :open :associated))
 
-(def Connection
-  "The state of a connection as managed by the broker in the connections map"
-  {:state ConnectionState
-   :websocket Websocket
-   :remote-address s/Str
-   :common-name (s/maybe s/Str)
-   (s/optional-key :uri) p/Uri
-   :created-at p/ISO8601})
+(defprotocol ConnectionInterface
+  "Operations on the Connection type"
+  (summarize [connection]
+    "Returns a ConnectionLog suitable for logging."))
+
+(declare -summarize)
+
+(s/defrecord Connection
+             [state :- ConnectionState
+              websocket :- Websocket
+              remote-address :- s/Str
+              created-at :- p/ISO8601
+              common-name :- (s/maybe s/Str)
+              uri :- (s/maybe p/Uri)]
+  ConnectionInterface
+  (summarize [c] (-summarize c)))
 
 (def ConnectionLog
   "summarize a connection for logging"
@@ -30,18 +38,18 @@
 (s/defn ^:always-validate make-connection :- Connection
   "Return the initial state for a websocket"
   [websocket :- Websocket]
-  {:state :open
-   :websocket websocket
-   :remote-address (try+ (.. websocket (getSession) (getRemoteAddress) (toString))
-                         (catch Exception _
-                           ""))
-   :common-name (try+ (when-let [cert (first (websockets-client/peer-certs websocket))]
-                        (ks/cn-for-cert cert))
-                      (catch Exception _
-                        nil))
-   :created-at (ks/timestamp)})
+  (map->Connection {:state :open
+                    :websocket websocket
+                    :remote-address (try+ (.. websocket (getSession) (getRemoteAddress) (toString))
+                                          (catch Exception _
+                                            ""))
+                    :common-name (try+ (when-let [cert (first (websockets-client/peer-certs websocket))]
+                                         (ks/cn-for-cert cert))
+                                       (catch Exception _
+                                         nil))
+                    :created-at (ks/timestamp)}))
 
-(s/defn ^:always-validate summarize :- ConnectionLog
+(s/defn ^:always-validate -summarize :- ConnectionLog
   [connection :- Connection]
   (let [{:keys [common-name remote-address]} connection]
     {:commonname common-name
