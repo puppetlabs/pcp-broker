@@ -67,14 +67,14 @@
         now     (time/now)]
     (time/after? now expires)))
 
-(s/defn ^:always-validate -encode :- message/ByteArray
-  "Return the bytes we should send when sending this Capsule.  Adds
+(s/defn ^:always-validate -encode :- Message
+  "Return the Message we should send when sending this Capsule.  Adds
   the debug chunk to the message"
   [capsule :- Capsule]
   (let [message (:message capsule)
         debug   {:hops (:hops capsule)}]
     (s/validate p/DebugChunk debug)
-    (message/encode (message/set-json-debug message debug))))
+    (message/set-json-debug message debug)))
 
 (s/defn ^:always-validate wrap :- Capsule
   "Wrap a Message producing a Capsule"

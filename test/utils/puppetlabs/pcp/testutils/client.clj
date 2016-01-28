@@ -48,11 +48,14 @@
 
 (defn connect
   "Makes a client for testing"
-  [certname identity check-ok]
-  (let [association-request (make-association-request identity)
+  [& {:keys [certname identity version check-association]
+      :or {check-association true
+           version "vNext"}}]
+  (let [identity            (or identity (str "pcp://" certname "/test"))
+        association-request (make-association-request identity)
         client              (http-client-with-cert certname)
         message-chan        (chan)
-        ws                  (http/websocket client "wss://127.0.0.1:8143/pcp"
+        ws                  (http/websocket client (str "wss://127.0.0.1:8143/pcp/" version)
                                             :open  (fn [ws]
                                                      (http/send ws :byte (message/encode association-request)))
                                             :byte  (fn [ws msg]
@@ -60,10 +63,13 @@
                                             :close (fn [ws code reason]
                                                      (>!! message-chan [code reason])))
         wrapper             (ChanClient. client ws message-chan)]
-    (if check-ok
+    (if check-association
       (let [response (recv! wrapper)]
         (is (= "http://puppetlabs.com/associate_response" (:message_type response)))
-        (is (= (:id association-request) (:in-reply-to response)))
+        (is (= (case version
+                 "v1.0" nil
+                 (:id association-request))
+               (:in-reply-to response)))
         (is (= {:id (:id association-request)
                 :success true}
                (message/get-json-data response)))))

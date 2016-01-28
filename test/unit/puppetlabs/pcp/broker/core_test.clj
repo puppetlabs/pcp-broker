@@ -3,7 +3,7 @@
             [metrics.core]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.capsule :as capsule]
-            [puppetlabs.pcp.broker.connection :as connection]
+            [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.message :as message]
             [schema.core :as s]
             [slingshot.test])
@@ -29,6 +29,10 @@
         broker (assoc broker :metrics metrics)]
     broker))
 
+(s/def identity-codec :- Codec
+  {:encode identity
+   :decode identity})
+
 (deftest get-broker-cn-test
   (testing "It returns the correct cn"
     (let [cn (get-broker-cn "./test-resources/ssl/certs/broker.example.com.pem")]
@@ -37,12 +41,12 @@
 (deftest add-connection!-test
   (testing "It should add a connection to the connection map"
     (let [broker (make-test-broker)]
-      (add-connection! broker "ws")
+      (add-connection! broker "ws" identity-codec)
       (is (= (get-in @(:connections broker) ["ws" :state]) :open)))))
 
 (deftest remove-connection!-test
   (testing "It should remove a connection from the connection map"
-    (let [connections (atom {"ws" (connection/make-connection "ws")})
+    (let [connections (atom {"ws" (connection/make-connection "ws" identity-codec)})
           broker      (assoc (make-test-broker) :connections connections)]
       (remove-connection! broker "ws")
       (is (= {} @(:connections broker))))))
@@ -232,7 +236,7 @@
 
 (deftest reason-to-deny-association-test
   (let [broker     (make-test-broker)
-        connection (connection/make-connection "websocket")
+        connection (connection/make-connection "websocket" identity-codec)
         associated (assoc connection :state :associated :uri "pcp://test/foo")]
     (is (= nil (reason-to-deny-association broker connection "pcp://test/foo")))
     (is (= "'server' type connections not accepted"
@@ -253,7 +257,7 @@
         (testing "It should return an associated session"
           (reset! closed (promise))
           (let [broker     (make-test-broker)
-                connection (add-connection! broker "ws")
+                connection (add-connection! broker "ws" identity-codec)
                 connection (process-associate-message broker capsule connection)]
             (is (not (realized? @closed)))
             (is (= :associated (:state connection)))
@@ -262,8 +266,8 @@
         (testing "It allows a login to from two locations for the same uri, but disconnects the first"
           (reset! closed (promise))
           (let [broker (make-test-broker)
-                connection1 (add-connection! broker "ws1")
-                connection2 (add-connection! broker "ws2")]
+                connection1 (add-connection! broker "ws1" identity-codec)
+                connection2 (add-connection! broker "ws2" identity-codec)]
             (process-associate-message broker capsule connection1)
             (is (process-associate-message broker capsule connection2))
             (is (= ["ws1" 4000 "superceded"] @@closed))
@@ -272,7 +276,7 @@
         (testing "It does not allow a login to happen twice on the same websocket"
           (reset! closed (promise))
           (let [broker (make-test-broker)
-                connection (add-connection! broker "ws")
+                connection (add-connection! broker "ws" identity-codec)
                 connection (process-associate-message broker capsule connection)
                 connection (process-associate-message broker capsule connection)]
             (is (= :associated (:state connection)))
@@ -283,7 +287,7 @@
         message (-> (message/make-message :sender "pcp://test.example.com/test")
                     (message/set-json-data  {:query ["pcp://*/*"]}))
         capsule (capsule/wrap message)
-        connection (connection/make-connection "ws1")
+        connection (connection/make-connection "ws1" identity-codec)
         accepted (atom nil)]
     (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))]
       (process-inventory-message broker capsule connection)
@@ -293,7 +297,7 @@
   (let [broker (make-test-broker)
         message (message/make-message :message_type "http://puppetlabs.com/associate_request")
         capsule (capsule/wrap message)
-        connection (connection/make-connection "ws1")
+        connection (connection/make-connection "ws1" identity-codec)
         associate-request (atom nil)]
     (with-redefs [puppetlabs.pcp.broker.core/process-associate-message (fn [broker capsule connection]
                                                                          (reset! associate-request capsule)
@@ -303,7 +307,7 @@
 
 (s/defn ^:always-validate dummy-connection-from :- Connection
   [common-name]
-  (assoc (connection/make-connection "ws1")
+  (assoc (connection/make-connection "ws1" identity-codec)
          :common-name common-name))
 
 (deftest check-sender-matches-test
@@ -322,7 +326,7 @@
         message (message/make-message :targets ["pcp:///server"]
                                       :message_type "http://puppetlabs.com/associate_request")
         capsule (capsule/wrap message)
-        connection (connection/make-connection "ws1")
+        connection (connection/make-connection "ws1" identity-codec)
         associate-request (atom nil)]
     (with-redefs [puppetlabs.pcp.broker.core/process-associate-message (fn [broker capsule connection]
                                                                          (reset! associate-request capsule)
@@ -334,7 +338,7 @@
   (let [broker (make-test-broker)
         message (message/make-message :message_type "http://puppetlabs.com/associate_request")
         capsule (capsule/wrap message)
-        connection (connection/make-connection "ws1")
+        connection (connection/make-connection "ws1" identity-codec)
         accepted (atom nil)]
     (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule]
                                                                            (reset! accepted capsule))]
@@ -345,7 +349,7 @@
   (testing "illegal next states raise due to schema validation"
     (let [broker (make-test-broker)
           broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :badbadbad))})
-          connection (connection/make-connection "ws")
+          connection (connection/make-connection "ws" identity-codec)
           message (message/make-message)
           capsule (capsule/wrap message)]
       (is (= :open (:state connection)))
@@ -354,7 +358,7 @@
   (testing "legal next states are accepted"
     (let [broker (make-test-broker)
           broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :associated))})
-          connection (connection/make-connection "ws")
+          connection (connection/make-connection "ws" identity-codec)
           message (message/make-message)
           capsule (capsule/wrap message)
           next (determine-next-state broker capsule connection)]

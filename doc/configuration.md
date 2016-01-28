@@ -64,7 +64,7 @@ webserver: {
 }
 ```
 
-The broker and the status services will need to be mounted using a
+The brokers protocol handlers and the status service will need to be mounted using a
 [webrouting](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9/blob/master/doc/webrouting-config.md)
 configuration.
 
@@ -73,6 +73,7 @@ web-router-service: {
     "puppetlabs.trapperkeeper.services.status.status-service/status-service": "/status"
     "puppetlabs.pcp.broker.service/broker-service": {
        v1: "/pcp"
+       vNext: "/pcp/vNext"
     }
 }
 ```
