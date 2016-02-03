@@ -12,7 +12,7 @@
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.metrics :refer [time!]]
-            [puppetlabs.puppetdb.mq :as mq]
+            [puppetlabs.pcp.broker.borrowed.mq :as mq]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]

@@ -1,4 +1,4 @@
-(ns puppetlabs.puppetdb.cheshire
+(ns puppetlabs.pcp.broker.borrowed.cheshire
   "Cheshire related functions
 
    This front-ends the common set of core cheshire functions:
@@ -9,7 +9,9 @@
    * parse-stream
 
    This namespace when 'required' will also setup some common JSON encoders
-   globally, so you can avoid doing this for each call."
+   globally, so you can avoid doing this for each call.
+
+  Copied from PuppetDB."
   (:require [cheshire.generate :as generate]
             [cheshire.core :as core]
             [clj-time.coerce :as coerce]
@@ -45,16 +47,16 @@
 (def generate-stream core/generate-stream)
 
 (defn generate-pretty-string
-  "Thinly wraps cheshire.core/generate-string, adding the PuppetDB default date format
-   and pretty printing from `default-pretty-opts`"
+  "Thinly wraps cheshire.core/generate-string, adding the default date format
+  and pretty printing from `default-pretty-opts`"
   ([obj]
    (generate-pretty-string obj default-pretty-opts))
   ([obj opts]
    (generate-string obj (merge default-pretty-opts opts))))
 
 (defn generate-pretty-stream
-  "Thinly wraps cheshire.core/generate-stream, adding the PuppetDB default date format
-   and pretty printing from `default-pretty-opts`"
+  "Thinly wraps cheshire.core/generate-stream, adding the default date format
+  and pretty printing from `default-pretty-opts`"
   ([obj writer]
    (generate-pretty-stream obj writer default-pretty-opts))
   ([obj writer opts]

@@ -1,4 +1,5 @@
-(ns puppetlabs.puppetdb.mq
+(ns puppetlabs.pcp.broker.borrowed.mq
+  "Copied from PuppetDB."
   (:import [org.apache.activemq.broker BrokerService]
            [org.apache.activemq ScheduledMessage]
            [org.apache.activemq.usage SystemUsage]
@@ -6,7 +7,7 @@
            [org.apache.activemq ActiveMQConnectionFactory]
            [org.springframework.jms.connection CachingConnectionFactory]
            [org.springframework.jms.listener DefaultMessageListenerContainer])
-  (:require [puppetlabs.puppetdb.cheshire :as json]
+  (:require [puppetlabs.pcp.broker.borrowed.cheshire :as json]
             [clamq.activemq :as activemq]
             [clamq.protocol.connection :as mq-conn]
             [clamq.protocol.consumer :as mq-consumer]
@@ -82,7 +83,7 @@
   ([dir]
    {:pre  [(string? dir)]
     :post [(instance? BrokerService %)]}
-   (build-embedded-broker "localhost" dir))
+   (build-embedded-broker "pcp" dir))
   ([name dir]
    {:pre  [(string? name)
            (string? dir)]
