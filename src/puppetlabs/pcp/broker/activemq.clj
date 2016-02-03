@@ -2,7 +2,7 @@
   (:require [clamq.protocol.connection :as mq-conn]
             [clamq.protocol.consumer :as mq-cons]
             [puppetlabs.pcp.broker.capsule :as capsule :refer [CapsuleLog]]
-            [puppetlabs.puppetdb.mq :as mq]
+            [puppetlabs.pcp.broker.borrowed.mq :as mq]
             [puppetlabs.structured-logging.core :as sl]
             [schema.core :as s]
             [taoensso.nippy :as nippy])
@@ -15,7 +15,7 @@
 (s/defn ^:always-validate queue-message
   "Queue a message on a middleware"
   [queue :- s/Str capsule :- Capsule & args]
-  (let [mq-spec "vm://localhost?create=false"
+  (let [mq-spec "vm://pcp?create=false"
         mq-endpoint queue]
     (sl/maplog :trace (assoc (capsule/summarize capsule)
                              :queue queue
@@ -26,7 +26,7 @@
 
 (defn subscribe-to-queue
   [queue callback-fn consumer-count]
-  (let [mq-spec "vm://localhost?create=false"]
+  (let [mq-spec "vm://pcp?create=false"]
     (let [conn (mq/activemq-connection mq-spec)]
       (doall (for [i (range consumer-count)]
                (let [consumer (mq-conn/consumer conn
