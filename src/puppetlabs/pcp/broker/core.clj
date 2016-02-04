@@ -435,7 +435,7 @@
            (try+
              (let [message (decode bytes)]
                (try+
-                 (if (not (check-sender-matches message connection))
+                 (if-not (check-sender-matches message connection)
                    ;; TODO(richardc): When we have the message type for
                    ;; 'authorization_denied' use this instead of
                    ;; error_message
@@ -447,8 +447,8 @@
                                               (capsule/summarize capsule)
                                               {:type :connection-message})
                                 "Message {messageid} for {destination} from {commonname} {remoteaddress}")
-                     (let [next (determine-next-state broker capsule connection)]
-                       (swap! (:connections broker) assoc ws next))))
+                     (->> (determine-next-state broker capsule connection)
+                          (swap! (:connections broker) assoc ws))))
                  (catch map? m
                    ;; This is a processing error, say an uncaught exception in any of the stuff we meant to do
                    (send-error-message message (str "Error " (:type m) " handling message: " (:message &throw-context)) connection))))
