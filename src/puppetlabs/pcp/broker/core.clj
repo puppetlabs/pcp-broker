@@ -6,7 +6,7 @@
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.pcp.broker.activemq :as activemq]
             [puppetlabs.pcp.broker.capsule :as capsule]
-            [puppetlabs.pcp.broker.connection :as connection :refer [Websocket ConnectionState]]
+            [puppetlabs.pcp.broker.connection :as connection :refer [Websocket Codec ConnectionState]]
             [puppetlabs.pcp.broker.metrics :as metrics]
             [puppetlabs.pcp.message :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
@@ -74,8 +74,8 @@
 ;; connection map lifecycle
 (s/defn ^:always-validate add-connection! :- Connection
   "Add a Connection to the connections to track a websocket"
-  [broker :- Broker ws :- Websocket]
-  (let [connection (connection/make-connection ws)]
+  [broker :- Broker ws :- Websocket codec :- Codec]
+  (let [connection (connection/make-connection ws codec)]
     (swap! (:connections broker) assoc ws connection)
     connection))
 
@@ -218,7 +218,8 @@
   [broker :- Broker capsule :- Capsule]
   (if-let [websocket (get-websocket broker (:target capsule))]
     (try
-      (let [connection (get-connection broker websocket)]
+      (let [connection (get-connection broker websocket)
+            encode (get-in connection [:codec :encode])]
         (sl/maplog :debug (merge (capsule/summarize capsule)
                                  (connection/summarize connection)
                                  {:type :message-delivery})
@@ -226,7 +227,7 @@
         (locking websocket
           (time! (:on-send (:metrics broker))
                  (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
-                   (websockets-client/send! websocket (capsule/encode capsule))))))
+                   (websockets-client/send! websocket (encode (capsule/encode capsule)))))))
       (catch Exception e
         (sl/maplog :error e
                    {:type :message-delivery-error}
@@ -287,6 +288,7 @@
         id       (:id request)
         uri      (:sender request)
         ws       (:websocket connection)
+        encode (get-in connection [:codec :encode])
         reason   (reason-to-deny-association broker connection uri)
         response (if reason {:id id :success false :reason reason} {:id id :success true})]
     (s/validate p/AssociateResponse response)
@@ -296,7 +298,7 @@
                                             :sender "pcp:///server")
                       (message/set-expiry 3 :seconds)
                       (message/set-json-data response))]
-      (websockets-client/send! ws (message/encode message)))
+      (websockets-client/send! ws (encode message)))
     (if reason
       (do
         (websockets-client/close! ws 4002 "association unsuccessful")
@@ -359,9 +361,9 @@
 
 (defn- on-connect!
   "OnConnect websocket event handler"
-  [broker ws]
+  [broker codec ws]
   (time! (:on-connect (:metrics broker))
-         (let [connection (add-connection! broker ws)
+         (let [connection (add-connection! broker ws codec)
                {:keys [common-name]} connection
                idle-timeout (* 1000 60 15)]
            (if (nil? common-name)
@@ -411,7 +413,7 @@
         connection))))
 
 (s/defn send-error-message
-  [message :- (s/maybe Message) description :- String ws :- Object]
+  [message :- (s/maybe Message) description :- String connection :- Connection]
   (let [body {:description description}
         error (-> (message/make-message
                      :message_type "http://puppetlabs.com/error_message"
@@ -419,38 +421,41 @@
                     (message/set-json-data body))
         error (if message
                 (assoc error :in-reply-to (:id message))
-                error)]
+                error)
+        {:keys [codec websocket]} connection
+        encode (:encode codec)]
     (s/validate p/ErrorMessage body)
-    (websockets-client/send! ws (message/encode error))))
+    (websockets-client/send! websocket (encode error))))
 
 (defn on-message!
   [broker ws bytes]
   (time! (:on-message (:metrics broker))
-         (try+
-          (let [message (message/decode bytes)]
-            (try+
-             (let [connection  (get-connection broker ws)]
-               (if (not (check-sender-matches message connection))
-                 ;; TODO(richardc): When we have the message type for
-                 ;; 'authorization_denied' use this instead of
-                 ;; error_message
-                 (send-error-message message "Message not authorized" ws)
-                 (let [uri (broker-uri broker)
-                       capsule (capsule/wrap message)
-                       capsule (capsule/add-hop capsule uri "accepted")]
-                   (sl/maplog :trace (merge (connection/summarize connection)
-                                            (capsule/summarize capsule)
-                                            {:type :connection-message})
-                              "Message {messageid} for {destination} from {commonname} {remoteaddress}")
-                   (let [next (determine-next-state broker capsule connection)]
-                     (swap! (:connections broker) assoc ws next)))))
+         (let [connection (get-connection broker ws)
+               decode (get-in connection [:codec :decode])]
+           (try+
+             (let [message (decode bytes)]
+               (try+
+                 (if (not (check-sender-matches message connection))
+                   ;; TODO(richardc): When we have the message type for
+                   ;; 'authorization_denied' use this instead of
+                   ;; error_message
+                   (send-error-message message "Message not authorized" connection)
+                   (let [uri (broker-uri broker)
+                         capsule (capsule/wrap message)
+                         capsule (capsule/add-hop capsule uri "accepted")]
+                     (sl/maplog :trace (merge (connection/summarize connection)
+                                              (capsule/summarize capsule)
+                                              {:type :connection-message})
+                                "Message {messageid} for {destination} from {commonname} {remoteaddress}")
+                     (let [next (determine-next-state broker capsule connection)]
+                       (swap! (:connections broker) assoc ws next))))
+                 (catch map? m
+                   ;; This is a processing error, say an uncaught exception in any of the stuff we meant to do
+                   (send-error-message message (str "Error " (:type m) " handling message: " (:message &throw-context)) connection))))
              (catch map? m
-               ;; This is a process error, say an uncaught exception in any of the stuff we meant to do
-               (send-error-message message (str "Error " (:type m) " handling message: " (:message &throw-context)) ws))))
-          (catch map? m
-            ;; TODO(richardc): this could use a different message_type to
-            ;; indicate an encoding error rather than a processing error
-            (send-error-message nil "Could not decode message" ws)))))
+               ;; TODO(richardc): this could use a different message_type to
+               ;; indicate an encoding error rather than a processing error
+               (send-error-message nil "Could not decode message" connection))))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"
@@ -483,8 +488,8 @@
            (remove-connection! broker ws))))
 
 (s/defn ^:always-validate build-websocket-handlers :- {s/Keyword IFn}
-  [broker :- Broker]
-  {:on-connect (partial on-connect! broker)
+  [broker :- Broker codec]
+  {:on-connect (partial on-connect! broker codec)
    :on-error   (partial on-error broker)
    :on-close   (partial on-close! broker)
    :on-text    (partial on-text! broker)
@@ -501,6 +506,21 @@
    :authorization-check IFn
    :get-metrics-registry IFn
    :ssl-cert s/Str})
+
+(s/def default-codec :- Codec
+  {:decode message/decode
+   :encode message/encode})
+
+(s/def v1-codec :- Codec
+  "Codec for handling v1.0 messages"
+  {:decode message/decode
+   :encode (fn [message]
+             ;; strip in-reply-to for everything but inventory_response
+             (let [message_type (:message_type message)
+                   message (if (= "http://puppetlabs.com/inventory_response" message_type)
+                             message
+                             (dissoc message :in-reply-to))]
+               (message/encode message)))})
 
 (s/defn ^:always-validate init :- Broker
   [options :- InitOptions]
@@ -525,7 +545,8 @@
                               :broker-cn          (get-broker-cn ssl-cert)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
-      (add-websocket-handler (build-websocket-handlers broker) {:route-id :v1})
+      (add-websocket-handler (build-websocket-handlers broker v1-codec) {:route-id :v1})
+      (add-websocket-handler (build-websocket-handlers broker default-codec) {:route-id :vNext})
       broker)))
 
 (s/defn ^:always-validate start
