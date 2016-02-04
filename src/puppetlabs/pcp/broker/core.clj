@@ -435,7 +435,7 @@
            (try+
              (let [message (decode bytes)]
                (try+
-                 (if (not (check-sender-matches message connection))
+                 (if-not (check-sender-matches message connection)
                    ;; TODO(richardc): When we have the message type for
                    ;; 'authorization_denied' use this instead of
                    ;; error_message
