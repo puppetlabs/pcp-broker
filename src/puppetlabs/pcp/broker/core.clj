@@ -44,7 +44,8 @@
    :metrics-registry   Object
    :metrics            {s/Keyword Object}
    :transitions        {ConnectionState IFn}
-   :broker-cn          s/Str})
+   :broker-cn          s/Str
+   :state              Atom})
 
 (s/defn ^:always-validate build-and-register-metrics :- {s/Keyword Object}
   [broker :- Broker]
@@ -542,7 +543,8 @@
                               :uri-map            (atom {} :validator (partial s/validate UriMap))
                               :transitions        {:open connection-open
                                                    :associated connection-associated}
-                              :broker-cn          (get-broker-cn ssl-cert)}
+                              :broker-cn          (get-broker-cn ssl-cert)
+                              :state              (atom :starting)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
       (add-websocket-handler (build-websocket-handlers broker v1-codec) {:route-id :v1})
@@ -551,22 +553,24 @@
 
 (s/defn ^:always-validate start
   [broker :- Broker]
-  (let [{:keys [activemq-broker]} broker]
+  (let [{:keys [activemq-broker state]} broker]
     (mq/start-broker! activemq-broker)
-    (subscribe-to-queues! broker)))
+    (subscribe-to-queues! broker)
+    (reset! state :running)))
 
 (s/defn ^:always-validate stop
   [broker :- Broker]
-  (let [{:keys [activemq-broker activemq-consumers]} broker]
+  (let [{:keys [activemq-broker activemq-consumers state]} broker]
+    (reset! state :stopping)
     (doseq [consumer @activemq-consumers]
       (mq-cons/close consumer))
     (mq/stop-broker! activemq-broker)))
 
 (s/defn ^:always-validate status :- status-core/StatusCallbackResponse
   [broker :- Broker level :- status-core/ServiceStatusDetailLevel]
-  (let [{:keys [metrics-registry]} broker
+  (let [{:keys [state metrics-registry]} broker
         level>= (partial status-core/compare-levels >= level)]
-  {:state :running
+  {:state @state
    :status (cond-> {}
 
              (level>= :info)
