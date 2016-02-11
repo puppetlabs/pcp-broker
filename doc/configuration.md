@@ -68,6 +68,8 @@ The brokers protocol handlers and the status service will need to be mounted usi
 [webrouting](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9/blob/master/doc/webrouting-config.md)
 configuration.
 
+The vNext webroute is optional, and not reccomended for production deployments.
+
 ```
 web-router-service: {
     "puppetlabs.trapperkeeper.services.status.status-service/status-service": "/status"

@@ -9,7 +9,7 @@
 (trapperkeeper/defservice broker-service
   [[:AuthorizationService authorization-check]
    [:ConfigService get-in-config]
-   [:WebroutingService add-websocket-handler get-server]
+   [:WebroutingService add-websocket-handler get-server get-route]
    [:MetricsService get-metrics-registry]
    [:StatusService register-status]]
   (init [this context]
@@ -29,6 +29,7 @@
                                          :find-clients   (partial find-clients inventory)
                                          :authorization-check authorization-check
                                          :get-metrics-registry get-metrics-registry
+                                         :get-route (partial get-route this)
                                          :ssl-cert ssl-cert})]
       (register-status "broker-service"
                        (status-core/get-artifact-version "puppetlabs" "pcp-broker")
