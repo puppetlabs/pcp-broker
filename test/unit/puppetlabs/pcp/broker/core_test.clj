@@ -24,7 +24,8 @@
                 :metrics-registry   metrics.core/default-registry
                 :metrics            {}
                 :transitions        {}
-                :broker-cn          "broker.example.com"}
+                :broker-cn          "broker.example.com"
+                :state              (atom :running)}
         metrics (build-and-register-metrics broker)
         broker (assoc broker :metrics metrics)]
     broker))
