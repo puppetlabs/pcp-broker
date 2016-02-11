@@ -46,7 +46,8 @@
 
    :pcp-broker {:broker-spool "test-resources/tmp/spool"
                 :accept-consumers 2
-                :delivery-consumers 2}})
+                :delivery-consumers 2
+                :protocol-next true}})
 
 (def protocol-versions
   "The short names of protocol versions"

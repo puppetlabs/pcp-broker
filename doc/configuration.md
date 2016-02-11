@@ -73,6 +73,7 @@ web-router-service: {
     "puppetlabs.trapperkeeper.services.status.status-service/status-service": "/status"
     "puppetlabs.pcp.broker.service/broker-service": {
        v1: "/pcp"
+       # vNext endpoint will need to be enabled with pcp-broker.protocol-vnext property
        vNext: "/pcp/vNext"
     }
 }
@@ -92,5 +93,8 @@ pcp-broker: {
 
     ## Number of consumers for the delivery queue.  Default is 16
     # delivery-consumers = 16
+
+    ## Enable the vNext protocol (needs corresponding webroute).  Default is false
+    # protocol-vnext = false
 }
 ```
