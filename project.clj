@@ -1,5 +1,5 @@
-(def tk-version "1.1.1")
-(def ks-version "1.1.0")
+(def tk-version "1.3.0")
+(def ks-version "1.3.0")
 
 (defproject puppetlabs/pcp-broker "0.6.2-SNAPSHOT"
   :description "PCP fabric messaging broker"
@@ -41,14 +41,18 @@
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/trapperkeeper-authorization "0.1.5"]
                  [puppetlabs/trapperkeeper-metrics "0.1.1"]
-                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.0"]
+                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.2"]
                  [puppetlabs/trapperkeeper-status "0.2.1"]
 
                  ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
                  [puppetlabs/structured-logging "0.1.0" :exclusions [org.clojure/clojure]]
 
                  [cheshire "5.5.0"]
-                 [prismatic/schema "0.4.3"]
+
+                 ;; Transitive dependency for:
+                 ;;   nippy
+                 ;;   org.clojure/tools.analyzer.jvm via org.clojure/core.async via puppetlabs/trapperkeeper
+                 [org.clojure/tools.reader "1.0.0-alpha1"]
 
                  [com.taoensso/nippy "2.9.0"]
 
@@ -85,11 +89,9 @@
                                   ;; want some fixes to websocket handling that are in later .x releases
                                   [io.netty/netty "3.9.9.Final"]
                                   [http.async.client "0.6.1" :exclusions [org.clojure/clojure]]
-                                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                                   [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
                                   [puppetlabs/ssl-utils "0.8.1"]
-                                  [me.raynes/fs "1.4.5"]
                                   [org.clojure/tools.namespace "0.2.4"]
                                   ;; Transitive dependency for lein-cloverage and puppetlabs/kitchensink
                                   [org.clojure/tools.cli "0.3.0"]]
