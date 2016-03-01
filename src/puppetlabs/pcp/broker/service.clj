@@ -17,6 +17,7 @@
     (let [activemq-spool     (get-in-config [:pcp-broker :broker-spool])
           accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
           delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
+          protocol-next      (get-in-config [:pcp-broker :protocol-next] false)
           inventory          (make-inventory)
           ssl-cert           (if-let [server (get-server this :v1)]
                                (get-in-config [:webserver (keyword server) :ssl-cert])
@@ -29,6 +30,7 @@
                                          :find-clients   (partial find-clients inventory)
                                          :authorization-check authorization-check
                                          :get-metrics-registry get-metrics-registry
+                                         :protocol-next protocol-next
                                          :ssl-cert ssl-cert})]
       (register-status "broker-service"
                        (status-core/get-artifact-version "puppetlabs" "pcp-broker")

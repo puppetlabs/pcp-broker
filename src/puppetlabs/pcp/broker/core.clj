@@ -506,6 +506,7 @@
    :find-clients IFn
    :authorization-check IFn
    :get-metrics-registry IFn
+   :protocol-next s/Bool
    :ssl-cert s/Str})
 
 (s/def default-codec :- Codec
@@ -528,6 +529,7 @@
   (let [{:keys [path activemq-spool accept-consumers delivery-consumers
                 add-websocket-handler
                 record-client find-clients authorization-check
+                protocol-next
                 get-metrics-registry ssl-cert]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
           broker             {:activemq-broker    activemq-broker
@@ -548,7 +550,8 @@
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
       (add-websocket-handler (build-websocket-handlers broker v1-codec) {:route-id :v1})
-      (add-websocket-handler (build-websocket-handlers broker default-codec) {:route-id :vNext})
+      (when protocol-next
+        (add-websocket-handler (build-websocket-handlers broker default-codec) {:route-id :vNext}))
       broker)))
 
 (s/defn ^:always-validate start
