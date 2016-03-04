@@ -15,7 +15,8 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
-             :refer [with-test-logging with-test-logging-debug]]))
+             :refer [with-test-logging with-test-logging-debug]]
+            [slingshot.slingshot :refer [throw+ try+]]))
 
 (def broker-config
   "A broker with ssl and own spool"
@@ -91,6 +92,67 @@
         (is (contains? #{ 4003 1006 }
                        (deref closed (* 2 1000) false))
             "Disconnected due to no client certificate")))))
+
+(defn connect-and-close
+  "Connect to the broker, wait up to delay ms after connecting
+  to see if the broker will close the connection.
+  Returns the close code or :refused if the connection was refused"
+  [delay]
+  (let [close-code (promise)
+        connected (promise)]
+    (try+
+     (with-open [client (client/http-client-with-cert "client01.example.com")
+                 ws (http/websocket client
+                                    "wss://127.0.0.1:8143/pcp/vNext"
+                                    :open (fn [ws] (deliver connected true))
+                                    :close (fn [ws code reason]
+                                             (deliver connected false)
+                                             (deliver close-code code)))]
+       (deref connected)
+       ;; We were connected, sleep a while to see if the broker
+       ;; disconnects the client.
+       (deref close-code delay nil))
+     (catch Object _
+       (deliver close-code :refused)))
+    @close-code))
+
+(defn conj-unique
+  "append elem if it is distinct from the last element in the sequence.
+  When we port to clojure 1.7 we should be able to use `distinct` on the
+  resulting sequence instead of using this on insert."
+  [seq elem]
+  (if (= (last seq) elem) seq (conj seq elem)))
+
+(deftest it-closes-connections-when-not-running-test
+  ;; NOTE(richardc): This test is racy.  What we do is we start
+  ;; and stop a broker in an future so we can try to connect to it
+  ;; while the trapperkeeper services are still starting up.
+  (let [broker (future (Thread/sleep 200)
+                       (with-app-with-config app broker-services broker-config
+                         ;; Sleep here so the client can fully connect to the broker.
+                         (Thread/sleep 1000)))
+        close-codes (atom [])]
+    (while (not (future-done? broker))
+      (let [code (connect-and-close 40)]
+        (if-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
+          (swap! close-codes conj-unique code))))
+    (swap! close-codes conj-unique :refused)
+    ;; We expect the following sequence for close codes:
+    ;;    :refused (connection refused)
+    ;;    1011     (broker not started)
+    ;;    1000     (closed because client initated it)
+    ;;    1011     (broker stopping)
+    ;;    :refused (connection refused)
+    ;; though as some of these states may be missed due to timing we test for
+    ;; membership of the set of valid sequences.  If we have more
+    ;; tests like this it might be worth using ztellman/automat to
+    ;; match with a FSM rather than hand-generation of cases.
+    (is (contains? #{[:refused 1011 1000 1011 :refused]
+                     [:refused 1011 1000 :refused]
+                     [:refused 1000 1011 :refused]
+                     [:refused 1000 :refused]
+                     [:refused]}
+                   @close-codes))))
 
 (deftest poorly-encoded-message-test
   (with-app-with-config app broker-services broker-config
