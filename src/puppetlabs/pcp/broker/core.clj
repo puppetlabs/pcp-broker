@@ -364,20 +364,22 @@
   "OnConnect websocket event handler"
   [broker codec ws]
   (time! (:on-connect (:metrics broker))
-         (let [connection (add-connection! broker ws codec)
-               {:keys [common-name]} connection
-               idle-timeout (* 1000 60 15)]
-           (if (nil? common-name)
-             (do
-               (sl/maplog :debug (assoc (connection/summarize connection)
-                                        :type :connection-no-peer-certificate)
-                          "No client certificate, closing {remoteaddress}")
-               (websockets-client/close! ws 4003 "No client certificate"))
-             (do
-               (websockets-client/idle-timeout! ws idle-timeout)
-               (sl/maplog :debug (assoc (connection/summarize connection)
-                                        :type :connection-open)
-                          "client {commonname} connected from {remoteaddress}"))))))
+         (if-not (= :running @(:state broker))
+           (websockets-client/close! ws 1011 "Broker is not running")
+           (let [connection (add-connection! broker ws codec)
+                 {:keys [common-name]} connection
+                 idle-timeout (* 1000 60 15)]
+             (if (nil? common-name)
+               (do
+                 (sl/maplog :debug (assoc (connection/summarize connection)
+                                          :type :connection-no-peer-certificate)
+                            "No client certificate, closing {remoteaddress}")
+                 (websockets-client/close! ws 4003 "No client certificate"))
+               (do
+                 (websockets-client/idle-timeout! ws idle-timeout)
+                 (sl/maplog :debug (assoc (connection/summarize connection)
+                                          :type :connection-open)
+                            "client {commonname} connected from {remoteaddress}")))))))
 
 (s/defn ^:always-validate connection-open :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
@@ -431,11 +433,13 @@
 (defn on-message!
   [broker ws bytes]
   (time! (:on-message (:metrics broker))
-         (let [connection (get-connection broker ws)
-               decode (get-in connection [:codec :decode])]
-           (try+
-             (let [message (decode bytes)]
-               (try+
+         (if-not (= :running @(:state broker))
+           (websockets-client/close! ws 1011 "Broker is not running")
+           (let [connection (get-connection broker ws)
+                 decode (get-in connection [:codec :decode])]
+             (try+
+              (let [message (decode bytes)]
+                (try+
                  (if-not (check-sender-matches message connection)
                    ;; TODO(richardc): When we have the message type for
                    ;; 'authorization_denied' use this instead of
@@ -453,10 +457,10 @@
                  (catch map? m
                    ;; This is a processing error, say an uncaught exception in any of the stuff we meant to do
                    (send-error-message message (str "Error " (:type m) " handling message: " (:message &throw-context)) connection))))
-             (catch map? m
-               ;; TODO(richardc): this could use a different message_type to
-               ;; indicate an encoding error rather than a processing error
-               (send-error-message nil "Could not decode message" connection))))))
+              (catch map? m
+                ;; TODO(richardc): this could use a different message_type to
+                ;; indicate an encoding error rather than a processing error
+                (send-error-message nil "Could not decode message" connection)))))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"
