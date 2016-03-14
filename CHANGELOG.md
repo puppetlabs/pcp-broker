@@ -1,3 +1,44 @@
+## 0.7.0
+
+This is an improvement and bugfix release
+
+* [PCP-146](https://tickets.puppetlabs.com/browse/PCP-146) Added cloverage
+  targets to enable us to see where test coverage is lacking.
+* [PCP-147](https://tickets.puppetlabs.com/browse/PCP-147) Extended unit test
+  coverage.
+* [PCP-193](https://tickets.puppetlabs.com/browse/PCP-193) Removed old
+  status webroute in preference to using trapperkeeper-status.  To migrate:
+ * Add
+   `puppetlabs.trapperkeeper.services.status.status-service/status-service`
+   to your `bootstrap.cfg`.
+ * Mount
+   `puppetlabs.trapperkeeper.services.status.status-service/status-service`
+   via your web-routing configuration.
+* [PCP-199](https://tickets.puppetlabs.com/browse/PCP-199) Renamed
+  `:websocket` webroute to `:v1`.
+* [PCP-234](https://tickets.puppetlabs.com/browse/PCP-234) Added
+  additional test certificates.
+* [PCP-222](https://tickets.puppetlabs.com/browse/PCP-222) Fixed sort
+  order of default package-supplied authorisation rule.
+* [PCP-194](https://tickets.puppetlabs.com/browse/PCP-194)
+  Reimplemented internal Capsule and Connection types to use a
+  defrecord rather than just a map schema.
+* [PCP-195](https://tickets.puppetlabs.com/browse/PCP-195) Added
+  `in-reply-to` as an envelope property consistently.
+* [PCP-250](https://tickets.puppetlabs.com/browse/PCP-250) Added
+  `:vNext` webroute where developing protocol changes (such as
+  PCP-195) can be staged.
+* [PCP-295](https://tickets.puppetlabs.com/browse/PCP-295) Fixed
+  status callback registered with trapperkeeper-status.
+* [PCP-301](https://tickets.puppetlabs.com/browse/PCP-301) Updated
+  trapperkeeper dependency to version that supports HUP behaviour.
+* [PCP-292](https://tickets.puppetlabs.com/browse/PCP-292) Changed
+  `:vNext` webroute so it is only mounted when named in a web-routing
+  configuration.
+* [PCP-294](https://tickets.puppetlabs.com/browse/PCP-294) Close
+  connections when the broker is not in a running state.
+
+
 ## 0.6.1
 
 This is a bugfix release
