@@ -235,6 +235,11 @@
                              :message_type "http://puppetlabs.com/associate_request"))]
       (is (= false (session-association-message? message))))))
 
+(defn association-capsule
+  [sender seconds]
+  (capsule/wrap (-> (message/make-message :sender sender)
+                    (message/set-expiry seconds :seconds))))
+
 (deftest reason-to-deny-association-test
   (let [broker     (make-test-broker)
         connection (connection/make-connection "websocket" identity-codec)
@@ -251,9 +256,9 @@
   (let [closed (atom (promise))]
     (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
                   puppetlabs.experimental.websockets.client/send! (constantly false)]
-      (let [message (-> (message/make-message)
-                        (assoc  :sender "pcp://localhost/controller"
-                                :message_type "http://puppetlabs.com/login_message"))
+      (let [message (-> (message/make-message :sender "pcp://localhost/controller"
+                                              :message_type "http://puppetlabs.com/login_message")
+                        (message/set-expiry 3 :seconds))
             capsule (capsule/wrap message)]
         (testing "It should return an associated session"
           (reset! closed (promise))

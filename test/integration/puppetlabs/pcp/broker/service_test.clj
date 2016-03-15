@@ -171,7 +171,7 @@
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
       (with-open [client (client/connect :certname "client01.example.com"
-                                         :identity "pcp://client02.example.com/test"
+                                         :uri "pcp://client02.example.com/test"
                                          :check-association false
                                          :version version)]
         (let [response (client/recv! client)]
@@ -187,6 +187,16 @@
     (dotestseq [version protocol-versions]
       (with-open [client (client/connect :certname "client01.example.com"
                                          :version version)]))))
+
+(deftest expired-session-association-test
+  (with-app-with-config app broker-services broker-config
+    (dotestseq [version protocol-versions]
+      (with-open [client (client/connect :certname "client01.example.com"
+                                         :modify-association #(message/set-expiry % -1 :seconds)
+                                         :check-association false
+                                         :version version)]
+        (let [response (client/recv! client)]
+          (is (= "http://puppetlabs.com/ttl_expired" (:message_type response))))))))
 
 (deftest second-association-new-connection-closes-first-test
   (with-app-with-config app broker-services broker-config
