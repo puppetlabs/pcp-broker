@@ -342,7 +342,8 @@
 
 (deftest connection-associated-test
   (let [broker (make-test-broker)
-        message (message/make-message :message_type "http://puppetlabs.com/associate_request")
+        message (-> (message/make-message :message_type "http://puppetlabs.com/associate_request")
+                    (message/set-expiry 3 :seconds))
         capsule (capsule/wrap message)
         connection (connection/make-connection "ws1" identity-codec)
         accepted (atom nil)]

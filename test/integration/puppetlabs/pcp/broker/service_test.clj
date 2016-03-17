@@ -353,6 +353,19 @@
             ;; Should get no message
             (is (= nil response))))))))
 
+(deftest send-expired-test
+  (with-app-with-config app broker-services broker-config
+    (dotestseq [version protocol-versions]
+      (with-open [client (client/connect :certname "client01.example.com"
+                                         :version version)]
+        (let [message (-> (message/make-message :sender "pcp://client01.example.com/test"
+                                                :targets ["pcp://client01.example.com/test"]
+                                                :message_type "greeting")
+                          (message/set-expiry -1 :seconds))]
+          (client/send! client message)
+          (let [response (client/recv! client)]
+            (is (= "http://puppetlabs.com/ttl_expired" (:message_type response)))))))))
+
 (deftest send-expired-explicit-gets-expiry-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
@@ -415,16 +428,18 @@
                   client02 (client/connect :certname "client02.example.com"
                                            :version version)]
         (testing "client01 -> client02 should work"
-          (let [message (message/make-message :sender "pcp://client01.example.com/test"
-                                              :message_type "test/sensitive"
-                                              :targets ["pcp://client02.example.com/test"])]
+          (let [message (-> (message/make-message :sender "pcp://client01.example.com/test"
+                                                  :message_type "test/sensitive"
+                                                  :targets ["pcp://client02.example.com/test"])
+                            (message/set-expiry 3 :seconds))]
             (client/send! client01 message)
             (let [received (client/recv! client02)]
               (is (= (:id message) (:id received))))))
         (testing "client02 -> client01 should not work"
-          (let [message (message/make-message :sender "pcp://client02.example.com/test"
-                                              :message_type "test/sensitive"
-                                              :targets ["pcp://client01.example.com/test"])]
+          (let [message (-> (message/make-message :sender "pcp://client02.example.com/test"
+                                                  :message_type "test/sensitive"
+                                                  :targets ["pcp://client01.example.com/test"])
+                            (message/set-expiry 3 :seconds))]
             (client/send! client02 message)
             (let [received (client/recv! client01)]
               (is (= nil received)))))))))

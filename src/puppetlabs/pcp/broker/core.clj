@@ -405,12 +405,16 @@
 
 (s/defn ^:always-validate connection-associated :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
-  (let [targets (get-in capsule [:message :targets])]
-    (if (= ["pcp:///server"] targets)
-      (process-server-message broker capsule connection)
-      (do
-        (accept-message-for-delivery broker capsule)
-        connection))))
+  (if (capsule/expired? capsule)
+    (do
+      (process-expired-message broker capsule)
+      connection)
+    (let [targets (get-in capsule [:message :targets])]
+      (if (= ["pcp:///server"] targets)
+        (process-server-message broker capsule connection)
+        (do
+          (accept-message-for-delivery broker capsule)
+          connection)))))
 
 (s/defn ^:always-validate determine-next-state :- Connection
   "Determine the next state for a connection given a capsule and some transitions"
