@@ -366,7 +366,7 @@
           (let [response (client/recv! client)]
             (is (= "http://puppetlabs.com/ttl_expired" (:message_type response)))))))))
 
-(deftest send-expired-explicit-gets-expiry-test
+(deftest send-to-never-connected-will-get-expired-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
       (with-open [client (client/connect :certname "client01.example.com"

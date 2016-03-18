@@ -116,7 +116,8 @@
 
 (deftest deliver-message-test
   (let [broker (make-test-broker)
-        message (message/make-message)
+        message (-> (message/make-message)
+                    (message/set-expiry 3 :seconds))
         capsule (assoc (capsule/wrap message) :target "pcp://example01.example.com/foo")
         failure (atom nil)]
     (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure (fn [broker capsule message]
