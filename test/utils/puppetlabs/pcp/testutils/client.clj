@@ -48,11 +48,12 @@
 
 (defn connect
   "Makes a client for testing"
-  [& {:keys [certname identity version check-association]
-      :or {check-association true
+  [& {:keys [certname uri version modify-association check-association]
+      :or {modify-association identity
+           check-association true
            version "vNext"}}]
-  (let [identity            (or identity (str "pcp://" certname "/test"))
-        association-request (make-association-request identity)
+  (let [uri                 (or uri (str "pcp://" certname "/test"))
+        association-request (modify-association (make-association-request uri))
         client              (http-client-with-cert certname)
         message-chan        (chan)
         ws                  (http/websocket client (str "wss://127.0.0.1:8143/pcp/" version)

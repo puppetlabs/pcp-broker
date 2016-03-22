@@ -141,8 +141,23 @@
              (activemq/queue-message accept-queue capsule))))
   capsule)
 
+(s/defn ^:always-validate make-ttl_expired-message :- Message
+  "Returns the ttl_expired message advising about the expiry of the given message"
+  [message :- Message]
+  (let [sender (:sender message)
+        in-reply-to (:id message)
+        response_data (->> {:id in-reply-to}
+                           (s/validate p/TTLExpiredMessage))
+        response (-> (message/make-message :message_type "http://puppetlabs.com/ttl_expired"
+                                           :targets [sender]
+                                           :sender "pcp:///server"
+                                           :in-reply-to in-reply-to)
+                     (message/set-expiry 3 :seconds)
+                     (message/set-json-data response_data))]
+    response))
+
 (s/defn ^:always-validate process-expired-message :- Capsule
-  "Reply with a ttl_expired message to the original message sender"
+  "Enqueue a ttl_expired message to the original message sender"
   [broker :- Broker capsule :- Capsule]
   (sl/maplog :trace (assoc (capsule/summarize capsule)
                            :type :message-expired)
@@ -154,16 +169,7 @@
         (sl/maplog :trace {:type :message-expired-from-server}
                    "Server generated message expired.  Dropping")
         capsule)
-      (let [in-reply-to (:id message)
-            response_data {:id in-reply-to}
-            response (-> (message/make-message :message_type "http://puppetlabs.com/ttl_expired"
-                                               :targets [sender]
-                                               :sender "pcp:///server"
-                                               :in-reply-to in-reply-to)
-                         (message/set-expiry 3 :seconds)
-                         (message/set-json-data response_data))]
-        (s/validate p/TTLExpiredMessage response_data)
-        (accept-message-for-delivery broker (capsule/wrap response))))))
+      (accept-message-for-delivery broker (capsule/wrap (make-ttl_expired-message message))))))
 
 (s/defn ^:always-validate retry-delay :- s/Num
   "Compute the delay we should pause for before retrying the delivery of this Capsule"
@@ -217,24 +223,26 @@
 (s/defn ^:always-validate deliver-message
   "Message consumer. Delivers a message to the websocket indicated by the :target field"
   [broker :- Broker capsule :- Capsule]
-  (if-let [websocket (get-websocket broker (:target capsule))]
-    (try
-      (let [connection (get-connection broker websocket)
-            encode (get-in connection [:codec :encode])]
-        (sl/maplog :debug (merge (capsule/summarize capsule)
-                                 (connection/summarize connection)
-                                 {:type :message-delivery})
-                   "Delivering {messageid} for {destination} to {commonname} at {remoteaddress}")
-        (locking websocket
-          (time! (:on-send (:metrics broker))
-                 (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
-                   (websockets-client/send! websocket (encode (capsule/encode capsule)))))))
-      (catch Exception e
-        (sl/maplog :error e
-                   {:type :message-delivery-error}
-                   "Error in deliver-message")
-        (handle-delivery-failure broker capsule (str e))))
-    (handle-delivery-failure broker capsule "not connected")))
+  (if (capsule/expired? capsule)
+    (process-expired-message broker capsule)
+    (if-let [websocket (get-websocket broker (:target capsule))]
+      (try
+        (let [connection (get-connection broker websocket)
+              encode (get-in connection [:codec :encode])]
+          (sl/maplog :debug (merge (capsule/summarize capsule)
+                                   (connection/summarize connection)
+                                   {:type :message-delivery})
+                     "Delivering {messageid} for {destination} to {commonname} at {remoteaddress}")
+          (locking websocket
+            (time! (:on-send (:metrics broker))
+                   (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
+                     (websockets-client/send! websocket (encode (capsule/encode capsule)))))))
+        (catch Exception e
+          (sl/maplog :error e
+                     {:type :message-delivery-error}
+                     "Error in deliver-message")
+          (handle-delivery-failure broker capsule (str e))))
+      (handle-delivery-failure broker capsule "not connected"))))
 
 (s/defn ^:always-validate expand-destinations
   "Message consumer.  Takes a message from the accept queue, expands
@@ -285,39 +293,43 @@
 (s/defn ^:always-validate process-associate-message :- Connection
   "Process a session association message on a websocket"
   [broker :- Broker capsule :- Capsule connection :- Connection]
-  (let [request  (:message capsule)
-        id       (:id request)
-        uri      (:sender request)
-        ws       (:websocket connection)
-        encode (get-in connection [:codec :encode])
-        reason   (reason-to-deny-association broker connection uri)
-        response (if reason {:id id :success false :reason reason} {:id id :success true})]
-    (s/validate p/AssociateResponse response)
-    (let [message (-> (message/make-message :message_type "http://puppetlabs.com/associate_response"
-                                            :targets [uri]
-                                            :in-reply-to id
-                                            :sender "pcp:///server")
-                      (message/set-expiry 3 :seconds)
-                      (message/set-json-data response))]
-      (websockets-client/send! ws (encode message)))
-    (if reason
-      (do
-        (websockets-client/close! ws 4002 "association unsuccessful")
-        connection)
-      (let [{:keys [uri-map record-client]} broker]
-        (when-let [old-ws (get-websocket broker uri)]
-          (let [connections (:connections broker)]
-            (sl/maplog :debug (assoc (connection/summarize connection)
-                                     :uri uri
-                                     :type :connection-association-failed)
-                       "Node with uri {uri} already associated with connection {commonname} {remoteaddress}")
-            (websockets-client/close! old-ws 4000 "superceded")
-            (swap! connections dissoc old-ws)))
-        (swap! uri-map assoc uri ws)
-        (record-client uri)
-        (assoc connection
-               :uri uri
-               :state :associated)))))
+    (let [request (:message capsule)
+          id (:id request)
+          ws (:websocket connection)
+          encode (get-in connection [:codec :encode])]
+      (if (capsule/expired? capsule)
+        (let [response (make-ttl_expired-message request)]
+          (websockets-client/send! ws (encode response))
+          connection)
+        (let [uri (:sender request)
+              reason (reason-to-deny-association broker connection uri)
+              response (if reason {:id id :success false :reason reason} {:id id :success true})]
+          (s/validate p/AssociateResponse response)
+          (let [message (-> (message/make-message :message_type "http://puppetlabs.com/associate_response"
+                                                  :targets [uri]
+                                                  :in-reply-to id
+                                                  :sender "pcp:///server")
+                            (message/set-expiry 3 :seconds)
+                            (message/set-json-data response))]
+            (websockets-client/send! ws (encode message)))
+          (if reason
+            (do
+              (websockets-client/close! ws 4002 "association unsuccessful")
+              connection)
+            (let [{:keys [uri-map record-client]} broker]
+              (when-let [old-ws (get-websocket broker uri)]
+                (let [connections (:connections broker)]
+                  (sl/maplog :debug (assoc (connection/summarize connection)
+                                           :uri uri
+                                           :type :connection-association-failed)
+                             "Node with uri {uri} already associated with connection {commonname} {remoteaddress}")
+                  (websockets-client/close! old-ws 4000 "superceded")
+                  (swap! connections dissoc old-ws)))
+              (swap! uri-map assoc uri ws)
+              (record-client uri)
+              (assoc connection
+                     :uri uri
+                     :state :associated)))))))
 
 (s/defn ^:always-validate process-inventory-message :- Connection
   "Process a request for inventory data"
@@ -395,12 +407,16 @@
 
 (s/defn ^:always-validate connection-associated :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
-  (let [targets (get-in capsule [:message :targets])]
-    (if (= ["pcp:///server"] targets)
-      (process-server-message broker capsule connection)
-      (do
-        (accept-message-for-delivery broker capsule)
-        connection))))
+  (if (capsule/expired? capsule)
+    (do
+      (process-expired-message broker capsule)
+      connection)
+    (let [targets (get-in capsule [:message :targets])]
+      (if (= ["pcp:///server"] targets)
+        (process-server-message broker capsule connection)
+        (do
+          (accept-message-for-delivery broker capsule)
+          connection)))))
 
 (s/defn ^:always-validate determine-next-state :- Connection
   "Determine the next state for a connection given a capsule and some transitions"
