@@ -27,3 +27,15 @@ Look [here](doc/).
 
 We use the [Puppet Communications Protocol project on JIRA](https://tickets.puppetlabs.com/browse/PCP)
 with the component `pcp-broker` for tickets on `puppetlabs/pcp-broker`.
+
+## Maintenance
+
+Maintainers: Alessandro Parisi <alessandro@puppet.com>, Michael Smith
+<michael.smith@puppet.com>, Michal Ruzicka <michal.ruzicka@puppet.com>.
+
+Contributing: Please refer to [this][contributing] document.
+
+Tickets: File bug tickets at https://tickets.puppet.com/browse/PCP and add the
+`pcp-broker` component to the ticket.
+
+[contributing]: CONTRIBUTING.md
