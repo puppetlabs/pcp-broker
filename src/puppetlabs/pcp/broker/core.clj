@@ -18,7 +18,8 @@
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
             [schema.core :as s]
-            [slingshot.slingshot :refer [throw+ try+]])
+            [slingshot.slingshot :refer [throw+ try+]]
+            [puppetlabs.i18n.core :as i18n])
   (:import (puppetlabs.pcp.broker.capsule Capsule)
            (puppetlabs.pcp.broker.connection Connection)
            (clojure.lang IFn Atom)))
@@ -128,7 +129,7 @@
                                :type :message-authorization
                                :allowed allowed
                                :message message)
-                 "Authorizing {messageid} for {destination} - {allowed}: {message}")
+                 (i18n/trs "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"))
       allowed)))
 
 ;; message lifecycle
@@ -161,13 +162,13 @@
   [broker :- Broker capsule :- Capsule]
   (sl/maplog :trace (assoc (capsule/summarize capsule)
                            :type :message-expired)
-             "Message {messageid} for {destination} has expired. Sending a ttl_expired.")
+             (i18n/trs "Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."))
   (let [message (:message capsule)
         sender  (:sender message)]
     (if (= "pcp:///server" sender)
       (do
         (sl/maplog :trace {:type :message-expired-from-server}
-                   "Server generated message expired.  Dropping")
+                   (i18n/trs "Server generated message expired.  Dropping"))
         capsule)
       (accept-message-for-delivery broker (capsule/wrap (make-ttl_expired-message message))))))
 
@@ -190,7 +191,7 @@
   (sl/maplog :trace (assoc (capsule/summarize capsule)
                            :type :message-delivery-failure
                            :reason reason)
-             "Failed to deliver {messageid} for {destination}: {reason}")
+             (i18n/trs "Failed to deliver '{messageid}' for '{destination}': '{reason}'"))
   (let [expires (:expires capsule)
         now     (time/now)]
     (if (time/after? expires now)
@@ -199,7 +200,7 @@
         (sl/maplog :trace (assoc (capsule/summarize capsule)
                                  :type :message-redelivery
                                  :delay retry-delay)
-                   "Scheduling message {messageid} to be delivered in {delay} seconds")
+                   (i18n/trs "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"))
         (time! (:message-queueing (:metrics broker))
                (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))
       (process-expired-message broker capsule))))
@@ -232,7 +233,7 @@
           (sl/maplog :debug (merge (capsule/summarize capsule)
                                    (connection/summarize connection)
                                    {:type :message-delivery})
-                     "Delivering {messageid} for {destination} to {commonname} at {remoteaddress}")
+                     (i18n/trs "Delivering '{messageid}' for '{destination}' to '{commonname}' at '{remoteaddress}'"))
           (locking websocket
             (time! (:on-send (:metrics broker))
                    (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
@@ -240,9 +241,9 @@
         (catch Exception e
           (sl/maplog :error e
                      {:type :message-delivery-error}
-                     "Error in deliver-message")
+                     (i18n/trs "Error in deliver-message"))
           (handle-delivery-failure broker capsule (str e))))
-      (handle-delivery-failure broker capsule "not connected"))))
+      (handle-delivery-failure broker capsule (i18n/trs "not connected")))))
 
 (s/defn ^:always-validate expand-destinations
   "Message consumer.  Takes a message from the accept queue, expands
@@ -279,7 +280,7 @@
   (let [[_ type] (p/explode-uri as)]
     (cond
       (= type "server")
-      "'server' type connections not accepted"
+      (i18n/trs "''server'' type connections not accepted")
 
       (= :associated (:state connection))
       (let [{:keys [uri]} connection]
@@ -287,8 +288,8 @@
                                  :uri as
                                  :existinguri uri
                                  :type :connection-already-associated)
-                   "Received session association for {uri} from {commonname} {remoteaddress}.  Session was already associated as {existinguri}")
-        "session already associated"))))
+                   (i18n/trs "Received session association for '{uri}' from '{commonname}' '{remoteaddress}'.  Session was already associated as '{existinguri}'"))
+        (i18n/trs "session already associated")))))
 
 (s/defn ^:always-validate process-associate-message :- Connection
   "Process a session association message on a websocket"
@@ -314,7 +315,7 @@
             (websockets-client/send! ws (encode message)))
           (if reason
             (do
-              (websockets-client/close! ws 4002 "association unsuccessful")
+              (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful"))
               connection)
             (let [{:keys [uri-map record-client]} broker]
               (when-let [old-ws (get-websocket broker uri)]
@@ -322,8 +323,8 @@
                   (sl/maplog :debug (assoc (connection/summarize connection)
                                            :uri uri
                                            :type :connection-association-failed)
-                             "Node with uri {uri} already associated with connection {commonname} {remoteaddress}")
-                  (websockets-client/close! old-ws 4000 "superceded")
+                             (i18n/trs "Node with uri '{uri}' already associated with connection '{commonname}' '{remoteaddress}'"))
+                  (websockets-client/close! old-ws 4000 (i18n/trs "superceded"))
                   (swap! connections dissoc old-ws)))
               (swap! uri-map assoc uri ws)
               (record-client uri)
@@ -360,7 +361,7 @@
         (sl/maplog :debug (assoc (connection/summarize connection)
                                  :messagetype message-type
                                  :type :broker-unhandled-message)
-                   "Unhandled message type {messagetype} received from {commonname} {remoteaddr}")))))
+                   (i18n/trs "Unhandled message type '{messagetype}' received from '{commonname}' '{remoteaddr}'"))))))
 
 (s/defn ^:always-validate check-sender-matches :- s/Bool
   "Validate that the cert name advertised by the sender matches the cert name in the certificate"
@@ -377,7 +378,7 @@
   [broker codec ws]
   (time! (:on-connect (:metrics broker))
          (if-not (= :running @(:state broker))
-           (websockets-client/close! ws 1011 "Broker is not running")
+           (websockets-client/close! ws 1011 (i18n/trs "Broker is not running"))
            (let [connection (add-connection! broker ws codec)
                  {:keys [common-name]} connection
                  idle-timeout (* 1000 60 15)]
@@ -385,13 +386,13 @@
                (do
                  (sl/maplog :debug (assoc (connection/summarize connection)
                                           :type :connection-no-peer-certificate)
-                            "No client certificate, closing {remoteaddress}")
-                 (websockets-client/close! ws 4003 "No client certificate"))
+                            (i18n/trs "No client certificate, closing '{remoteaddress}'"))
+                 (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
                (do
                  (websockets-client/idle-timeout! ws idle-timeout)
                  (sl/maplog :debug (assoc (connection/summarize connection)
                                           :type :connection-open)
-                            "client {commonname} connected from {remoteaddress}")))))))
+                            (i18n/trs "client '{commonname}' connected from '{remoteaddress}'"))))))))
 
 (s/defn ^:always-validate connection-open :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
@@ -402,7 +403,7 @@
         (sl/maplog :warn (merge (connection/summarize connection)
                                 (capsule/summarize capsule)
                                 {:type :connection-message-before-association})
-                   "client {commonname} from {remoteaddress}: cannot accept messages until session has been associated.  Dropping message.")
+                   (i18n/trs "client '{commonname}' from '{remoteaddress}': cannot accept messages until session has been associated.  Dropping message."))
         connection))))
 
 (s/defn ^:always-validate connection-associated :- Connection
@@ -428,7 +429,7 @@
       (do
         (sl/maplog :error {:type :broker-state-transition-unknown
                            :state state}
-                   "Cannot find transition for state {state}")
+                   (i18n/trs "Cannot find transition for state '{state}'"))
         connection))))
 
 (s/defn send-error-message
@@ -450,7 +451,7 @@
   [broker ws bytes]
   (time! (:on-message (:metrics broker))
          (if-not (= :running @(:state broker))
-           (websockets-client/close! ws 1011 "Broker is not running")
+           (websockets-client/close! ws 1011 (i18n/trs "Broker is not running"))
            (let [connection (get-connection broker ws)
                  decode (get-in connection [:codec :decode])]
              (try+
@@ -460,23 +461,23 @@
                    ;; TODO(richardc): When we have the message type for
                    ;; 'authorization_denied' use this instead of
                    ;; error_message
-                   (send-error-message message "Message not authorized" connection)
+                   (send-error-message message (i18n/trs "Message not authorized") connection)
                    (let [uri (broker-uri broker)
                          capsule (capsule/wrap message)
                          capsule (capsule/add-hop capsule uri "accepted")]
                      (sl/maplog :trace (merge (connection/summarize connection)
                                               (capsule/summarize capsule)
                                               {:type :connection-message})
-                                "Message {messageid} for {destination} from {commonname} {remoteaddress}")
+                                (i18n/trs "Message '{messageid}' for '{destination}' from '{commonname}' '{remoteaddress}'"))
                      (->> (determine-next-state broker capsule connection)
                           (swap! (:connections broker) assoc ws))))
                  (catch map? m
                    ;; This is a processing error, say an uncaught exception in any of the stuff we meant to do
-                   (send-error-message message (str "Error " (:type m) " handling message: " (:message &throw-context)) connection))))
+                   (send-error-message message (i18n/trs "Error {0} handling message: {1}" (:type m) (:message &throw-context)) connection))))
               (catch map? m
                 ;; TODO(richardc): this could use a different message_type to
                 ;; indicate an encoding error rather than a processing error
-                (send-error-message nil "Could not decode message" connection)))))))
+                (send-error-message nil (i18n/trs "Could not decode message") connection)))))))
 
 (defn- on-text!
   "OnMessage (text) websocket event handler"
@@ -494,7 +495,7 @@
   (let [connection (get-connection broker ws)]
     (sl/maplog :error e (assoc (connection/summarize connection)
                                :type :connection-error)
-               "Websocket error {commonname} {remoteaddress}")))
+               (i18n/trs "Websocket error '{commonname}' '{remoteaddress}'"))))
 
 (defn- on-close!
   "OnClose websocket event handler"
@@ -505,7 +506,7 @@
                                     :type :connection-close
                                     :statuscode status-code
                                     :reason reason)
-                      "client {commonname} disconnected from {remoteaddress} {statuscode} {reason}")
+                      (i18n/trs "client '{commonname}' disconnected from '{remoteaddress}' '{statuscode}' '{reason}'"))
            (remove-connection! broker ws))))
 
 (s/defn ^:always-validate build-websocket-handlers :- {s/Keyword IFn}

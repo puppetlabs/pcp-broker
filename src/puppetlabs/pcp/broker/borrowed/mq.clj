@@ -16,7 +16,8 @@
             [clojure.tools.logging :as log]
             [clamq.protocol.consumer :as consumer]
             [clamq.jms :as jms]
-            [cheshire.custom :refer [JSONable]]))
+            [cheshire.custom :refer [JSONable]]
+            [puppetlabs.i18n.core :as i18n]))
 
 (defn- set-usage!*
   "Internal helper function for setting `SystemUsage` values on a `BrokerService`
@@ -34,7 +35,7 @@
           (fn? usage-fn)
           (string? desc)]}
   (when megabytes
-    (log/info "Setting ActiveMQ " desc " limit to " megabytes " MB")
+    (log/info (i18n/trs "Setting ActiveMQ {0} limit to {1} MB" desc megabytes))
     (-> broker
         (.getSystemUsage)
         (usage-fn)
@@ -131,9 +132,8 @@
     (start-broker! (build-embedded-broker brokername dir config))
     (catch java.io.EOFException e
       (log/warn
-       (str "Caught EOFException on broker startup, trying to restart it "
-            "again to see if that solves it. This is probably due to "
-            "KahaDB corruption."))
+       (i18n/trs
+         "Caught EOFException on broker startup, trying to restart it again to see if that solves it. This is probably due to KahaDB corruption."))
       (start-broker! (build-embedded-broker brokername dir config)))))
 
 (defn connect-and-publish!
@@ -246,7 +246,8 @@
       (.readBytes bytes-message buffer)
       buffer)
     :else
-    (throw (ex-info (str "Expected a text message, instead found: " (class message))))))
+    (throw (ex-info (i18n/trs "Expected an object implementing either {0} or {1}, instead found: {2}"
+                              (.getName javax.jms.TextMessage) (.getName javax.jms.BytesMessage) (class message)) {}))))
 
 (defn extract-headers
   "Creates a map of custom headers included in `message`, currently only

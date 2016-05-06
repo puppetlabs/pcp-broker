@@ -5,7 +5,8 @@
             [puppetlabs.pcp.broker.borrowed.mq :as mq]
             [puppetlabs.structured-logging.core :as sl]
             [schema.core :as s]
-            [taoensso.nippy :as nippy])
+            [taoensso.nippy :as nippy]
+            [puppetlabs.i18n.core :as i18n])
   (:import (puppetlabs.pcp.broker.capsule Capsule)))
 
 ;; This is a bit rude/lazy, reaching right into puppetdb sources we've
@@ -20,7 +21,7 @@
     (sl/maplog :trace (assoc (capsule/summarize capsule)
                              :queue queue
                              :type :queue-enque)
-               "Delivering message {messageid} for {destination} to {queue} queue")
+               (i18n/trs "Delivering message '{messageid}' for '{destination}' to '{queue}' queue"))
     (with-open [conn (mq/activemq-connection mq-spec)]
       (apply mq/connect-and-publish! conn mq-endpoint (nippy/freeze capsule) args))))
 
@@ -37,13 +38,13 @@
                                                                  (sl/maplog :trace (assoc (capsule/summarize capsule)
                                                                                           :queue queue
                                                                                           :type :queue-dequeue)
-                                                                            "Consuming message {messageid} for {destination} from {queue}")
+                                                                            (i18n/trs "Consuming message '{messageid}' for '{destination}' from '{queue}'"))
                                                                  (callback-fn capsule)))
                                                  :transacted true
                                                  :on-failure (fn [error]
                                                                (sl/maplog :error (:exception error)
                                                                           {:type :queue-dequeue-error
                                                                            :queue queue}
-                                                                          "Error consuming message from {queue}"))})]
+                                                                          (i18n/trs "Error consuming message from '{queue}'")))})]
                  (mq-cons/start consumer)
                  consumer))))))

@@ -1,0 +1,195 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Puppet <docs@puppet.com>
+# This file is distributed under the same license as the puppetlabs.pcp_broker package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: puppetlabs.pcp_broker \n"
+"Report-Msgid-Bugs-To: docs@puppet.com\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/puppetlabs/pcp/broker/activemq.clj:24
+msgid "Delivering message '{messageid}' for '{destination}' to '{queue}' queue"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/activemq.clj:41
+msgid "Consuming message '{messageid}' for '{destination}' from '{queue}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/activemq.clj:48
+msgid "Error consuming message from '{queue}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/borrowed/mq.clj:38
+msgid "Setting ActiveMQ {0} limit to {1} MB"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/borrowed/mq.clj:136
+msgid ""
+"Caught EOFException on broker startup, trying to restart it again to see if "
+"that solves it. This is probably due to KahaDB corruption."
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/borrowed/mq.clj:249
+msgid "Expected a text message, instead found: {0}"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:132
+msgid ""
+"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:165
+msgid ""
+"Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:171
+msgid "Server generated message expired.  Dropping"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:194
+msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:203
+msgid "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:236
+msgid ""
+"Delivering '{messageid}' for '{destination}' to '{commonname}' at "
+"'{remoteaddress}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:244
+msgid "Error in deliver-message"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:246
+msgid "not connected"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:283
+msgid "''server'' type connections not accepted"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:291
+msgid ""
+"Received session association for '{uri}' from '{commonname}' "
+"'{remoteaddress}'.  Session was already associated as '{existinguri}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:292
+msgid "session already associated"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:318
+msgid "association unsuccessful"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:326
+msgid ""
+"Node with uri '{uri}' already associated with connection '{commonname}' "
+"'{remoteaddress}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:327
+msgid "superceded"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:364
+msgid ""
+"Unhandled message type '{messagetype}' received from '{commonname}' "
+"'{remoteaddr}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:381
+#: src/puppetlabs/pcp/broker/core.clj:454
+msgid "Broker is not running"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:389
+msgid "No client certificate, closing '{remoteaddress}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:390
+msgid "No client certificate"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:395
+msgid "client '{commonname}' connected from '{remoteaddress}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:406
+msgid ""
+"client '{commonname}' from '{remoteaddress}': cannot accept messages until "
+"session has been associated.  Dropping message."
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:432
+msgid "Cannot find transition for state '{state}'"
+msgstr ""
+
+#. TODO(richardc): When we have the message type for
+#. 'authorization_denied' use this instead of
+#. error_message
+#: src/puppetlabs/pcp/broker/core.clj:464
+msgid "Message not authorized"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:471
+msgid ""
+"Message '{messageid}' for '{destination}' from '{commonname}' "
+"'{remoteaddress}'"
+msgstr ""
+
+#. This is a processing error, say an uncaught exception in any of the stuff we meant to do
+#: src/puppetlabs/pcp/broker/core.clj:476
+msgid "Error {0} handling message: {1}"
+msgstr ""
+
+#. TODO(richardc): this could use a different message_type to
+#. indicate an encoding error rather than a processing error
+#: src/puppetlabs/pcp/broker/core.clj:480
+msgid "Could not decode message"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:498
+msgid "Websocket error '{commonname}' '{remoteaddress}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj:509
+msgid ""
+"client '{commonname}' disconnected from '{remoteaddress}' '{statuscode}' "
+"'{reason}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/service.clj:17
+msgid "Initializing broker service"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/service.clj:41
+msgid "Starting broker service"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/service.clj:44
+msgid "Broker service started"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/service.clj:47
+msgid "Shutting down broker service"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/service.clj:50
+msgid "Broker service stopped"
+msgstr ""

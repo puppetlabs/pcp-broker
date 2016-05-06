@@ -69,9 +69,12 @@
                  [org.apache.activemq/activemq-core "5.6.0"
                   :exclusions [org.fusesource.fuse-extra/fusemq-leveldb]]
                  ;; bridge to allow some spring/activemq stuff to log over slf4j
-                 [org.slf4j/jcl-over-slf4j "1.7.10"]]
+                 [org.slf4j/jcl-over-slf4j "1.7.10"]
 
-  :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
+                 [puppetlabs/i18n "0.3.0"]]
+
+  :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]
+            [puppetlabs/i18n "0.3.0"]]
 
   :lein-release {:scm :git
                  :deploy-via :lein-deploy}
