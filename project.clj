@@ -1,4 +1,4 @@
-(def tk-version "1.3.0")
+(def tk-version "1.4.0")
 (def ks-version "1.3.0")
 
 (defproject puppetlabs/pcp-broker "0.7.1-SNAPSHOT"
@@ -24,13 +24,13 @@
                  ;; Transitive dependency for:
                  ;;   ch.qos.logback/logback-classic via puppetlabs/trapperkeeper
                  ;;   net.logstash.logback/logstash-logback-encoder via puppetlabs/structured-logging
-                 [ch.qos.logback/logback-core "1.1.2"]
+                 [ch.qos.logback/logback-core "1.1.3"]
 
                  ;; Transitive dependency for puppetlabs/trapperkeeper-authorization, and a direct dependency
                  [clj-time "0.10.0"]
 
                  ;; Transitive dependency for puppetlabs/trapperkeeper and puppetlabs/trapperkeeper-authorization
-                 [puppetlabs/typesafe-config "0.1.4"]
+                 [puppetlabs/typesafe-config "0.1.5"]
 
                  ;; Transitive dependency for:
                  ;;   puppetlabs/trapperkeeper
@@ -41,7 +41,8 @@
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/trapperkeeper-authorization "0.1.5"]
                  [puppetlabs/trapperkeeper-metrics "0.1.1"]
-                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.2"]
+                 ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
+                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.7" :exclusions [org.clojure/clojure]]
                  [puppetlabs/trapperkeeper-status "0.2.1"]
 
                  ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
