@@ -4,7 +4,8 @@
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
             [puppetlabs.trapperkeeper.services :refer [service-context]]
-            [puppetlabs.trapperkeeper.services.status.status-core :as status-core]))
+            [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
+            [puppetlabs.i18n.core :as i18n]))
 
 (trapperkeeper/defservice broker-service
   [[:AuthorizationService authorization-check]
@@ -13,7 +14,7 @@
    [:MetricsService get-metrics-registry]
    [:StatusService register-status]]
   (init [this context]
-    (sl/maplog :info {:type :broker-init} "Initializing broker service")
+    (sl/maplog :info {:type :broker-init} (i18n/trs "Initializing broker service"))
     (let [activemq-spool     (get-in-config [:pcp-broker :broker-spool])
           accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
           delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
@@ -37,14 +38,14 @@
                        (partial core/status broker))
       (assoc context :broker broker)))
   (start [this context]
-    (sl/maplog :info {:type :broker-start} "Starting broker service")
+    (sl/maplog :info {:type :broker-start} (i18n/trs "Starting broker service"))
     (let [broker (:broker (service-context this))]
       (core/start broker))
-    (sl/maplog :debug {:type :broker-started} "Broker service started")
+    (sl/maplog :debug {:type :broker-started} (i18n/trs "Broker service started"))
     context)
   (stop [this context]
-    (sl/maplog :info {:type :broker-stop} "Shutting down broker service")
+    (sl/maplog :info {:type :broker-stop} (i18n/trs "Shutting down broker service"))
     (let [broker (:broker (service-context this))]
       (core/stop broker))
-    (sl/maplog :debug {:type :broker-stopped} "Broker service stopped")
+    (sl/maplog :debug {:type :broker-stopped} (i18n/trs "Broker service stopped"))
     context))
