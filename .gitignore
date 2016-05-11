@@ -13,3 +13,5 @@ pom.xml.asc
 /.idea
 /test-resources/tmp/
 /resources/locales.clj
+/eng-resources
+
