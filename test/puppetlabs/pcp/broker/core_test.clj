@@ -5,7 +5,8 @@
             [puppetlabs.pcp.broker.connection :as connection]
             [puppetlabs.pcp.message :as message]
             [schema.core :as s]
-            [slingshot.test]))
+            [slingshot.test])
+  (:import (java.util.concurrent ConcurrentHashMap)))
 
 (s/defn ^:always-validate make-test-broker :- Broker
   "Return a minimal clean broker state"
@@ -17,8 +18,8 @@
    :record-client      (constantly true)
    :find-clients       (constantly true)
    :authorization-check (constantly true)
-   :uri-map            (atom {})
-   :connections        (atom {})
+   :uri-map            (ConcurrentHashMap.)
+   :connections        (ConcurrentHashMap.)
    :metrics-registry   ""
    :metrics            {}
    :transitions        {}
@@ -33,19 +34,19 @@
   (testing "It should add a connection to the connection map"
     (let [broker (make-test-broker)]
       (add-connection! broker "ws")
-      (is (= (get-in @(:connections broker) ["ws" :state]) :open)))))
+      (is (= (get-in (:connections broker) ["ws" :state]) :open)))))
 
 (deftest remove-connection!-test
   (testing "It should remove a connection from the connection map"
-    (let [connections (atom {"ws" (connection/make-connection "ws")})
-          broker      (assoc (make-test-broker) :connections connections)]
+    (let [broker (make-test-broker)]
+      (.put (:connections broker) "ws" (connection/make-connection "ws"))
       (remove-connection! broker "ws")
-      (is (= {} @(:connections broker))))))
+      (is (= {} (:connections broker))))))
 
 (deftest get-websocket-test
-  (let [broker (assoc (make-test-broker)
-                      :uri-map (atom {"pcp://bill/agent" "ws1"
-                                      "pcp://bob/agent" "ws2"}))]
+  (let [broker (make-test-broker)]
+    (.put (:uri-map broker) "pcp://bill/agent" "ws1")
+    (.put (:uri-map broker) "pcp://bob" "ws2")
     (testing "it finds a single websocket explictly"
       (is (= "ws1" (get-websocket broker "pcp://bill/agent"))))
     (testing "it finds nothing by wildcard"
@@ -188,7 +189,7 @@
             (process-associate-message broker capsule connection1)
             (is (process-associate-message broker capsule connection2))
             (is (= ["ws1" 4000 "superceded"] @@closed))
-            (is (= ["ws2"] (keys @(:connections broker))))))
+            (is (= ["ws2"] (keys (:connections broker))))))
 
         (testing "It does not allow a login to happen twice on the same websocket"
           (reset! closed (promise))
