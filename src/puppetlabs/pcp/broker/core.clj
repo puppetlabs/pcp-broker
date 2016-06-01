@@ -22,15 +22,8 @@
             [puppetlabs.i18n.core :as i18n])
   (:import (puppetlabs.pcp.broker.capsule Capsule)
            (puppetlabs.pcp.broker.connection Connection)
-           (clojure.lang IFn Atom)))
-
-(def UriMap
-  "Mapping of Uri to Websocket, for sending"
-  {p/Uri Websocket})
-
-(def Connections
-  "Mapping of Websocket session to Connection state"
-  {Websocket Connection})
+           (clojure.lang IFn Atom)
+           (java.util.concurrent ConcurrentHashMap)))
 
 (def Broker
   {:activemq-broker    Object
@@ -40,8 +33,8 @@
    :record-client      IFn
    :find-clients       IFn
    :authorization-check IFn
-   :uri-map            Atom ;; atom with schema UriMap. will be checked with :validator
-   :connections        Atom ;; atom with schema Connections. will be checked with :validator
+   :uri-map            ConcurrentHashMap ;; Mapping of Uri to Websocket, for sending
+   :connections        ConcurrentHashMap ;; Mapping of Websocket session to Connection state
    :metrics-registry   Object
    :metrics            {s/Keyword Object}
    :transitions        {ConnectionState IFn}
@@ -52,7 +45,7 @@
   [broker :- Broker]
   (let [registry (:metrics-registry broker)]
     (gauges/gauge-fn registry ["puppetlabs.pcp.connections"]
-                     (fn [] (count (keys @(:connections broker)))))
+                     (fn [] (count (keys (:connections broker)))))
     {:on-connect       (.timer registry "puppetlabs.pcp.on-connect")
      :on-close         (.timer registry "puppetlabs.pcp.on-close")
      :on-message       (.timer registry "puppetlabs.pcp.on-message")
@@ -78,24 +71,24 @@
   "Add a Connection to the connections to track a websocket"
   [broker :- Broker ws :- Websocket codec :- Codec]
   (let [connection (connection/make-connection ws codec)]
-    (swap! (:connections broker) assoc ws connection)
+    (.put (:connections broker) ws connection)
     connection))
 
 (s/defn ^:always-validate remove-connection!
   "Remove tracking of a Connection from the broker by websocket"
   [broker :- Broker ws :- Websocket]
-  (if-let [uri (get-in @(:connections broker) [ws :uri])]
-    (swap! (:uri-map broker) dissoc uri))
-  (swap! (:connections broker) dissoc ws))
+  (if-let [uri (get-in (:connections broker) [ws :uri])]
+    (.remove (:uri-map broker) uri))
+  (.remove (:connections broker) ws))
 
 (s/defn ^:always-validate get-connection :- (s/maybe Connection)
   [broker :- Broker ws :- Websocket]
-  (get @(:connections broker) ws))
+  (get (:connections broker) ws))
 
 (s/defn ^:always-validate get-websocket :- (s/maybe Websocket)
   "Return the websocket a node identified by a uri is connected to, false if not connected"
   [broker :- Broker uri :- p/Uri]
-  (get @(:uri-map broker) uri))
+  (get (:uri-map broker) uri))
 
 (s/defn ^:always-validate make-ring-request :- ring/Request
   [broker :- Broker capsule :- Capsule]
@@ -325,8 +318,8 @@
                                            :type :connection-association-failed)
                              (i18n/trs "Node with uri '{uri}' already associated with connection '{commonname}' '{remoteaddress}'"))
                   (websockets-client/close! old-ws 4000 (i18n/trs "superceded"))
-                  (swap! connections dissoc old-ws)))
-              (swap! uri-map assoc uri ws)
+                  (.remove connections old-ws)))
+              (.put uri-map uri ws)
               (record-client uri)
               (assoc connection
                      :uri uri
@@ -470,7 +463,7 @@
                                               {:type :connection-message})
                                 (i18n/trs "Message '{messageid}' for '{destination}' from '{commonname}' '{remoteaddress}'"))
                      (->> (determine-next-state broker capsule connection)
-                          (swap! (:connections broker) assoc ws))))
+                          (.put (:connections broker) ws))))
                  (catch map? m
                    ;; This is a processing error, say an uncaught exception in any of the stuff we meant to do
                    (send-error-message message (i18n/trs "Error {0} handling message: {1}" (:type m) (:message &throw-context)) connection))))
@@ -562,8 +555,8 @@
                               :authorization-check authorization-check
                               :metrics            {}
                               :metrics-registry   (get-metrics-registry)
-                              :connections        (atom {} :validator (partial s/validate Connections))
-                              :uri-map            (atom {} :validator (partial s/validate UriMap))
+                              :connections        (ConcurrentHashMap.)
+                              :uri-map            (ConcurrentHashMap.)
                               :transitions        {:open connection-open
                                                    :associated connection-associated}
                               :broker-cn          (get-broker-cn ssl-cert)
