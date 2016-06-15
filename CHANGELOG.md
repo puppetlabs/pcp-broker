@@ -1,3 +1,10 @@
+## 0.6.2
+
+This is a bugfix release
+
+* [PCP-448](https://tickets.puppetlabs.com/browse/PCP-448) Avoid heavy thread
+  contention when disconnecting many clients simultaneously.
+
 ## 0.6.1
 
 This is a bugfix release
