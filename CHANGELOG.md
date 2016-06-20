@@ -38,6 +38,14 @@ This is an improvement and bugfix release
 * [PCP-294](https://tickets.puppetlabs.com/browse/PCP-294) Close
   connections when the broker is not in a running state.
 
+Note that the bugfix from 0.6.2 was not included in 0.7.0.
+
+## 0.6.2
+
+This is a bugfix release
+
+* [PCP-448](https://tickets.puppetlabs.com/browse/PCP-448) Avoid heavy thread
+  contention when disconnecting many clients simultaneously.
 
 ## 0.6.1
 
