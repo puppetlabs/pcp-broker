@@ -13,7 +13,7 @@
 ;; copied into our tree.  If this proves out we should talk to
 ;; puppetdb about extracting puppetlabs.puppetdb.mq into a common library.
 
-(s/defn ^:always-validate queue-message
+(s/defn queue-message
   "Queue a message on a middleware"
   [queue :- s/Str capsule :- Capsule & args]
   (let [mq-spec "vm://pcp?create=false"
