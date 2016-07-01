@@ -40,135 +40,135 @@ msgid ""
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/borrowed/mq.clj:249
-msgid "Expected a text message, instead found: {0}"
+msgid "Expected an object implementing either {0} or {1}, instead found: {2}"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:132
+#: src/puppetlabs/pcp/broker/core.clj:125
 msgid ""
 "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:165
+#: src/puppetlabs/pcp/broker/core.clj:158
 msgid ""
 "Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:171
+#: src/puppetlabs/pcp/broker/core.clj:164
 msgid "Server generated message expired.  Dropping"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:194
+#: src/puppetlabs/pcp/broker/core.clj:187
 msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:203
+#: src/puppetlabs/pcp/broker/core.clj:196
 msgid "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:236
+#: src/puppetlabs/pcp/broker/core.clj:229
 msgid ""
 "Delivering '{messageid}' for '{destination}' to '{commonname}' at "
 "'{remoteaddress}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:244
+#: src/puppetlabs/pcp/broker/core.clj:237
 msgid "Error in deliver-message"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:246
+#: src/puppetlabs/pcp/broker/core.clj:239
 msgid "not connected"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:283
+#: src/puppetlabs/pcp/broker/core.clj:276
 msgid "''server'' type connections not accepted"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:291
+#: src/puppetlabs/pcp/broker/core.clj:284
 msgid ""
 "Received session association for '{uri}' from '{commonname}' "
 "'{remoteaddress}'.  Session was already associated as '{existinguri}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:292
+#: src/puppetlabs/pcp/broker/core.clj:285
 msgid "session already associated"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:318
+#: src/puppetlabs/pcp/broker/core.clj:311
 msgid "association unsuccessful"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:326
+#: src/puppetlabs/pcp/broker/core.clj:319
 msgid ""
 "Node with uri '{uri}' already associated with connection '{commonname}' "
 "'{remoteaddress}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:327
+#: src/puppetlabs/pcp/broker/core.clj:320
 msgid "superceded"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:364
+#: src/puppetlabs/pcp/broker/core.clj:357
 msgid ""
 "Unhandled message type '{messagetype}' received from '{commonname}' "
 "'{remoteaddr}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:381
-#: src/puppetlabs/pcp/broker/core.clj:454
+#: src/puppetlabs/pcp/broker/core.clj:374
+#: src/puppetlabs/pcp/broker/core.clj:447
 msgid "Broker is not running"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:389
+#: src/puppetlabs/pcp/broker/core.clj:382
 msgid "No client certificate, closing '{remoteaddress}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:390
+#: src/puppetlabs/pcp/broker/core.clj:383
 msgid "No client certificate"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:395
+#: src/puppetlabs/pcp/broker/core.clj:388
 msgid "client '{commonname}' connected from '{remoteaddress}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:406
+#: src/puppetlabs/pcp/broker/core.clj:399
 msgid ""
 "client '{commonname}' from '{remoteaddress}': cannot accept messages until "
 "session has been associated.  Dropping message."
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:432
+#: src/puppetlabs/pcp/broker/core.clj:425
 msgid "Cannot find transition for state '{state}'"
 msgstr ""
 
 #. TODO(richardc): When we have the message type for
 #. 'authorization_denied' use this instead of
 #. error_message
-#: src/puppetlabs/pcp/broker/core.clj:464
+#: src/puppetlabs/pcp/broker/core.clj:457
 msgid "Message not authorized"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:471
+#: src/puppetlabs/pcp/broker/core.clj:464
 msgid ""
 "Message '{messageid}' for '{destination}' from '{commonname}' "
 "'{remoteaddress}'"
 msgstr ""
 
 #. This is a processing error, say an uncaught exception in any of the stuff we meant to do
-#: src/puppetlabs/pcp/broker/core.clj:476
+#: src/puppetlabs/pcp/broker/core.clj:469
 msgid "Error {0} handling message: {1}"
 msgstr ""
 
 #. TODO(richardc): this could use a different message_type to
 #. indicate an encoding error rather than a processing error
-#: src/puppetlabs/pcp/broker/core.clj:480
+#: src/puppetlabs/pcp/broker/core.clj:473
 msgid "Could not decode message"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:498
+#: src/puppetlabs/pcp/broker/core.clj:491
 msgid "Websocket error '{commonname}' '{remoteaddress}'"
 msgstr ""
 
-#: src/puppetlabs/pcp/broker/core.clj:509
+#: src/puppetlabs/pcp/broker/core.clj:502
 msgid ""
 "client '{commonname}' disconnected from '{remoteaddress}' '{statuscode}' "
 "'{reason}'"
