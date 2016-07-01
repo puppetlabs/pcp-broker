@@ -1,10 +1,13 @@
 (ns puppetlabs.pcp.broker.connection-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.pcp.broker.connection :refer :all]))
+            [puppetlabs.pcp.broker.connection :refer :all]
+            [schema.test :as st]))
 
 (def identity-codec
   {:encode identity
    :decode identity})
+
+(use-fixtures :once st/validate-schemas)
 
 (deftest make-connection-test
   (testing "It returns a map that matches represents a new socket"

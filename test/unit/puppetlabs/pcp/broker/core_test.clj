@@ -6,6 +6,7 @@
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.message :as message]
             [schema.core :as s]
+            [schema.test :as st]
             [slingshot.test])
   (:import (puppetlabs.pcp.broker.connection Connection)
            (java.util.concurrent ConcurrentHashMap)))
@@ -34,6 +35,8 @@
 (s/def identity-codec :- Codec
   {:encode identity
    :decode identity})
+
+(use-fixtures :once st/validate-schemas)
 
 (deftest get-broker-cn-test
   (testing "It returns the correct cn"

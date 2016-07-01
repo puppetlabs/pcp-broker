@@ -14,10 +14,20 @@ And then see [these notes on configuring](doc/configuration.md)
 ## Running the server
 
 For development purposes you can run a broker out of a checkout using
-the *insecure* certificates provided in test-resources/ with the
-following command:
+the *insecure* certificates provided in test-resources/ with either
+the following command:
 
     lein tk
+
+(This one runs the broker with schema validations _disabled_, i.e. the
+same as in production.)
+
+Or with:
+
+    lein tkv
+
+(This one runs the broker with schema validations _enabled_ for greater
+scrutiny.)
 
 ## Documentation
 

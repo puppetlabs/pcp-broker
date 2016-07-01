@@ -1,9 +1,12 @@
 (ns user
   (:require [puppetlabs.trapperkeeper.bootstrap :as tk-bootstrap]
             [puppetlabs.trapperkeeper.config :as tk-config]
+            [puppetlabs.trapperkeeper.main :as tk-main]
             [puppetlabs.trapperkeeper.core :as tk]
             [puppetlabs.trapperkeeper.app :as tk-app]
-            [clojure.tools.namespace.repl :as repl]))
+            [clojure.tools.namespace.repl :as repl]
+            [clojure.tools.logging :as log]
+            [schema.core :as s]))
 
 ;; NOTE: in some other projects, where we need to support per-developer config
 ;;  variations, we'll put this code into a namespace called 'user-repl', and
@@ -32,6 +35,13 @@
 (defn go []
   (init)
   (start))
+
+(defn -main
+  "Run trapperkeeper with schema validations enabled"
+  [& args]
+  (s/with-fn-validation
+    (log/info "Running trapperkeeper with schema validations enabled.")
+    (apply tk-main/-main args)))
 
 (defn reset []
   (stop)
