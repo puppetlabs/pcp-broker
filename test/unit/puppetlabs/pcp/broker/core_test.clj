@@ -6,11 +6,12 @@
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.message :as message]
             [schema.core :as s]
+            [schema.test :as st]
             [slingshot.test])
   (:import (puppetlabs.pcp.broker.connection Connection)
            (java.util.concurrent ConcurrentHashMap)))
 
-(s/defn ^:always-validate make-test-broker :- Broker
+(s/defn make-test-broker :- Broker
   "Return a minimal clean broker state"
   []
   (let [broker {:activemq-broker    "JMSOMGBBQ"
@@ -34,6 +35,8 @@
 (s/def identity-codec :- Codec
   {:encode identity
    :decode identity})
+
+(use-fixtures :once st/validate-schemas)
 
 (deftest get-broker-cn-test
   (testing "It returns the correct cn"
@@ -313,7 +316,7 @@
       (process-server-message broker capsule connection)
       (is (not= nil @associate-request)))))
 
-(s/defn ^:always-validate dummy-connection-from :- Connection
+(s/defn dummy-connection-from :- Connection
   [common-name]
   (assoc (connection/make-connection "ws1" identity-codec)
          :common-name common-name))

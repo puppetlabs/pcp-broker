@@ -1,5 +1,6 @@
 (def tk-version "1.4.0")
 (def ks-version "1.3.0")
+(def i18n-version "0.4.1")
 
 (defproject puppetlabs/pcp-broker "0.7.1-SNAPSHOT"
   :description "PCP fabric messaging broker"
@@ -72,10 +73,10 @@
                  ;; bridge to allow some spring/activemq stuff to log over slf4j
                  [org.slf4j/jcl-over-slf4j "1.7.10"]
 
-                 [puppetlabs/i18n "0.3.0"]]
+                 [puppetlabs/i18n ~i18n-version]]
 
   :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]
-            [puppetlabs/i18n "0.3.0"]]
+            [puppetlabs/i18n ~i18n-version]]
 
   :lein-release {:scm :git
                  :deploy-via :lein-deploy}
@@ -113,6 +114,8 @@
   ; :global-vars {*warn-on-reflection* true}
 
   :aliases {"tk" ["trampoline" "run" "--config" "test-resources/conf.d"]
+            ;; runs trapperkeeper with schema validations enabled
+            "tkv" ["trampoline" "run" "-m" "user" "--config" "test-resources/conf.d"]
             "certs" ["trampoline" "run" "-m" "puppetlabs.pcp.testutils.certs" "--config" "test-resources/conf.d" "--"]
             "cljfmt" ["with-profile" "+cljfmt" "cljfmt"]
             "coverage" ["cloverage" "-e" "puppetlabs.puppetdb.*" "-e" "user"]}

@@ -1,6 +1,9 @@
 (ns puppetlabs.pcp.broker.in-memory-inventory-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.pcp.broker.in-memory-inventory :refer :all]))
+            [puppetlabs.pcp.broker.in-memory-inventory :refer :all]
+            [schema.test :as st]))
+
+(use-fixtures :once st/validate-schemas)
 
 (deftest endpoint-pattern-match?-test
   (testing "direct matches"

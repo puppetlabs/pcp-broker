@@ -41,7 +41,7 @@
    :broker-cn          s/Str
    :state              Atom})
 
-(s/defn ^:always-validate build-and-register-metrics :- {s/Keyword Object}
+(s/defn build-and-register-metrics :- {s/Keyword Object}
   [broker :- Broker]
   (let [registry (:metrics-registry broker)]
     (gauges/gauge-fn registry ["puppetlabs.pcp.connections"]
@@ -57,40 +57,40 @@
 
 (def delivery-queue "delivery")
 
-(s/defn ^:always-validate get-broker-cn :- s/Str
+(s/defn get-broker-cn :- s/Str
   [certificate :- s/Str]
   (let [x509     (ssl-utils/pem->cert certificate)]
     (ssl-utils/get-cn-from-x509-certificate x509)))
 
-(s/defn ^:always-validate broker-uri :- p/Uri
+(s/defn broker-uri :- p/Uri
   [broker :- Broker]
   (str "pcp://" (:broker-cn broker) "/server"))
 
 ;; connection map lifecycle
-(s/defn ^:always-validate add-connection! :- Connection
+(s/defn add-connection! :- Connection
   "Add a Connection to the connections to track a websocket"
   [broker :- Broker ws :- Websocket codec :- Codec]
   (let [connection (connection/make-connection ws codec)]
     (.put (:connections broker) ws connection)
     connection))
 
-(s/defn ^:always-validate remove-connection!
+(s/defn remove-connection!
   "Remove tracking of a Connection from the broker by websocket"
   [broker :- Broker ws :- Websocket]
   (if-let [uri (get-in (:connections broker) [ws :uri])]
     (.remove (:uri-map broker) uri))
   (.remove (:connections broker) ws))
 
-(s/defn ^:always-validate get-connection :- (s/maybe Connection)
+(s/defn get-connection :- (s/maybe Connection)
   [broker :- Broker ws :- Websocket]
   (get (:connections broker) ws))
 
-(s/defn ^:always-validate get-websocket :- (s/maybe Websocket)
+(s/defn get-websocket :- (s/maybe Websocket)
   "Return the websocket a node identified by a uri is connected to, false if not connected"
   [broker :- Broker uri :- p/Uri]
   (get (:uri-map broker) uri))
 
-(s/defn ^:always-validate make-ring-request :- ring/Request
+(s/defn make-ring-request :- ring/Request
   [broker :- Broker capsule :- Capsule]
   (let [{:keys [sender targets message_type]} (:message capsule)
         form-params {}
@@ -111,7 +111,7 @@
                         :ssl-client-cert ssl-client-cert}))
       request)))
 
-(s/defn ^:always-validate authorized? :- s/Bool
+(s/defn authorized? :- s/Bool
   "Check if the message is authorized"
   [broker :- Broker capsule :- Capsule]
   (let [ring-request (make-ring-request broker capsule)
@@ -126,7 +126,7 @@
       allowed)))
 
 ;; message lifecycle
-(s/defn ^:always-validate accept-message-for-delivery :- Capsule
+(s/defn accept-message-for-delivery :- Capsule
   "Accept a message for later delivery"
   [broker :- Broker capsule :- Capsule]
   (if (authorized? broker capsule)
@@ -135,7 +135,7 @@
              (activemq/queue-message accept-queue capsule))))
   capsule)
 
-(s/defn ^:always-validate make-ttl_expired-message :- Message
+(s/defn make-ttl_expired-message :- Message
   "Returns the ttl_expired message advising about the expiry of the given message"
   [message :- Message]
   (let [sender (:sender message)
@@ -150,7 +150,7 @@
                      (message/set-json-data response_data))]
     response))
 
-(s/defn ^:always-validate process-expired-message :- Capsule
+(s/defn process-expired-message :- Capsule
   "Enqueue a ttl_expired message to the original message sender"
   [broker :- Broker capsule :- Capsule]
   (sl/maplog :trace (assoc (capsule/summarize capsule)
@@ -165,7 +165,7 @@
         capsule)
       (accept-message-for-delivery broker (capsule/wrap (make-ttl_expired-message message))))))
 
-(s/defn ^:always-validate retry-delay :- s/Num
+(s/defn retry-delay :- s/Num
   "Compute the delay we should pause for before retrying the delivery of this Capsule"
   [capsule :- Capsule]
   (let [expires (:expires capsule)
@@ -176,7 +176,7 @@
       (let [difference (time/in-seconds (time/interval now expires))]
         (min (max 1 (/ difference 2)) 15)))))
 
-(s/defn ^:always-validate handle-delivery-failure
+(s/defn handle-delivery-failure
   "If the message is not expired schedule for a future delivery by
   adding to the delivery queue with a delay property, otherwise reply
   with a TTL expired message"
@@ -198,7 +198,7 @@
                (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))
       (process-expired-message broker capsule))))
 
-(s/defn ^:always-validate maybe-send-destination-report
+(s/defn maybe-send-destination-report
   "Send a destination report about the given message, if requested"
   [broker :- Broker message :- Message targets :- [p/Uri]]
   (when (:destination_report message)
@@ -214,7 +214,7 @@
       (accept-message-for-delivery broker (capsule/wrap reply)))))
 
 ;; ActiveMQ queue consumers
-(s/defn ^:always-validate deliver-message
+(s/defn deliver-message
   "Message consumer. Delivers a message to the websocket indicated by the :target field"
   [broker :- Broker capsule :- Capsule]
   (if (capsule/expired? capsule)
@@ -238,7 +238,7 @@
           (handle-delivery-failure broker capsule (str e))))
       (handle-delivery-failure broker capsule (i18n/trs "not connected")))))
 
-(s/defn ^:always-validate expand-destinations
+(s/defn expand-destinations
   "Message consumer.  Takes a message from the accept queue, expands
   destinations, and enqueues to the `delivery-queue`"
   [broker :- Broker capsule :- Capsule]
@@ -253,20 +253,20 @@
     (time! (:message-queueing (:metrics broker))
            (doall (map #(activemq/queue-message delivery-queue %) capsules)))))
 
-(s/defn ^:always-validate subscribe-to-queues!
+(s/defn subscribe-to-queues!
   [broker :- Broker]
   (let [{:keys [activemq-consumers accept-consumers delivery-consumers]} broker]
     (reset! activemq-consumers
             (concat (activemq/subscribe-to-queue accept-queue (partial expand-destinations broker) accept-consumers)
                     (activemq/subscribe-to-queue delivery-queue (partial deliver-message broker) delivery-consumers)))))
 
-(s/defn ^:always-validate session-association-message? :- s/Bool
+(s/defn session-association-message? :- s/Bool
   "Return true if message is a session association message"
   [message :- Message]
   (and (= (:targets message) ["pcp:///server"])
        (= (:message_type message) "http://puppetlabs.com/associate_request")))
 
-(s/defn ^:always-validate reason-to-deny-association :- (s/maybe s/Str)
+(s/defn reason-to-deny-association :- (s/maybe s/Str)
   "Returns an error message describing why the session should not be
   allowed, if it should be denied"
   [broker :- Broker connection :- Connection as :- p/Uri]
@@ -284,7 +284,7 @@
                    (i18n/trs "Received session association for '{uri}' from '{commonname}' '{remoteaddress}'.  Session was already associated as '{existinguri}'"))
         (i18n/trs "session already associated")))))
 
-(s/defn ^:always-validate process-associate-message :- Connection
+(s/defn process-associate-message :- Connection
   "Process a session association message on a websocket"
   [broker :- Broker capsule :- Capsule connection :- Connection]
     (let [request (:message capsule)
@@ -325,7 +325,7 @@
                      :uri uri
                      :state :associated)))))))
 
-(s/defn ^:always-validate process-inventory-message :- Connection
+(s/defn process-inventory-message :- Connection
   "Process a request for inventory data"
   [broker :- Broker capsule :- Capsule connection :- Connection]
   (let [message (:message capsule)
@@ -343,7 +343,7 @@
       (accept-message-for-delivery broker (capsule/wrap response))))
   connection)
 
-(s/defn ^:always-validate process-server-message :- Connection
+(s/defn process-server-message :- Connection
   "Process a message directed at the middleware"
   [broker :- Broker capsule :- Capsule connection :- Connection]
   (let [message-type (get-in capsule [:message :message_type])]
@@ -356,7 +356,7 @@
                                  :type :broker-unhandled-message)
                    (i18n/trs "Unhandled message type '{messagetype}' received from '{commonname}' '{remoteaddr}'"))))))
 
-(s/defn ^:always-validate check-sender-matches :- s/Bool
+(s/defn check-sender-matches :- s/Bool
   "Validate that the cert name advertised by the sender matches the cert name in the certificate"
   [message :- Message connection :- Connection]
   (let [{:keys [common-name]} connection
@@ -387,7 +387,7 @@
                                           :type :connection-open)
                             (i18n/trs "client '{commonname}' connected from '{remoteaddress}'"))))))))
 
-(s/defn ^:always-validate connection-open :- Connection
+(s/defn connection-open :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
   (let [message (:message capsule)]
     (if (session-association-message? message)
@@ -399,7 +399,7 @@
                    (i18n/trs "client '{commonname}' from '{remoteaddress}': cannot accept messages until session has been associated.  Dropping message."))
         connection))))
 
-(s/defn ^:always-validate connection-associated :- Connection
+(s/defn connection-associated :- Connection
   [broker :- Broker capsule :- Capsule connection :- Connection]
   (if (capsule/expired? capsule)
     (do
@@ -412,7 +412,7 @@
           (accept-message-for-delivery broker capsule)
           connection)))))
 
-(s/defn ^:always-validate determine-next-state :- Connection
+(s/defn determine-next-state :- Connection
   "Determine the next state for a connection given a capsule and some transitions"
   [broker :- Broker capsule :- Capsule connection :- Connection]
   (let [transitions (:transitions broker)
@@ -502,7 +502,7 @@
                       (i18n/trs "client '{commonname}' disconnected from '{remoteaddress}' '{statuscode}' '{reason}'"))
            (remove-connection! broker ws))))
 
-(s/defn ^:always-validate build-websocket-handlers :- {s/Keyword IFn}
+(s/defn build-websocket-handlers :- {s/Keyword IFn}
   [broker :- Broker codec]
   {:on-connect (partial on-connect! broker codec)
    :on-error   (partial on-error broker)
@@ -538,7 +538,7 @@
                              (dissoc message :in-reply-to))]
                (message/encode message)))})
 
-(s/defn ^:always-validate init :- Broker
+(s/defn init :- Broker
   [options :- InitOptions]
   (let [{:keys [path activemq-spool accept-consumers delivery-consumers
                 add-websocket-handler
@@ -568,14 +568,14 @@
         (add-websocket-handler (build-websocket-handlers broker default-codec) {:route-id :vNext}))
       broker)))
 
-(s/defn ^:always-validate start
+(s/defn start
   [broker :- Broker]
   (let [{:keys [activemq-broker state]} broker]
     (mq/start-broker! activemq-broker)
     (subscribe-to-queues! broker)
     (reset! state :running)))
 
-(s/defn ^:always-validate stop
+(s/defn stop
   [broker :- Broker]
   (let [{:keys [activemq-broker activemq-consumers state]} broker]
     (reset! state :stopping)
@@ -583,7 +583,7 @@
       (mq-cons/close consumer))
     (mq/stop-broker! activemq-broker)))
 
-(s/defn ^:always-validate status :- status-core/StatusCallbackResponse
+(s/defn status :- status-core/StatusCallbackResponse
   [broker :- Broker level :- status-core/ServiceStatusDetailLevel]
   (let [{:keys [state metrics-registry]} broker
         level>= (partial status-core/compare-levels >= level)]

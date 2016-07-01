@@ -43,14 +43,14 @@
    :source p/Uri
    :destination (s/either p/Uri [p/Uri])})
 
-(s/defn ^:always-validate -summarize :- CapsuleLog
+(s/defn -summarize :- CapsuleLog
   [capsule :- Capsule]
   {:messageid (get-in capsule [:message :id])
    :source (get-in capsule [:message :sender])
    :destination (or (:target capsule)
                     (get-in capsule [:message :targets]))})
 
-(s/defn ^:always-validate -add-hop :- Capsule
+(s/defn -add-hop :- Capsule
   "Adds a debug hop to the message state"
   ([capsule :- Capsule server :- p/Uri stage :- s/Str]
    (add-hop capsule server stage (ks/timestamp)))
@@ -60,14 +60,14 @@
               :stage  stage}]
      (assoc capsule :hops (conj (vec (:hops capsule)) hop)))))
 
-(s/defn ^:always-validate -expired? :- s/Bool
+(s/defn -expired? :- s/Bool
   "Check whether a message has expired or not"
   [message :- Capsule]
   (let [expires (:expires message)
         now     (time/now)]
     (time/after? now expires)))
 
-(s/defn ^:always-validate -encode :- Message
+(s/defn -encode :- Message
   "Return the Message we should send when sending this Capsule.  Adds
   the debug chunk to the message"
   [capsule :- Capsule]
@@ -76,7 +76,7 @@
     (s/validate p/DebugChunk debug)
     (message/set-json-debug message debug)))
 
-(s/defn ^:always-validate wrap :- Capsule
+(s/defn wrap :- Capsule
   "Wrap a Message producing a Capsule"
   [message :- Message]
   (map->Capsule

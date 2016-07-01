@@ -16,7 +16,8 @@
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
              :refer [with-test-logging with-test-logging-debug]]
-            [slingshot.slingshot :refer [throw+ try+]]))
+            [slingshot.slingshot :refer [throw+ try+]]
+            [schema.test :as st]))
 
 (def broker-config
   "A broker with ssl and own spool"
@@ -43,7 +44,8 @@
                                                    :vNext "/pcp/vNext"}
     :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
-   :metrics {:enabled true}
+   :metrics {:enabled true
+             :server-id "localhost"}
 
    :pcp-broker {:broker-spool "test-resources/tmp/spool"
                 :accept-consumers 2
@@ -63,6 +65,7 @@
   (fs/delete-dir (get-in broker-config [:pcp-broker :broker-spool]))
   (f))
 
+(use-fixtures :once st/validate-schemas)
 (use-fixtures :each cleanup-spool-fixture)
 
 (deftest it-talks-websockets-test

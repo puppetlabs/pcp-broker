@@ -42,7 +42,7 @@
   {:commonname (s/maybe s/Str)
    :remoteaddress s/Str})
 
-(s/defn ^:always-validate make-connection :- Connection
+(s/defn make-connection :- Connection
   "Return the initial state for a websocket"
   [websocket :- Websocket codec :- Codec]
   (map->Connection {:state :open
@@ -57,7 +57,7 @@
                                          nil))
                     :created-at (ks/timestamp)}))
 
-(s/defn ^:always-validate -summarize :- ConnectionLog
+(s/defn -summarize :- ConnectionLog
   [connection :- Connection]
   (let [{:keys [common-name remote-address]} connection]
     {:commonname common-name
