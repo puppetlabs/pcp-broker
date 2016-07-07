@@ -1,10 +1,10 @@
 (ns puppetlabs.pcp.broker.in-memory-inventory
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.pcp.protocol :refer [explode-uri]]
+            [puppetlabs.pcp.protocol :refer [explode-uri uri-wildcard?]]
             [schema.core :as s]))
 
 (defn endpoint-pattern-match?
-  "does an endpoint pattern match the subject value.  Here is where wildards happen"
+  "Does an endpoint pattern match the subject value. Here is where wildcards happen"
   [pattern subject]
   (let [[pattern-client pattern-type] (explode-uri pattern)
         [subject-client subject-type] (explode-uri subject)]
@@ -18,9 +18,11 @@
 
 (defn find-clients
   [inventory patterns]
-  (flatten (map (fn [pattern]
-                  (filter (partial endpoint-pattern-match? pattern) @inventory))
-                patterns)))
+  (let [explicit (set (filter (complement uri-wildcard?) patterns))
+        wildcard (set (filter uri-wildcard? patterns))
+        explicit-matched (clojure.set/intersection explicit @inventory)
+        wildcard-matched (flatten (map #(filter (partial endpoint-pattern-match? %) @inventory) wildcard))]
+    (sort (clojure.set/union explicit-matched (set wildcard-matched)))))
 
 (defn record-client
   [inventory endpoint]

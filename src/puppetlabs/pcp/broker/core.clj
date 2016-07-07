@@ -331,7 +331,7 @@
   (let [message (:message capsule)
         data (message/get-json-data message)]
     (s/validate p/InventoryRequest data)
-    (let [uris (filter (partial get-websocket broker) ((:find-clients broker) (:query data)))
+    (let [uris (doall (filter (partial get-websocket broker) ((:find-clients broker) (:query data))))
           response-data {:uris uris}
           response (-> (message/make-message :message_type "http://puppetlabs.com/inventory_response"
                                              :targets [(:sender message)]
