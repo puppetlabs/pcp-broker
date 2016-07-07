@@ -161,7 +161,7 @@
                 :params {"sender" "pcp://example01.example.com/agent"
                          "targets" "pcp://example02.example.com/agent"
                          "message_type" "example1"}}
-               (make-ring-request broker capsule)))))
+               (make-ring-request broker capsule nil)))))
     (testing "it should return a ring request - two targets"
       (let [message (message/make-message :message_type "example1"
                                           :sender "pcp://example01.example.com/agent"
@@ -180,7 +180,7 @@
                          "targets" ["pcp://example02.example.com/agent"
                                     "pcp://example03.example.com/agent"]
                          "message_type" "example1"}}
-               (make-ring-request broker capsule)))))))
+               (make-ring-request broker capsule nil)))))))
 
 (deftest authorized?-test
   (let [yes-check (fn [r] {:authorized true
@@ -260,7 +260,8 @@
 (deftest process-associate-message-test
   (let [closed (atom (promise))]
     (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
-                  puppetlabs.experimental.websockets.client/send! (constantly false)]
+                  puppetlabs.experimental.websockets.client/send! (constantly false)
+                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
       (let [message (-> (message/make-message :sender "pcp://localhost/controller"
                                               :message_type "http://puppetlabs.com/login_message")
                         (message/set-expiry 3 :seconds))

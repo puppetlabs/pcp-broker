@@ -67,5 +67,31 @@ authorization: {
 }
 ```
 
+Session association and inventory requests are handled separately from other PCP Messages, and have
+their own authorization rules. PCP Messages with type `http://puppetlabs.com/associate_request` are
+mapped into ring requests on the `pcp-broker/connect` path. Messages with type
+`http://puppetlabs.com/inventory_request` do not currently have separate authorization, and are
+allowed for any associated client.
+
+Session association requests can be matched by trapperkeeper-authorization with the following `authorization.conf`.
+
+``` HOCON
+# authorization.conf
+authorization: {
+  version: 1
+  rules: [
+    {
+      name: "pcp association"
+      match-request: {
+         type: path
+         path: "/pcp-broker/connect"
+      }
+      allow-unauthenticated: true
+      sort-order: 400
+    },
+  ]
+}
+```
+
 For further notes on how to configure trapperkeeper-authorization see
 https://github.com/puppetlabs/trapperkeeper-authorization/blob/master/doc/authorization-config.md

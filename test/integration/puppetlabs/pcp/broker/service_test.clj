@@ -227,6 +227,45 @@
           (let [response (client/recv! client)]
             (is (= [4002 "association unsuccessful"] response))))))))
 
+(def lockdown-broker-config
+  "A broker that allows no connections or messages"
+  (assoc-in broker-config [:authorization :rules]
+            [{:name "deny association"
+              :sort-order 400
+              :match-request {:type "path"
+                              :path "/pcp-broker/connect"}
+              :allow []}]))
+
+(deftest authorization-stops-connections-test
+  (with-app-with-config app broker-services lockdown-broker-config
+    (dotestseq [version protocol-versions]
+      (with-open [client (client/connect :certname "client01.example.com"
+                                         :version version
+                                         :check-association false)]
+        (testing "cannot associate"
+          (let [response (client/recv! client)]
+            (is (= [4002 "association unsuccessful"] response))))
+        (testing "cannot request inventory"
+          (let [request (-> (message/make-message)
+                            (assoc :message_type "http://puppetlabs.com/inventory_request"
+                                   :targets ["pcp:///server"]
+                                   :sender "pcp://client01.example.com/test")
+                            (message/set-expiry 3 :seconds)
+                            (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
+            (client/send! client request)
+            (let [response (client/recv! client 1000)]
+              (is (= nil response)))))
+        (testing "cannot send messages"
+          (let [message (-> (message/make-message)
+                            (assoc :sender "pcp://client01.example.com/test"
+                                   :targets ["pcp://client01.example.com/test"]
+                                   :message_type "greeting")
+                            (message/set-expiry 3 :seconds)
+                            (message/set-json-data "Hello"))]
+            (client/send! client message)
+            (let [message (client/recv! client 1000)]
+              (is (= nil message)))))))))
+
 ;; Inventory service
 (deftest inventory-node-can-find-itself-explicit-test
   (with-app-with-config app broker-services broker-config
@@ -352,7 +391,7 @@
                           (message/set-expiry 3 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! client message)
-          (let [response (client/recv! client)]
+          (let [response (client/recv! client 1000)]
             ;; Should get no message
             (is (= nil response))))))))
 
@@ -421,6 +460,11 @@
               :sort-order 420
               :match-request {:type "path"
                               :path "/pcp-broker/send"}
+              :allow-unauthenticated true}
+             {:name "allow association"
+              :sort-order 400
+              :match-request {:type "path"
+                              :path "/pcp-broker/connect"}
               :allow-unauthenticated true}]))
 
 (deftest authorization-will-stop-some-fun-test
@@ -444,7 +488,7 @@
                                                   :targets ["pcp://client01.example.com/test"])
                             (message/set-expiry 3 :seconds))]
             (client/send! client02 message)
-            (let [received (client/recv! client01)]
+            (let [received (client/recv! client01 1000)]
               (is (= nil received)))))))))
 
 (deftest interversion-send-test
