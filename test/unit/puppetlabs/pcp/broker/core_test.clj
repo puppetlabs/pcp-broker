@@ -301,7 +301,8 @@
         capsule (capsule/wrap message)
         connection (connection/make-connection "ws1" identity-codec)
         accepted (atom nil)]
-    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))
+                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
       (process-inventory-message broker capsule connection)
       (is (= [] (:uris (message/get-json-data (:message @accepted))))))))
 

@@ -227,17 +227,19 @@
           (let [response (client/recv! client)]
             (is (= [4002 "association unsuccessful"] response))))))))
 
-(def lockdown-broker-config
-  "A broker that allows no connections or messages"
+(def no-assoc-broker-config
+  "A broker that allows no association requests"
   (assoc-in broker-config [:authorization :rules]
             [{:name "deny association"
               :sort-order 400
               :match-request {:type "path"
-                              :path "/pcp-broker/connect"}
+                              :path "/pcp-broker/send"
+                              :query-params {:message_type
+                                             "http://puppetlabs.com/associate_request"}}
               :allow []}]))
 
 (deftest authorization-stops-connections-test
-  (with-app-with-config app broker-services lockdown-broker-config
+  (with-app-with-config app broker-services no-assoc-broker-config
     (dotestseq [version protocol-versions]
       (with-open [client (client/connect :certname "client01.example.com"
                                          :version version
@@ -317,6 +319,38 @@
         (let [response (client/recv! client)]
           (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
           (is (= {:uris []} (message/get-json-data response))))))))
+
+(def no-inventory-broker-config
+  "A broker that allows connections but no inventory requests"
+  (assoc-in broker-config [:authorization :rules]
+            [{:name "allow all"
+              :sort-order 401
+              :match-request {:type "regex"
+                              :path "^/.*$"}
+              :allow-unauthenticated true}
+             {:name "deny inventory"
+              :sort-order 400
+              :match-request {:type "path"
+                              :path "/pcp-broker/send"
+                              :query-params {:message_type
+                                             "http://puppetlabs.com/inventory_request"}}
+              :allow []}]))
+
+(deftest authorization-stops-inventory-test
+  (with-app-with-config app broker-services no-inventory-broker-config
+    (dotestseq [version protocol-versions]
+      (with-open [client (client/connect :certname "client01.example.com"
+                                         :version version)]
+        (testing "cannot request inventory"
+          (let [request (-> (message/make-message)
+                            (assoc :message_type "http://puppetlabs.com/inventory_request"
+                                   :targets ["pcp:///server"]
+                                   :sender "pcp://client01.example.com/test")
+                            (message/set-expiry 3 :seconds)
+                            (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
+            (client/send! client request)
+            (let [response (client/recv! client 1000)]
+              (is (= nil response)))))))))
 
 ;; Message sending
 (deftest send-to-self-explicit-test
@@ -460,11 +494,6 @@
               :sort-order 420
               :match-request {:type "path"
                               :path "/pcp-broker/send"}
-              :allow-unauthenticated true}
-             {:name "allow association"
-              :sort-order 400
-              :match-request {:type "path"
-                              :path "/pcp-broker/connect"}
               :allow-unauthenticated true}]))
 
 (deftest authorization-will-stop-some-fun-test

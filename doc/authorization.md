@@ -41,13 +41,13 @@ authorization: {
     {
       name: "pxp command message"
       match-request: {
-         type: path
-         path: "/pcp-broker/send"
-         query-params: {
-           message_type: [
-             "http://puppetlabs.com/rpc_blocking_request"
-           ]
-         }
+        type: path
+        path: "/pcp-broker/send"
+        query-params: {
+          message_type: [
+            "http://puppetlabs.com/rpc_blocking_request"
+          ]
+        }
       }
       allow: [
         client01.example.com
@@ -57,8 +57,8 @@ authorization: {
     {
       name: "pcp message"
       match-request: {
-         type: path
-         path: "/pcp-broker/send"
+        type: path
+        path: "/pcp-broker/send"
       }
       allow-unauthenticated: true
       sort-order: 420
@@ -67,13 +67,18 @@ authorization: {
 }
 ```
 
-Session association and inventory requests are handled separately from other PCP Messages, and have
-their own authorization rules. PCP Messages with type `http://puppetlabs.com/associate_request` are
-mapped into ring requests on the `pcp-broker/connect` path. Messages with type
-`http://puppetlabs.com/inventory_request` do not currently have separate authorization, and are
-allowed for any associated client.
+For further notes on how to configure trapperkeeper-authorization see
+https://github.com/puppetlabs/trapperkeeper-authorization/blob/master/doc/authorization-config.md
 
-Session association requests can be matched by trapperkeeper-authorization with the following `authorization.conf`.
+## Common Patterns
+
+### Session Association
+
+Rejecting session association is one way of blocking nodes that have previously acquired a valid SSL
+certificate - or have those certificates for other purposes - from participating in PCP activity.
+
+Session association requests can be matched by trapperkeeper-authorization with the following
+`authorization.conf`.
 
 ``` HOCON
 # authorization.conf
@@ -81,17 +86,93 @@ authorization: {
   version: 1
   rules: [
     {
-      name: "pcp association"
+      name: "deny pcp association"
       match-request: {
-         type: path
-         path: "/pcp-broker/connect"
+        type: path
+        path: "/pcp-broker/send"
+        query-params: {
+          message_type: [
+            "http://puppetlabs.com/associate_request"
+          ]
+        }
       }
-      allow-unauthenticated: true
+      deny: [
+        client02.example.com
+      ]
       sort-order: 400
     },
+    {
+      name: "pcp message"
+      match-request: {
+        type: path
+        path: "/pcp-broker/send"
+      }
+      allow-unauthenticated: true
+      sort-order: 420
+    },
+
   ]
 }
 ```
 
-For further notes on how to configure trapperkeeper-authorization see
-https://github.com/puppetlabs/trapperkeeper-authorization/blob/master/doc/authorization-config.md
+### Inventory Request
+
+Not all nodes need or should have access to the full inventory of nodes connected to a PCP broker.
+Inventory requests are one way of acquiring that information; another functionally equivalent way
+to discover all connected nodes is a message using a wildcard to specify the target.
+
+Both types of requests can be matched by trapperkeeper-authorization with the following
+`authorization.conf`.
+
+``` HOCON
+# authorization.conf
+authorization: {
+  version: 1
+  rules: [
+    {
+      name: "restrict pcp inventory"
+      match-request: {
+        type: path
+        path: "/pcp-broker/send"
+        query-params: {
+          message_type: [
+            "http://puppetlabs.com/inventory_request"
+          ]
+        }
+      }
+      allow: [
+        controller01.example.com
+      ]
+      sort-order: 400
+    },
+    {
+      names: "restrict pcp multi-cast"
+      match-request: {
+        type: path
+        path: "/pcp-broker/send"
+        query-params: {
+          targets: [
+            "pcp://*/agent",
+            "pcp://*/*",
+          ]
+        }
+      }
+      allow: [
+        controller01.example.com
+      ]
+      sort-order: 400
+    },
+    {
+      name: "pcp message"
+      match-request: {
+        type: path
+        path: "/pcp-broker/send"
+      }
+      allow-unauthenticated: true
+      sort-order: 420
+    },
+
+  ]
+}
+```
+

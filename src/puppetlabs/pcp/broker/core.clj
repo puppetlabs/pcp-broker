@@ -90,12 +90,6 @@
   [broker :- Broker uri :- p/Uri]
   (get (:uri-map broker) uri))
 
-(s/defn session-association-message? :- s/Bool
-  "Return true if message is a session association message"
-  [message :- Message]
-  (and (= (:targets message) ["pcp:///server"])
-       (= (:message_type message) "http://puppetlabs.com/associate_request")))
-
 (s/defn make-ring-request :- ring/Request
   [broker :- Broker capsule :- Capsule websocket :- (s/maybe Websocket)]
   (let [{:keys [sender targets message_type]} (:message capsule)
@@ -103,10 +97,7 @@
         query-params {"sender" sender
                       "targets" (if (= 1 (count targets)) (first targets) targets)
                       "message_type" message_type}
-        request-uri (if (session-association-message? (:message capsule))
-                      "/pcp-broker/connect"
-                      "/pcp-broker/send")
-        request {:uri request-uri
+        request {:uri "/pcp-broker/send"
                  :request-method :post
                  :remote-addr ""
                  :form-params form-params
@@ -273,6 +264,12 @@
             (concat (activemq/subscribe-to-queue accept-queue (partial expand-destinations broker) accept-consumers)
                     (activemq/subscribe-to-queue delivery-queue (partial deliver-message broker) delivery-consumers)))))
 
+(s/defn session-association-message? :- s/Bool
+  "Return true if message is a session association message"
+  [message :- Message]
+  (and (= (:targets message) ["pcp:///server"])
+       (= (:message_type message) "http://puppetlabs.com/associate_request")))
+
 (s/defn reason-to-deny-association :- (s/maybe s/Str)
   "Returns an error message describing why the session should not be
   allowed, if it should be denied"
@@ -294,15 +291,15 @@
 (s/defn process-associate-message :- Connection
   "Process a session association message on a websocket"
   [broker :- Broker capsule :- Capsule connection :- Connection]
-    (let [request (:message capsule)
-          id (:id request)
-          ws (:websocket connection)
-          encode (get-in connection [:codec :encode])]
-      (if (capsule/expired? capsule)
-        (let [response (make-ttl_expired-message request)]
-          (websockets-client/send! ws (encode response))
-          connection)
-        (if (authorized? broker capsule ws)
+  (let [ws (:websocket connection)]
+    (if (authorized? broker capsule ws)
+      (let [request (:message capsule)
+            id (:id request)
+            encode (get-in connection [:codec :encode])]
+        (if (capsule/expired? capsule)
+          (let [response (make-ttl_expired-message request)]
+            (websockets-client/send! ws (encode response))
+            connection)
           (let [uri (:sender request)
                 reason (reason-to-deny-association broker connection uri)
                 response (if reason {:id id :success false :reason reason} {:id id :success true})]
@@ -331,27 +328,28 @@
                 (record-client uri)
                 (assoc connection
                        :uri uri
-                       :state :associated))))
-          (do
-            (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful"))
-            connection)))))
+                       :state :associated))))))
+      (do
+        (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful"))
+        connection))))
 
 (s/defn process-inventory-message :- Connection
   "Process a request for inventory data"
   [broker :- Broker capsule :- Capsule connection :- Connection]
-  (let [message (:message capsule)
-        data (message/get-json-data message)]
-    (s/validate p/InventoryRequest data)
-    (let [uris (doall (filter (partial get-websocket broker) ((:find-clients broker) (:query data))))
-          response-data {:uris uris}
-          response (-> (message/make-message :message_type "http://puppetlabs.com/inventory_response"
-                                             :targets [(:sender message)]
-                                             :in-reply-to (:id message)
-                                             :sender "pcp:///server")
-                       (message/set-expiry 3 :seconds)
-                       (message/set-json-data response-data))]
-      (s/validate p/InventoryResponse response-data)
-      (accept-message-for-delivery broker (capsule/wrap response))))
+  (if (authorized? broker capsule (:websocket connection))
+    (let [message (:message capsule)
+          data (message/get-json-data message)]
+      (s/validate p/InventoryRequest data)
+      (let [uris (doall (filter (partial get-websocket broker) ((:find-clients broker) (:query data))))
+            response-data {:uris uris}
+            response (-> (message/make-message :message_type "http://puppetlabs.com/inventory_response"
+                                               :targets [(:sender message)]
+                                               :in-reply-to (:id message)
+                                               :sender "pcp:///server")
+                         (message/set-expiry 3 :seconds)
+                         (message/set-json-data response-data))]
+        (s/validate p/InventoryResponse response-data)
+        (accept-message-for-delivery broker (capsule/wrap response)))))
   connection)
 
 (s/defn process-server-message :- Connection
