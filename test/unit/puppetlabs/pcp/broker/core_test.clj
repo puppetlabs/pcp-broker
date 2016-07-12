@@ -157,11 +157,13 @@
                 :form-params {}
                 :query-params {"sender" "pcp://example01.example.com/agent"
                                "targets" "pcp://example02.example.com/agent"
-                               "message_type" "example1"}
+                               "message_type" "example1"
+                               "destination_report" false}
                 :params {"sender" "pcp://example01.example.com/agent"
                          "targets" "pcp://example02.example.com/agent"
-                         "message_type" "example1"}}
-               (make-ring-request broker capsule)))))
+                         "message_type" "example1"
+                         "destination_report" false}}
+               (make-ring-request broker capsule nil)))))
     (testing "it should return a ring request - two targets"
       (let [message (message/make-message :message_type "example1"
                                           :sender "pcp://example01.example.com/agent"
@@ -175,12 +177,33 @@
                 :query-params {"sender" "pcp://example01.example.com/agent"
                                "targets" ["pcp://example02.example.com/agent"
                                           "pcp://example03.example.com/agent"]
-                               "message_type" "example1"}
+                               "message_type" "example1"
+                               "destination_report" false}
                 :params {"sender" "pcp://example01.example.com/agent"
                          "targets" ["pcp://example02.example.com/agent"
                                     "pcp://example03.example.com/agent"]
-                         "message_type" "example1"}}
-               (make-ring-request broker capsule)))))))
+                         "message_type" "example1"
+                         "destination_report" false}}
+               (make-ring-request broker capsule nil)))))
+    (testing "it should return a ring request - destination report"
+      (let [message (message/make-message :message_type "example1"
+                                          :sender "pcp://example01.example.com/agent"
+                                          :targets ["pcp://example02.example.com/agent"]
+                                          :destination_report true)
+            capsule (capsule/wrap message)]
+        (is (= {:uri "/pcp-broker/send"
+                :request-method :post
+                :remote-addr ""
+                :form-params {}
+                :query-params {"sender" "pcp://example01.example.com/agent"
+                               "targets" "pcp://example02.example.com/agent"
+                               "message_type" "example1"
+                               "destination_report" true}
+                :params {"sender" "pcp://example01.example.com/agent"
+                         "targets" "pcp://example02.example.com/agent"
+                         "message_type" "example1"
+                         "destination_report" true}}
+               (make-ring-request broker capsule nil)))))))
 
 (deftest authorized?-test
   (let [yes-check (fn [r] {:authorized true
@@ -260,7 +283,8 @@
 (deftest process-associate-message-test
   (let [closed (atom (promise))]
     (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
-                  puppetlabs.experimental.websockets.client/send! (constantly false)]
+                  puppetlabs.experimental.websockets.client/send! (constantly false)
+                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
       (let [message (-> (message/make-message :sender "pcp://localhost/controller"
                                               :message_type "http://puppetlabs.com/login_message")
                         (message/set-expiry 3 :seconds))
@@ -300,7 +324,8 @@
         capsule (capsule/wrap message)
         connection (connection/make-connection "ws1" identity-codec)
         accepted (atom nil)]
-    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))
+                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
       (process-inventory-message broker capsule connection)
       (is (= [] (:uris (message/get-json-data (:message @accepted))))))))
 
