@@ -44,7 +44,7 @@
       (assoc :message_type "http://puppetlabs.com/associate_request"
              :targets ["pcp:///server"]
              :sender uri)
-      (message/set-expiry 3 :seconds)))
+      (message/set-expiry 10 :seconds)))
 
 (defn connect
   "Makes a client for testing"
