@@ -92,11 +92,12 @@
 
 (s/defn make-ring-request :- ring/Request
   [broker :- Broker capsule :- Capsule websocket :- (s/maybe Websocket)]
-  (let [{:keys [sender targets message_type]} (:message capsule)
+  (let [{:keys [sender targets message_type destination_report]} (:message capsule)
         form-params {}
         query-params {"sender" sender
                       "targets" (if (= 1 (count targets)) (first targets) targets)
-                      "message_type" message_type}
+                      "message_type" message_type
+                      "destination_report" (boolean destination_report)}
         request {:uri "/pcp-broker/send"
                  :request-method :post
                  :remote-addr ""

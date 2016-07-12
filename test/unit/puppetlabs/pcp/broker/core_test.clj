@@ -157,10 +157,12 @@
                 :form-params {}
                 :query-params {"sender" "pcp://example01.example.com/agent"
                                "targets" "pcp://example02.example.com/agent"
-                               "message_type" "example1"}
+                               "message_type" "example1"
+                               "destination_report" false}
                 :params {"sender" "pcp://example01.example.com/agent"
                          "targets" "pcp://example02.example.com/agent"
-                         "message_type" "example1"}}
+                         "message_type" "example1"
+                         "destination_report" false}}
                (make-ring-request broker capsule nil)))))
     (testing "it should return a ring request - two targets"
       (let [message (message/make-message :message_type "example1"
@@ -175,11 +177,32 @@
                 :query-params {"sender" "pcp://example01.example.com/agent"
                                "targets" ["pcp://example02.example.com/agent"
                                           "pcp://example03.example.com/agent"]
-                               "message_type" "example1"}
+                               "message_type" "example1"
+                               "destination_report" false}
                 :params {"sender" "pcp://example01.example.com/agent"
                          "targets" ["pcp://example02.example.com/agent"
                                     "pcp://example03.example.com/agent"]
-                         "message_type" "example1"}}
+                         "message_type" "example1"
+                         "destination_report" false}}
+               (make-ring-request broker capsule nil)))))
+    (testing "it should return a ring request - destination report"
+      (let [message (message/make-message :message_type "example1"
+                                          :sender "pcp://example01.example.com/agent"
+                                          :targets ["pcp://example02.example.com/agent"]
+                                          :destination_report true)
+            capsule (capsule/wrap message)]
+        (is (= {:uri "/pcp-broker/send"
+                :request-method :post
+                :remote-addr ""
+                :form-params {}
+                :query-params {"sender" "pcp://example01.example.com/agent"
+                               "targets" "pcp://example02.example.com/agent"
+                               "message_type" "example1"
+                               "destination_report" true}
+                :params {"sender" "pcp://example01.example.com/agent"
+                         "targets" "pcp://example02.example.com/agent"
+                         "message_type" "example1"
+                         "destination_report" true}}
                (make-ring-request broker capsule nil)))))))
 
 (deftest authorized?-test

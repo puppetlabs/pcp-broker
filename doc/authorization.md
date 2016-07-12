@@ -26,10 +26,12 @@ This would be transformed into the following ring request:
      :form-params {}
      :query-params {"message_type" "http://puppetlabs.com/rpc_blocking_request"
                     "sender" "pcp://client01.example.com/ruby-pcp-client-2251"
-                    "targets" "pcp://client02.example.com/agent"}
+                    "targets" "pcp://client02.example.com/agent"
+                    "destination_report" false}
      :params {"message_type" "http://puppetlabs.com/rpc_blocking_request"
               "sender" "pcp://client01.example.com/ruby-pcp-client-2251"
-              "targets" "pcp://client02.example.com/agent"}}
+              "targets" "pcp://client02.example.com/agent"
+              "destination_report" false}}
 
 And then this can be matched by trapperkeeper-authorization with the following `authorization.conf`.
 
@@ -119,7 +121,8 @@ authorization: {
 
 Not all nodes need or should have access to the full inventory of nodes connected to a PCP broker.
 Inventory requests are one way of acquiring that information; another functionally equivalent way
-to discover all connected nodes is a message using a wildcard to specify the target.
+to discover all connected nodes is a message using a wildcard to specify the target that requests
+a destination report.
 
 Both types of requests can be matched by trapperkeeper-authorization with the following
 `authorization.conf`.
@@ -146,7 +149,7 @@ authorization: {
       sort-order: 400
     },
     {
-      names: "restrict pcp multi-cast"
+      names: "restrict pcp multi-cast destination_report"
       match-request: {
         type: path
         path: "/pcp-broker/send"
@@ -155,6 +158,7 @@ authorization: {
             "pcp://*/agent",
             "pcp://*/*",
           ]
+          destination_report: true
         }
       }
       allow: [
