@@ -25,7 +25,6 @@
                 :connections        (ConcurrentHashMap.)
                 :metrics-registry   metrics.core/default-registry
                 :metrics            {}
-                :transitions        {}
                 :broker-cn          "broker.example.com"
                 :state              (atom :running)}
         metrics (build-and-register-metrics broker)
@@ -149,8 +148,7 @@
     (testing "it should return a ring request - one target"
       (let [message (message/make-message :message_type "example1"
                                           :sender "pcp://example01.example.com/agent"
-                                          :targets ["pcp://example02.example.com/agent"])
-            capsule (capsule/wrap message)]
+                                          :targets ["pcp://example02.example.com/agent"])]
         (is (= {:uri "/pcp-broker/send"
                 :request-method :post
                 :remote-addr ""
@@ -163,13 +161,12 @@
                          "targets" "pcp://example02.example.com/agent"
                          "message_type" "example1"
                          "destination_report" false}}
-               (make-ring-request broker capsule nil)))))
+               (make-ring-request broker message nil)))))
     (testing "it should return a ring request - two targets"
       (let [message (message/make-message :message_type "example1"
                                           :sender "pcp://example01.example.com/agent"
                                           :targets ["pcp://example02.example.com/agent"
-                                                    "pcp://example03.example.com/agent"])
-            capsule (capsule/wrap message)]
+                                                    "pcp://example03.example.com/agent"])]
         (is (= {:uri "/pcp-broker/send"
                 :request-method :post
                 :remote-addr ""
@@ -184,13 +181,12 @@
                                     "pcp://example03.example.com/agent"]
                          "message_type" "example1"
                          "destination_report" false}}
-               (make-ring-request broker capsule nil)))))
+               (make-ring-request broker message nil)))))
     (testing "it should return a ring request - destination report"
       (let [message (message/make-message :message_type "example1"
                                           :sender "pcp://example01.example.com/agent"
                                           :targets ["pcp://example02.example.com/agent"]
-                                          :destination_report true)
-            capsule (capsule/wrap message)]
+                                          :destination_report true)]
         (is (= {:uri "/pcp-broker/send"
                 :request-method :post
                 :remote-addr ""
@@ -203,7 +199,7 @@
                          "targets" "pcp://example02.example.com/agent"
                          "message_type" "example1"
                          "destination_report" true}}
-               (make-ring-request broker capsule nil)))))))
+               (make-ring-request broker message nil)))))))
 
 (deftest authorized?-test
   (let [yes-check (fn [r] {:authorized true
@@ -216,18 +212,16 @@
         no-broker (assoc (make-test-broker) :authorization-check no-check)
         message (message/make-message :message_type "example1"
                                       :sender "pcp://example01.example.com/agent"
-                                      :targets ["pcp://example02.example.com/agent"])
-        capsule (capsule/wrap message)]
-    (is (= true (authorized? yes-broker capsule)))
-    (is (= false (authorized? no-broker capsule)))))
+                                      :targets ["pcp://example02.example.com/agent"])]
+    (is (= true (authorized? yes-broker message nil)))
+    (is (= false (authorized? no-broker message nil)))))
 
 (deftest accept-message-for-delivery-test
   (let [broker (make-test-broker)
         capsule (capsule/wrap (message/make-message))
         queued (atom [])]
     (with-redefs [puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule] (swap! queued conj {:queue queue
-                                                                                                       :capsule capsule}))
-                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
+                                                                                                       :capsule capsule}))]
       (accept-message-for-delivery broker capsule)
       (is (= 1 (count @queued)))
       (is (= accept-queue (:queue (first @queued)))))))
@@ -283,8 +277,7 @@
 (deftest process-associate-message-test
   (let [closed (atom (promise))]
     (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
-                  puppetlabs.experimental.websockets.client/send! (constantly false)
-                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
+                  puppetlabs.experimental.websockets.client/send! (constantly false)]
       (let [message (-> (message/make-message :sender "pcp://localhost/controller"
                                               :message_type "http://puppetlabs.com/login_message")
                         (message/set-expiry 3 :seconds))
@@ -324,8 +317,7 @@
         capsule (capsule/wrap message)
         connection (connection/make-connection "ws1" identity-codec)
         accepted (atom nil)]
-    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))
-                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
+    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))]
       (process-inventory-message broker capsule connection)
       (is (= [] (:uris (message/get-json-data (:message @accepted))))))))
 
@@ -361,7 +353,7 @@
   (let [broker (make-test-broker)
         message (message/make-message :targets ["pcp:///server"]
                                       :message_type "http://puppetlabs.com/associate_request")
-        capsule (capsule/wrap message)
+        capsule (capsule/wrap (message/set-expiry message 300 :seconds))
         connection (connection/make-connection "ws1" identity-codec)
         associate-request (atom nil)]
     (with-redefs [puppetlabs.pcp.broker.core/process-associate-message (fn [broker capsule connection]
@@ -382,21 +374,21 @@
       (connection-associated broker capsule connection)
       (is (not= nil @accepted)))))
 
-(deftest determine-next-state-test
+(deftest process-message-test
   (testing "illegal next states raise due to schema validation"
-    (let [broker (make-test-broker)
-          broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :badbadbad))})
-          connection (connection/make-connection "ws" identity-codec)
-          message (message/make-message)
-          capsule (capsule/wrap message)]
-      (is (= :open (:state connection)))
-      (is (thrown+? [:type :schema.core/error]
-                    (determine-next-state broker capsule connection)))))
+    (with-redefs [puppetlabs.pcp.broker.core/connection-open (fn [_ _ c] (assoc c :state :badbadbad))]
+      (let [broker (make-test-broker)
+            connection (connection/make-connection "ws" identity-codec)
+            message (message/make-message)
+            capsule (capsule/wrap message)]
+        (is (= :open (:state connection)))
+        (is (thrown+? [:type :schema.core/error]
+                      (process-message broker capsule connection))))))
   (testing "legal next states are accepted"
-    (let [broker (make-test-broker)
-          broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :associated))})
-          connection (connection/make-connection "ws" identity-codec)
-          message (message/make-message)
-          capsule (capsule/wrap message)
-          next (determine-next-state broker capsule connection)]
-      (is (= :associated (:state next))))))
+    (with-redefs [puppetlabs.pcp.broker.core/connection-open (fn [_ _ c] (assoc c :state :associated))]
+      (let [broker (make-test-broker)
+            connection (connection/make-connection "ws" identity-codec)
+            message (message/make-message)
+            capsule (capsule/wrap message)
+            next (process-message broker capsule connection)]
+        (is (= :associated (:state next)))))))
