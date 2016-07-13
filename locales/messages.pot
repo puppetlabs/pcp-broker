@@ -45,7 +45,7 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
+"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{auth-msg}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -54,7 +54,7 @@ msgid ""
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Server generated message expired.  Dropping"
+msgid "Server generated message expired. Dropping"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -86,7 +86,7 @@ msgstr ""
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Received session association for '{uri}' from '{commonname}' "
-"'{remoteaddress}'.  Session was already associated as '{existinguri}'"
+"'{remoteaddress}'. Session was already associated as '{existinguri}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -132,24 +132,21 @@ msgstr ""
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "client '{commonname}' from '{remoteaddress}': cannot accept messages until "
-"session has been associated.  Dropping message."
+"session has been associated. Dropping message."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Cannot find transition for state '{state}'"
-msgstr ""
-
-#. TODO(richardc): When we have the message type for
-#. 'authorization_denied' use this instead of
-#. error_message
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Message not authorized"
+msgid "Unknown state '{state}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Message '{messageid}' for '{destination}' from '{commonname}' "
 "'{remoteaddress}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Message not authorized"
 msgstr ""
 
 #. This is a processing error, say an uncaught exception in any of the stuff we meant to do

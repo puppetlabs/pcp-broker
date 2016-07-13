@@ -119,6 +119,15 @@
        (deliver close-code :refused)))
     @close-code))
 
+(defn is-message-not-authorized
+  "Assert that the message is an error denying authorization"
+  [response version]
+  (is (= "http://puppetlabs.com/error_message" (:message_type response)))
+  (if (= "v1.0" version)
+    (is (= nil (:in-reply-to response)))
+    (is (:in-reply-to response)))
+  (is (= "Message not authorized" (:description (message/get-json-data response)))))
+
 (defn conj-unique
   "append elem if it is distinct from the last element in the sequence.
   When we port to clojure 1.7 we should be able to use `distinct` on the
@@ -178,11 +187,7 @@
                                          :check-association false
                                          :version version)]
         (let [response (client/recv! client)]
-          (is (= "http://puppetlabs.com/error_message" (:message_type response)))
-          (if (= "v1.0" version)
-            (is (= nil (:in-reply-to response)))
-            (is (:in-reply-to response)))
-          (is (= "Message not authorized" (:description (message/get-json-data response)))))))))
+          (is-message-not-authorized response version))))))
 
 ;; Session association tests
 (deftest basic-session-association-test
@@ -245,6 +250,8 @@
                                          :version version
                                          :check-association false)]
         (testing "cannot associate"
+          (let [response (client/recv! client)]
+            (is-message-not-authorized response version))
           (let [response (client/recv! client)]
             (is (= [4002 "association unsuccessful"] response))))
         (testing "cannot request inventory"
@@ -349,8 +356,8 @@
                             (message/set-expiry 3 :seconds)
                             (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
             (client/send! client request)
-            (let [response (client/recv! client 1000)]
-              (is (= nil response)))))))))
+            (let [response (client/recv! client)]
+              (is-message-not-authorized response version))))))))
 
 ;; Message sending
 (deftest send-to-self-explicit-test
@@ -517,6 +524,8 @@
                                                   :targets ["pcp://client01.example.com/test"])
                             (message/set-expiry 3 :seconds))]
             (client/send! client02 message)
+            (let [response (client/recv! client02)]
+              (is-message-not-authorized response version))
             (let [received (client/recv! client01 1000)]
               (is (= nil received)))))))))
 
