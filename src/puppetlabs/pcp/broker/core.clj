@@ -151,8 +151,8 @@
                                            :targets [sender]
                                            :sender "pcp:///server"
                                            :in-reply-to in-reply-to)
-                     (message/set-expiry 3 :seconds)
-                     (message/set-json-data response_data))]
+                     (message/set-json-data response_data)
+                     (message/set-expiry 3 :seconds))]
     response))
 
 (s/defn process-expired-message :- Capsule
@@ -208,15 +208,17 @@
   [broker :- Broker message :- Message targets :- [p/Uri]]
   (when (:destination_report message)
     (let [report {:id (:id message)
-                  :targets targets}
-          reply (-> (message/make-message :targets [(:sender message)]
-                                          :message_type "http://puppetlabs.com/destination_report"
-                                          :in-reply-to (:id message)
-                                          :sender "pcp:///server")
-                    (message/set-expiry 3 :seconds)
-                    (message/set-json-data report))]
+                  :targets targets}]
       (s/validate p/DestinationReport report)
-      (accept-message-for-delivery broker (capsule/wrap reply)))))
+      (accept-message-for-delivery
+        broker
+        (-> (message/make-message :targets [(:sender message)]
+                                  :message_type "http://puppetlabs.com/destination_report"
+                                  :in-reply-to (:id message)
+                                  :sender "pcp:///server")
+            (message/set-json-data report)
+            (message/set-expiry 3 :seconds)
+            (capsule/wrap))))))
 
 ;; ActiveMQ queue consumers
 (s/defn deliver-message
@@ -309,8 +311,8 @@
                                                     :targets [uri]
                                                     :in-reply-to id
                                                     :sender "pcp:///server")
-                              (message/set-expiry 3 :seconds)
-                              (message/set-json-data response))]
+                              (message/set-json-data response)
+                              (message/set-expiry 3 :seconds))]
               (websockets-client/send! ws (encode message)))
             (if reason
               (do
@@ -342,15 +344,19 @@
           data (message/get-json-data message)]
       (s/validate p/InventoryRequest data)
       (let [uris (doall (filter (partial get-websocket broker) ((:find-clients broker) (:query data))))
-            response-data {:uris uris}
-            response (-> (message/make-message :message_type "http://puppetlabs.com/inventory_response"
-                                               :targets [(:sender message)]
-                                               :in-reply-to (:id message)
-                                               :sender "pcp:///server")
-                         (message/set-expiry 3 :seconds)
-                         (message/set-json-data response-data))]
+            response-data {:uris uris}]
         (s/validate p/InventoryResponse response-data)
-        (accept-message-for-delivery broker (capsule/wrap response)))))
+        (accept-message-for-delivery
+          broker
+          (-> (message/make-message :message_type "http://puppetlabs.com/inventory_response"
+                                    :targets [(:sender message)]
+                                    :in-reply-to (:id message)
+                                    :sender "pcp:///server")
+              (message/set-json-data response-data)
+              ;; set expiration last so if any of the previous steps take significant time
+              ;; the message doesn't expire
+              (message/set-expiry 3 :seconds)
+              (capsule/wrap))))))
   connection)
 
 (s/defn process-server-message :- Connection
