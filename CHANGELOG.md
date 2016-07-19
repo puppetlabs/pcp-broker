@@ -1,3 +1,28 @@
+## 0.7.1
+
+This is a bugfix release
+
+* [PCP-162](https://tickets.puppetlabs.com/browse/PCP-162) Externalize strings
+  for localization.
+* [PCP-245](https://tickets.puppetlabs.com/browse/PCP-245) Avoid delivering
+  expired messages.
+* [PCP-370](https://tickets.puppetlabs.com/browse/PCP-370) Removed old test
+  SSL certificates.
+* [PCP-384](https://tickets.puppetlabs.com/browse/PCP-384) Check authorization
+  of `associate_request` and `inventory_request` messages.
+* [PCP-448](https://tickets.puppetlabs.com/browse/PCP-448) Avoid heavy thread
+  contention when disconnecting many clients simultaneously; previously
+  included in pcp-broker 0.6.2.
+* [PCP-467](https://tickets.puppetlabs.com/browse/PCP-467) Disable Prismatic
+  schema checks on internal functions for production.
+* [PCP-485](https://tickets.puppetlabs.com/browse/PCP-485) Speed up broker
+  `inventory_response` generation.
+* [PCP-487](https://tickets.puppetlabs.com/browse/PCP-487) Increase PCP
+  message expiry in tests to allow for more schema checks during testing.
+* [PCP-496](https://tickets.puppetlabs.com/browse/PCP-496) Set
+  `inventory_response` expiration as the last step before sending messages,
+  to avoid message expiring while creating it.
+
 ## 0.7.0
 
 This is an improvement and bugfix release
