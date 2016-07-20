@@ -252,7 +252,7 @@
                             (assoc :message_type "http://puppetlabs.com/inventory_request"
                                    :targets ["pcp:///server"]
                                    :sender "pcp://client01.example.com/test")
-                            (message/set-expiry 3 :seconds)
+                            (message/set-expiry 5 :seconds)
                             (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
             (client/send! client request)
             (let [response (client/recv! client 1000)]
@@ -262,7 +262,7 @@
                             (assoc :sender "pcp://client01.example.com/test"
                                    :targets ["pcp://client01.example.com/test"]
                                    :message_type "greeting")
-                            (message/set-expiry 3 :seconds)
+                            (message/set-expiry 5 :seconds)
                             (message/set-json-data "Hello"))]
             (client/send! client message)
             (let [message (client/recv! client 1000)]
@@ -278,7 +278,7 @@
                           (assoc :message_type "http://puppetlabs.com/inventory_request"
                                  :targets ["pcp:///server"]
                                  :sender "pcp://client01.example.com/test")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
           (client/send! client request)
           (let [response (client/recv! client)]
@@ -295,7 +295,7 @@
                           (assoc :message_type "http://puppetlabs.com/inventory_request"
                                  :targets ["pcp:///server"]
                                  :sender "pcp://client01.example.com/test")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data {:query ["pcp://*/test"]}))]
           (client/send! client request)
           (let [response (client/recv! client)]
@@ -313,7 +313,7 @@
                           (assoc :message_type "http://puppetlabs.com/inventory_request"
                                  :targets ["pcp:///server"]
                                  :sender "pcp://client01.example.com/test")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data {:query ["pcp://client02.example.com/test"]}))]
           (client/send! client request))
         (let [response (client/recv! client)]
@@ -346,7 +346,7 @@
                             (assoc :message_type "http://puppetlabs.com/inventory_request"
                                    :targets ["pcp:///server"]
                                    :sender "pcp://client01.example.com/test")
-                            (message/set-expiry 3 :seconds)
+                            (message/set-expiry 5 :seconds)
                             (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
             (client/send! client request)
             (let [response (client/recv! client 1000)]
@@ -362,7 +362,7 @@
                           (assoc :sender "pcp://client01.example.com/test"
                                  :targets ["pcp://client01.example.com/test"]
                                  :message_type "greeting")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! client message)
           (let [message (client/recv! client)]
@@ -378,7 +378,7 @@
                           (assoc :sender "pcp://client01.example.com/test"
                                  :targets ["pcp://*/test"]
                                  :message_type "greeting")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! client message)
           (let [message (client/recv! client)]
@@ -397,7 +397,7 @@
                                  :targets ["pcp://client02.example.com/test"]
                                  :destination_report true
                                  :message_type "greeting")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! sender message)
           (let [report  (client/recv! sender)
@@ -422,7 +422,7 @@
                           (assoc :sender "pcp://client01.example.com/test"
                                  :targets ["pcp://client02.example.com/*"]
                                  :message_type "greeting")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! client message)
           (let [response (client/recv! client 1000)]
@@ -451,7 +451,7 @@
                           (assoc :sender "pcp://client01.example.com/test"
                                  :targets ["pcp://client02.example.com/test"]
                                  :message_type "greeting")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! client message)
           (let [response (client/recv! client)]
@@ -474,7 +474,7 @@
                           (assoc :sender "pcp://client01.example.com/test"
                                  :targets ["pcp://client02.example.com/test"]
                                  :message_type "greeting")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! client message)))
       (with-open [client (client/connect :certname "client02.example.com")]
@@ -507,7 +507,7 @@
           (let [message (-> (message/make-message :sender "pcp://client01.example.com/test"
                                                   :message_type "test/sensitive"
                                                   :targets ["pcp://client02.example.com/test"])
-                            (message/set-expiry 3 :seconds))]
+                            (message/set-expiry 5 :seconds))]
             (client/send! client01 message)
             (let [received (client/recv! client02)]
               (is (= (:id message) (:id received))))))
@@ -515,7 +515,7 @@
           (let [message (-> (message/make-message :sender "pcp://client02.example.com/test"
                                                   :message_type "test/sensitive"
                                                   :targets ["pcp://client01.example.com/test"])
-                            (message/set-expiry 3 :seconds))]
+                            (message/set-expiry 5 :seconds))]
             (client/send! client02 message)
             (let [received (client/recv! client01 1000)]
               (is (= nil received)))))))))
@@ -533,16 +533,16 @@
                                  :targets ["pcp://client02.example.com/test"]
                                  :in-reply-to (ks/uuid)
                                  :message_type "greeting")
-                          (message/set-expiry 3 :seconds)
+                          (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! sender message)
-          (let [recieved (client/recv! receiver)]
+          (let [received-msg (client/recv! receiver)]
             (is (= (case receiver-version
                      "v1.0" nil
                      (:in-reply-to message))
-                   (:in-reply-to recieved)))
-            (is (= "greeting" (:message_type recieved)))
-            (is (= "Hello" (message/get-json-data recieved)))))))))
+                   (:in-reply-to received-msg)))
+            (is (= "greeting" (:message_type received-msg)))
+            (is (= "Hello" (message/get-json-data received-msg)))))))))
 
 (def no-vnext-config
   "A broker with vNext unconfigured"
