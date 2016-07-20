@@ -1,3 +1,10 @@
+## 0.7.2
+
+This is a bugfix release
+
+* [PCP-506](https://tickets.puppetlabs.com/browse/PCP-506) Make vNext route
+  actually optional.
+
 ## 0.7.1
 
 This is a bugfix release
