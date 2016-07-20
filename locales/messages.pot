@@ -173,6 +173,10 @@ msgid ""
 "'{reason}'"
 msgstr ""
 
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "vNext protocol endpoint not configured"
+msgstr ""
+
 #: src/puppetlabs/pcp/broker/service.clj
 msgid "Initializing broker service"
 msgstr ""

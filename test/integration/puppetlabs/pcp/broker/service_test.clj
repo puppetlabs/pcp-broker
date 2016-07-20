@@ -543,3 +543,12 @@
                    (:in-reply-to recieved)))
             (is (= "greeting" (:message_type recieved)))
             (is (= "Hello" (message/get-json-data recieved)))))))))
+
+(def no-vnext-config
+  "A broker with vNext unconfigured"
+  (assoc-in broker-config [:web-router-service :puppetlabs.pcp.broker.service/broker-service]
+            {:v1 "/pcp/v1.0"}))
+
+(deftest no-vnext-test
+  (with-app-with-config app broker-services no-vnext-config
+    (is true)))

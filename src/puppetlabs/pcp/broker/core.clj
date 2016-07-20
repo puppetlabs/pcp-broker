@@ -580,8 +580,12 @@
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
       (add-websocket-handler (build-websocket-handlers broker v1-codec) {:route-id :v1})
-      (when (get-route :vNext)
-        (add-websocket-handler (build-websocket-handlers broker default-codec) {:route-id :vNext}))
+      (try
+        (when (get-route :vNext)
+          (add-websocket-handler (build-websocket-handlers broker default-codec) {:route-id :vNext}))
+        (catch IllegalArgumentException e
+          (sl/maplog :trace {:type :vnext-unavailable}
+                     (i18n/trs "vNext protocol endpoint not configured"))))
       broker)))
 
 (s/defn start
