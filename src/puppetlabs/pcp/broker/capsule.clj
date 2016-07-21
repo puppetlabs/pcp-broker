@@ -40,7 +40,7 @@
 (def CapsuleLog
   "Schema for a loggable summary of a capsule"
   {:messageid p/MessageId
-   :source p/Uri
+   :source s/Str
    :destination (s/either p/Uri [p/Uri])})
 
 (s/defn -summarize :- CapsuleLog
