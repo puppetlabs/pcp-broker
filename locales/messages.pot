@@ -94,6 +94,12 @@ msgid "session already associated"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid ""
+"Association request '{messageid}' from '{source}' has expired. Sending a "
+"ttl_expired."
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "association unsuccessful"
 msgstr ""
 

@@ -66,6 +66,20 @@
   (f))
 
 (use-fixtures :once st/validate-schemas)
+; increase ttl set by the `puppetlabs.pcp.message/set-expiry` function
+; 60 times to prevent test failures caused by the expiration of the ttl
+; on messages exchanged during the tests;
+; we started to see this to happen after we'd enabled the schema
+; checks globally by using the `schema.test/validate-schemas` fixture,
+; especially on slower (or busy) hardware
+(use-fixtures :once (fn [fn-test]
+                      (let [message-set-expiry message/set-expiry]
+                        (with-redefs [message/set-expiry (fn
+                                                           ([message number unit]
+                                                            (message-set-expiry message (* 60 number) unit))
+                                                           ([message timestamp]
+                                                            (message-set-expiry message timestamp)))]
+                          (fn-test)))))
 (use-fixtures :each cleanup-spool-fixture)
 
 (deftest it-talks-websockets-test
@@ -130,32 +144,43 @@
   ;; NOTE(richardc): This test is racy.  What we do is we start
   ;; and stop a broker in an future so we can try to connect to it
   ;; while the trapperkeeper services are still starting up.
-  (let [broker (future (Thread/sleep 200)
-                       (with-app-with-config app broker-services broker-config
-                         ;; Sleep here so the client can fully connect to the broker.
-                         (Thread/sleep 1000)))
-        close-codes (atom [])]
-    (while (not (future-done? broker))
-      (let [code (connect-and-close 40)]
-        (if-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
-          (swap! close-codes conj-unique code))))
-    (swap! close-codes conj-unique :refused)
-    ;; We expect the following sequence for close codes:
-    ;;    :refused (connection refused)
-    ;;    1011     (broker not started)
-    ;;    1000     (closed because client initated it)
-    ;;    1011     (broker stopping)
-    ;;    :refused (connection refused)
-    ;; though as some of these states may be missed due to timing we test for
-    ;; membership of the set of valid sequences.  If we have more
-    ;; tests like this it might be worth using ztellman/automat to
-    ;; match with a FSM rather than hand-generation of cases.
-    (is (contains? #{[:refused 1011 1000 1011 :refused]
-                     [:refused 1011 1000 :refused]
-                     [:refused 1000 1011 :refused]
-                     [:refused 1000 :refused]
-                     [:refused]}
-                   @close-codes))))
+  (let [should-stop (promise)]
+    (try
+      (let [broker (future (with-app-with-config app broker-services broker-config
+                                                 ;; Keep the broker alive until the test is done with it.
+                                                 (deref should-stop)))
+            close-codes (atom [:refused])
+            start (System/currentTimeMillis)]
+        (while (and (not (future-done? broker)) (< (- (System/currentTimeMillis) start) (* 120 1000)))
+          (let [code (connect-and-close (* 20 1000))]
+            (if-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
+              (swap! close-codes conj-unique code))
+            (if (= 1000 code)
+              ;; we were _probably_ able to connect to the broker (or the broker was
+              ;; soooo slow to close the connection even though it was not running
+              ;; that the 20 seconds timeout expired) so let's tear it down
+              (deliver should-stop true))))
+        (swap! close-codes conj-unique :refused)
+        ;; We expect the following sequence for close codes:
+        ;;    :refused (connection refused)
+        ;;    1011     (broker not started)
+        ;;    1000     (closed because client initated it)
+        ;;    1011     (broker stopping)
+        ;;    :refused (connection refused)
+        ;; though as some of these states may be missed due to timing we test for
+        ;; membership of the set of valid sequences.  If we have more
+        ;; tests like this it might be worth using ztellman/automat to
+        ;; match with a FSM rather than hand-generation of cases.
+        (is (contains? #{[:refused 1011 1000 1011 :refused]
+                         [:refused 1000 1011 :refused]
+                         [:refused 1011 1000 :refused]
+                         [:refused 1000 :refused]
+                         [:refused 1011 :refused]
+                         [:refused]}
+                       @close-codes)))
+      (finally
+        ; security measure to ensure the broker is stopped
+        (deliver should-stop true)))))
 
 (deftest poorly-encoded-message-test
   (with-app-with-config app broker-services broker-config
