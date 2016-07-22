@@ -300,9 +300,13 @@
             id (:id request)
             encode (get-in connection [:codec :encode])]
         (if (capsule/expired? capsule)
-          (let [response (make-ttl_expired-message request)]
-            (websockets-client/send! ws (encode response))
-            connection)
+          (do
+            (sl/maplog :trace (assoc (capsule/summarize capsule)
+                                :type :message-expired)
+                       (i18n/trs "Association request '{messageid}' from '{source}' has expired. Sending a ttl_expired."))
+            (let [response (make-ttl_expired-message request)]
+              (websockets-client/send! ws (encode response))
+              connection))
           (let [uri (:sender request)
                 reason (reason-to-deny-association broker connection uri)
                 response (if reason {:id id :success false :reason reason} {:id id :success true})]

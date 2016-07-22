@@ -25,7 +25,7 @@
     (http/send ws-client :byte bytes))
   (send! [_ message]
     (http/send ws-client :byte (message/encode message)))
-  (recv! [this] (recv! this (* 10 1000)))
+  (recv! [this] (recv! this (* 10 5 1000)))
   (recv! [_ timeout-ms]
     (let [[message channel] (alts!! [message-channel (timeout timeout-ms)])]
       message)))
@@ -44,7 +44,7 @@
       (assoc :message_type "http://puppetlabs.com/associate_request"
              :targets ["pcp:///server"]
              :sender uri)
-      (message/set-expiry 10 :seconds)))
+      (message/set-expiry 5 :seconds)))
 
 (defn connect
   "Makes a client for testing"
