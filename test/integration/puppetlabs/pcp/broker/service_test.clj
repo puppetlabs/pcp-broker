@@ -67,7 +67,7 @@
 
 (use-fixtures :once st/validate-schemas)
 ; increase ttl set by the `puppetlabs.pcp.message/set-expiry` function
-; 60 times to prevent test failures caused by the expiration of the ttl
+; 5 times to prevent test failures caused by the expiration of the ttl
 ; on messages exchanged during the tests;
 ; we started to see this to happen after we'd enabled the schema
 ; checks globally by using the `schema.test/validate-schemas` fixture,
@@ -76,7 +76,7 @@
                       (let [message-set-expiry message/set-expiry]
                         (with-redefs [message/set-expiry (fn
                                                            ([message number unit]
-                                                            (message-set-expiry message (* 60 number) unit))
+                                                            (message-set-expiry message (* 5 number) unit))
                                                            ([message timestamp]
                                                             (message-set-expiry message timestamp)))]
                           (fn-test)))))

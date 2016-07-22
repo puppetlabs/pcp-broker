@@ -25,7 +25,7 @@
     (http/send ws-client :byte bytes))
   (send! [_ message]
     (http/send ws-client :byte (message/encode message)))
-  (recv! [this] (recv! this (* 10 60 1000)))
+  (recv! [this] (recv! this (* 10 5 1000)))
   (recv! [_ timeout-ms]
     (let [[message channel] (alts!! [message-channel (timeout timeout-ms)])]
       message)))
