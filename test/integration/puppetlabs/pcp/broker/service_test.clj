@@ -66,20 +66,23 @@
   (f))
 
 (use-fixtures :once st/validate-schemas)
+
 ; increase ttl set by the `puppetlabs.pcp.message/set-expiry` function
 ; 5 times to prevent test failures caused by the expiration of the ttl
 ; on messages exchanged during the tests;
 ; we started to see this to happen after we'd enabled the schema
 ; checks globally by using the `schema.test/validate-schemas` fixture,
 ; especially on slower (or busy) hardware
-(use-fixtures :once (fn [fn-test]
-                      (let [message-set-expiry message/set-expiry]
-                        (with-redefs [message/set-expiry (fn
-                                                           ([message number unit]
-                                                            (message-set-expiry message (* 5 number) unit))
-                                                           ([message timestamp]
-                                                            (message-set-expiry message timestamp)))]
-                          (fn-test)))))
+(use-fixtures
+  :once (fn [fn-test]
+          (let [message-set-expiry message/set-expiry]
+            (with-redefs [message/set-expiry (fn
+                                               ([message number unit]
+                                                (message-set-expiry message (* 5 number) unit))
+                                               ([message timestamp]
+                                                (message-set-expiry message timestamp)))]
+              (fn-test)))))
+
 (use-fixtures :each cleanup-spool-fixture)
 
 (deftest it-talks-websockets-test
@@ -132,6 +135,24 @@
      (catch Object _
        (deliver close-code :refused)))
     @close-code))
+
+(defn is-message-not-authenticated
+  "Assert that the message is an error denying authentication"
+  [message version]
+  (is (= "http://puppetlabs.com/error_message" (:message_type message)))
+  (if (= "v1.0" version)
+    (is (= nil (:in-reply-to message)))
+    (is (:in-reply-to message)))
+  (is (= "Message not authenticated" (:description (message/get-json-data message)))))
+
+(defn is-message-not-authorized
+  "Assert that the message is an error denying authorization"
+  [message version]
+  (is (= "http://puppetlabs.com/error_message" (:message_type message)))
+  (if (= "v1.0" version)
+    (is (= nil (:in-reply-to message)))
+    (is (:in-reply-to message)))
+  (is (= "Message not authorized" (:description (message/get-json-data message)))))
 
 (defn conj-unique
   "append elem if it is distinct from the last element in the sequence.
@@ -195,7 +216,7 @@
           (is (= nil (:in-reply-to response)))
           (is (= "Could not decode message" (:description (message/get-json-data response)))))))))
 
-(deftest certificate-must-match-test
+(deftest certificate-must-match-for-authentication-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
       (with-open [client (client/connect :certname "client01.example.com"
@@ -203,11 +224,7 @@
                                          :check-association false
                                          :version version)]
         (let [response (client/recv! client)]
-          (is (= "http://puppetlabs.com/error_message" (:message_type response)))
-          (if (= "v1.0" version)
-            (is (= nil (:in-reply-to response)))
-            (is (:in-reply-to response)))
-          (is (= "Message not authorized" (:description (message/get-json-data response)))))))))
+          (is (is-message-not-authenticated response version)))))))
 
 ;; Session association tests
 (deftest basic-session-association-test
@@ -269,7 +286,12 @@
       (with-open [client (client/connect :certname "client01.example.com"
                                          :version version
                                          :check-association false)]
-        (testing "cannot associate"
+        (testing "cannot associate - sends an unsuccessful associate_response"
+          (let [response (client/recv! client)]
+            (is (= "http://puppetlabs.com/associate_response" (:message_type response)))
+            (is (= "not authorized"
+                   (:reason (message/get-json-data response))))))
+        (testing "cannot associate - closes connection"
           (let [response (client/recv! client)]
             (is (= [4002 "association unsuccessful"] response))))
         (testing "cannot request inventory"
@@ -374,8 +396,8 @@
                             (message/set-expiry 5 :seconds)
                             (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
             (client/send! client request)
-            (let [response (client/recv! client 1000)]
-              (is (= nil response)))))))))
+            (let [response (client/recv! client)]
+              (is-message-not-authorized response version))))))))
 
 ;; Message sending
 (deftest send-to-self-explicit-test
@@ -542,6 +564,8 @@
                                                   :targets ["pcp://client01.example.com/test"])
                             (message/set-expiry 5 :seconds))]
             (client/send! client02 message)
+            ;(let [response (client/recv! client02)]
+            ;  (is-message-not-authorized response version))
             (let [received (client/recv! client01 1000)]
               (is (= nil received)))))))))
 
