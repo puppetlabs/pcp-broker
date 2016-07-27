@@ -267,9 +267,9 @@
     (is (= nil (reason-to-deny-association broker connection "pcp://test/foo")))
     (is (= "'server' type connections not accepted"
            (reason-to-deny-association broker connection "pcp://test/server")))
-    (is (= "session already associated"
+    (is (= "Session already associated"
            (reason-to-deny-association broker associated "pcp://test/foo")))
-    (is (= "session already associated"
+    (is (= "Session already associated"
            (reason-to-deny-association broker associated "pcp://test/bar")))))
 
 (deftest process-associate-request!-test

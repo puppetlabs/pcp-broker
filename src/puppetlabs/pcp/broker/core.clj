@@ -260,7 +260,7 @@
                         :existinguri uri
                         :type :connection-already-associated)
           (i18n/trs "Received session association for '{uri}' from '{commonname}' '{remoteaddress}'. Session was already associated as '{existinguri}'"))
-        (i18n/trs "session already associated")))))
+        (i18n/trs "Session already associated")))))
 
 (s/defn process-associate-request! :- (s/maybe Connection)
   "Send an associate_response that will be successfull if:
@@ -297,6 +297,10 @@
                                               :sender "pcp:///server")
                         (message/set-json-data response-data)
                         (message/set-expiry 3 :seconds))]
+        (sl/maplog :debug {:type :associate_response-trace
+                           :requester requester-uri
+                           :rawmsg message}
+                   (i18n/trs "Replying to '{requester}' with associate_response: '{rawmsg}'"))
         (websockets-client/send! ws (encode message)))
       (if reason-to-deny
         (do
@@ -304,7 +308,7 @@
             :debug {:type   :connection-association-failed
                     :uri    requester-uri
                     :reason reason-to-deny}
-            (i18n/trs "Invalid associate_request ({reason}); closing '{uri}' WebSocket"))
+            (i18n/trs "Invalid associate_request ('{reason}'); closing '{uri}' WebSocket"))
           (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful"))
           nil)
         (let [{:keys [uri-map record-client]} broker]
@@ -485,7 +489,7 @@
             message-data (merge (connection/summarize connection)
                                 (capsule/summarize capsule))
             is-association-request (session-association-request? message)]
-        (sl/maplog :trace {:type :message-trace :rawmsg message}
+        (sl/maplog :trace {:type :incoming-message-trace :rawmsg message}
                    (i18n/trs "Processing PCP message: '{rawmsg}'"))
         (try+
           (case (validate-message broker capsule connection is-association-request)

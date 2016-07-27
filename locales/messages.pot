@@ -85,11 +85,15 @@ msgid ""
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "session already associated"
+msgid "Session already associated"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Invalid associate_request ({reason}); closing '{uri}' WebSocket"
+msgid "Replying to '{requester}' with associate_response: '{rawmsg}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Invalid associate_request ('{reason}'); closing '{uri}' WebSocket"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj

@@ -136,24 +136,6 @@
        (deliver close-code :refused)))
     @close-code))
 
-(defn is-message-not-authenticated
-  "Assert that the message is an error denying authentication"
-  [message version]
-  (is (= "http://puppetlabs.com/error_message" (:message_type message)))
-  (if (= "v1.0" version)
-    (is (= nil (:in-reply-to message)))
-    (is (:in-reply-to message)))
-  (is (= "Message not authenticated" (:description (message/get-json-data message)))))
-
-(defn is-message-not-authorized
-  "Assert that the message is an error denying authorization"
-  [message version]
-  (is (= "http://puppetlabs.com/error_message" (:message_type message)))
-  (if (= "v1.0" version)
-    (is (= nil (:in-reply-to message)))
-    (is (:in-reply-to message)))
-  (is (= "Message not authorized" (:description (message/get-json-data message)))))
-
 (defn conj-unique
   "append elem if it is distinct from the last element in the sequence.
   When we port to clojure 1.7 we should be able to use `distinct` on the
@@ -163,7 +145,7 @@
 
 (deftest it-closes-connections-when-not-running-test
   ;; NOTE(richardc): This test is racy.  What we do is we start
-  ;; and stop a broker in an future so we can try to connect to it
+  ;; and stop a broker in a future so we can try to connect to it
   ;; while the trapperkeeper services are still starting up.
   (let [should-stop (promise)]
     (try
@@ -174,7 +156,7 @@
             start (System/currentTimeMillis)]
         (while (and (not (future-done? broker)) (< (- (System/currentTimeMillis) start) (* 120 1000)))
           (let [code (connect-and-close (* 20 1000))]
-            (if-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
+            (when-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
               (swap! close-codes conj-unique code))
             (if (= 1000 code)
               ;; we were _probably_ able to connect to the broker (or the broker was
@@ -216,17 +198,44 @@
           (is (= nil (:in-reply-to response)))
           (is (= "Could not decode message" (:description (message/get-json-data response)))))))))
 
+;; Session association tests
+
+;; TODO(ale): add more tests
+
+(defn is-error-message
+  "Assert that the message is a PCP error message with the specified description"
+  [message version expected-description]
+  (is (= "http://puppetlabs.com/error_message" (:message_type message)))
+  (if (= "v1.0" version)
+    (is (= nil (:in-reply-to message)))
+    (is (:in-reply-to message)))
+  (is (= expected-description (:description (message/get-json-data message)))))
+
+(defn is-association_response
+  "Assert that the message is an association_response with the specified
+   success and reason entries"
+  [message version success reason]
+  (is (= "http://puppetlabs.com/associate_response" (:message_type message)))
+  (if (= "v1.0" version)
+    (is (= nil (:in-reply-to message)))
+    (is (:in-reply-to message)))
+  (let [data (message/get-json-data message)]
+    (is (= success (:success data)))
+    (is (= reason (:reason data)))))
+
 (deftest certificate-must-match-for-authentication-test
-  (with-app-with-config app broker-services broker-config
+  (testing "Unsuccessful associate_response and WebSocket closes if client not authenticated"
+    (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
       (with-open [client (client/connect :certname "client01.example.com"
                                          :uri "pcp://client02.example.com/test"
                                          :check-association false
                                          :version version)]
-        (let [response (client/recv! client)]
-          (is (is-message-not-authenticated response version)))))))
+        (let [pcp-response (client/recv! client)
+              close-websocket-msg (client/recv! client)]
+          (is (is-association_response pcp-response version false "Message not authenticated"))
+          (is (= [4002 "association unsuccessful"] close-websocket-msg))))))))
 
-;; Session association tests
 (deftest basic-session-association-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
@@ -250,9 +259,11 @@
                                                :version version)
                   second-client (client/connect :certname "client01.example.com"
                                                 :version version)]
-        (let [response (client/recv! first-client)]
-          (is (= [4000 "superceded"] response)))))))
+        ;; NB(ale): client/connect checks associate_response for both clients
+        (let [close-websocket-msg1 (client/recv! first-client)]
+          (is (= [4000 "superceded"] close-websocket-msg1)))))))
 
+;; TODO(ale): change this (PCP-521)
 (deftest second-association-same-connection-should-fail-and-disconnect-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
@@ -263,7 +274,7 @@
           (let [response (client/recv! client)]
             (is (= "http://puppetlabs.com/associate_response" (:message_type response)))
             (is (= {:success false
-                    :reason "session already associated"
+                    :reason "Session already associated"
                     :id (:id request)}
                    (message/get-json-data response))))
           (let [response (client/recv! client)]
@@ -288,9 +299,7 @@
                                          :check-association false)]
         (testing "cannot associate - sends an unsuccessful associate_response"
           (let [response (client/recv! client)]
-            (is (= "http://puppetlabs.com/associate_response" (:message_type response)))
-            (is (= "not authorized"
-                   (:reason (message/get-json-data response))))))
+            (is (is-association_response response version false "Message not authorized"))))
         (testing "cannot associate - closes connection"
           (let [response (client/recv! client)]
             (is (= [4002 "association unsuccessful"] response))))
@@ -397,7 +406,7 @@
                             (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
             (client/send! client request)
             (let [response (client/recv! client)]
-              (is-message-not-authorized response version))))))))
+              (is (is-error-message response version "Message not authorized")))))))))
 
 ;; Message sending
 (deftest send-to-self-explicit-test
@@ -564,8 +573,6 @@
                                                   :targets ["pcp://client01.example.com/test"])
                             (message/set-expiry 5 :seconds))]
             (client/send! client02 message)
-            ;(let [response (client/recv! client02)]
-            ;  (is-message-not-authorized response version))
             (let [received (client/recv! client01 1000)]
               (is (= nil received)))))))))
 
