@@ -445,9 +445,13 @@
                    (i18n/trs "Cannot find transition for state '{state}'"))
         connection))))
 
+;; TODO(ale): add tests for the data's id entry (PCP-523)
 (s/defn send-error-message
   [message :- (s/maybe Message) description :- String connection :- Connection]
   (let [body {:description description}
+        body (if message
+               (assoc body :id (:id message))
+               body)
         error (-> (message/make-message
                      :message_type "http://puppetlabs.com/error_message"
                      :sender "pcp:///server")
