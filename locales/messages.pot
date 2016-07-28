@@ -106,9 +106,8 @@ msgid ""
 "'{remoteaddress}'"
 msgstr ""
 
-#. TODO(ale): is 'superceded' correct? 'superseded'?
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "superceded"
+msgid "superseded"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj

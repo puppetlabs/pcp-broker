@@ -103,19 +103,21 @@
            (activemq/queue-message accept-queue capsule)))
   capsule)
 
+(s/defn make-ttl_expired-data-content :- p/TTLExpiredMessage
+  [in-reply-to]
+  {:id in-reply-to})
+
 (s/defn make-ttl_expired-message :- Message
   "Returns the ttl_expired message advising about the expiry of the given message"
   [message :- Message]
   (let [sender (:sender message)
         in-reply-to (:id message)
-        response_data (->> {:id in-reply-to}
-                           ;; TODO(ale): consider removing s/validate; we create it, why validate?
-                           (s/validate p/TTLExpiredMessage))
+        response-data (make-ttl_expired-data-content in-reply-to)
         response (-> (message/make-message :message_type "http://puppetlabs.com/ttl_expired"
                                            :targets [sender]
                                            :sender "pcp:///server"
                                            :in-reply-to in-reply-to)
-                     (message/set-json-data response_data)
+                     (message/set-json-data response-data)
                      (message/set-expiry 3 :seconds))]
     response))
 
@@ -171,14 +173,16 @@
                (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))
       (process-expired-message broker capsule))))
 
+(s/defn make-destination-report :- p/DestinationReport
+  [id targets]
+  {:id id
+   :targets targets})
+
 (s/defn maybe-send-destination-report
   "Send a destination report about the given message, if requested"
   [broker :- Broker message :- Message targets :- [p/Uri]]
   (when (:destination_report message)
-    (let [report {:id (:id message)
-                  :targets targets}]
-      ;; TODO(ale): consider removing s/validate; we create it, why validate?
-      (s/validate p/DestinationReport report)
+    (let [report (make-destination-report (:id message) targets)]
       (accept-message-for-delivery
         broker
         (-> (message/make-message :targets [(:sender message)]
@@ -262,8 +266,14 @@
           (i18n/trs "Received session association for '{uri}' from '{commonname}' '{remoteaddress}'. Session was already associated as '{existinguri}'"))
         (i18n/trs "Session already associated")))))
 
+(s/defn make-associate_response-data-content :- p/AssociateResponse
+  [id reason-to-deny]
+  (if reason-to-deny
+    {:id id :success false :reason reason-to-deny}
+    {:id id :success true}))
+
 (s/defn process-associate-request! :- (s/maybe Connection)
-  "Send an associate_response that will be successfull if:
+  "Send an associate_response that will be successful if:
     - a reason-to-deny is not specified as an argument nor determined by
       reason-to-deny-association;
     - the requester `client_type` is not `server`;
@@ -286,11 +296,7 @@
           id (:id request)
           encode (get-in connection [:codec :encode])
           requester-uri (:sender request)
-          response-data (if reason-to-deny
-                          {:id id :success false :reason reason-to-deny}
-                          {:id id :success true})]
-      ;; TODO(ale): consider removing s/validate; we create it, why validate?
-      (s/validate p/AssociateResponse response-data)
+          response-data (make-associate_response-data-content id reason-to-deny)]
       (let [message (-> (message/make-message :message_type "http://puppetlabs.com/associate_response"
                                               :targets [requester-uri]
                                               :in-reply-to id
@@ -319,14 +325,17 @@
                          :uri requester-uri
                          :type :connection-association-failed)
                 (i18n/trs "Node with URI '{uri}' already associated with connection '{commonname}' '{remoteaddress}'"))
-              ;; TODO(ale): is 'superceded' correct? 'superseded'?
-              (websockets-client/close! old-ws 4000 (i18n/trs "superceded"))
+              (websockets-client/close! old-ws 4000 (i18n/trs "superseded"))
               (.remove connections old-ws)))
           (.put uri-map requester-uri ws)
           (record-client requester-uri)
           (assoc connection
             :uri requester-uri
             :state :associated))))))
+
+(s/defn make-inventory_response-data-content :- p/InventoryResponse
+  [uris]
+  {:uris uris})
 
 (s/defn process-inventory-request
   "Process a request for inventory data.
@@ -338,9 +347,7 @@
         data (message/get-json-data message)]
     (s/validate p/InventoryRequest data)
     (let [uris (doall (filter (partial get-websocket broker) ((:find-clients broker) (:query data))))
-          response-data {:uris uris}]
-      ;; TODO(ale): consider removing s/validate; we create it, why validate?
-      (s/validate p/InventoryResponse response-data)
+          response-data (make-inventory_response-data-content uris)]
       (accept-message-for-delivery
         broker
         (-> (message/make-message :message_type "http://puppetlabs.com/inventory_response"
@@ -362,30 +369,30 @@
       "http://puppetlabs.com/associate_request" (process-associate-request! broker capsule connection)
       "http://puppetlabs.com/inventory_request" (process-inventory-request broker capsule connection)
       (do
-        (sl/maplog :debug (assoc (connection/summarize connection)
-                                 :messagetype message-type
-                                 :type :broker-unhandled-message)
-                   (i18n/trs "Unhandled message type '{messagetype}' received from '{commonname}' '{remoteaddr}'"))
-        connection))))
+        (sl/maplog
+          :debug (assoc (connection/summarize connection)
+                   :messagetype message-type
+                   :type :broker-unhandled-message)
+          (i18n/trs "Unhandled message type '{messagetype}' received from '{commonname}' '{remoteaddr}'"))))))
 
 ;;
 ;; Message validation
 ;;
 
 (s/defn make-ring-request :- ring/Request
-  [message :- Message websocket :- (s/maybe Websocket)]
-  (let [{:keys [sender targets message_type destination_report]} message
+  [capsule :-  Capsule websocket :- (s/maybe Websocket)]
+  (let [{:keys [sender targets message_type destination_report]} (:message capsule)
         form-params {}
         query-params {"sender" sender
                       "targets" (if (= 1 (count targets)) (first targets) targets)
                       "message_type" message_type
                       "destination_report" (boolean destination_report)}
-        request {:uri "/pcp-broker/send"
+        request {:uri            "/pcp-broker/send"
                  :request-method :post
-                 :remote-addr ""
-                 :form-params form-params
-                 :query-params query-params
-                 :params (merge query-params form-params)}]
+                 :remote-addr    ""
+                 :form-params    form-params
+                 :query-params   query-params
+                 :params         (merge query-params form-params)}]
     ;; some things we can only know when sender is connected
     (if websocket
       (let [remote-addr (.. websocket (getSession) (getRemoteAddress) (toString))
@@ -396,28 +403,27 @@
 
 ;; NB(ale): using (s/Maybe Websocket) in the signature for the sake of testing
 (s/defn authorized? :- s/Bool
-  "Check if the message is authorized"
-  [broker :- Broker pcp-message :- Message websocket :- (s/maybe Websocket)]
-  (let [ring-request (make-ring-request pcp-message websocket)
+  "Check if the message within the specified capsule is authorized"
+  [broker :- Broker capsule :- Capsule websocket :- (s/maybe Websocket)]
+  (let [ring-request (make-ring-request capsule websocket)
         {:keys [authorization-check]} broker
         {:keys [authorized message]} (authorization-check ring-request)
         allowed (boolean authorized)]
     (sl/maplog
-      :trace {:messageid    (:id pcp-message)
-              :source       (:sender pcp-message)
-              :destination  (:targets pcp-message)
-              :type         :message-authorization
-              :allowed      allowed
-              :auth-message message}
+      :trace (merge (capsule/summarize capsule)
+                    {:type         :message-authorization
+                     :allowed      allowed
+                     :auth-message message})
       (i18n/trs "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{auth-message}'"))
     allowed))
 
 (s/defn authenticated? :- s/Bool
-  "Check if the cert name advertised by the sender matches the cert name
-   in the certificate"
-  [message :- Message connection :- Connection]
+  "Check if the cert name advertised by the sender of the message contained in
+   the specified Capsule matches the cert name in the certificate of the
+   given Connection"
+  [capsule :- Capsule connection :- Connection]
   (let [{:keys [common-name]} connection
-        {:keys [sender]} message
+        sender (get-in capsule [:message :sender])
         [client] (p/explode-uri sender)]
     (= client common-name)))
 
@@ -434,25 +440,26 @@
    in order, if the message: 1) is an associate-request as expected during
    Session Association; 2) is authenticated; 3) is authorized; 4) expired"
   [broker :- Broker capsule :- Capsule connection :- Connection is-association-request :- s/Bool]
-  (if (and (= :open (:state connection)) (not is-association-request))
-    :to-be-ignored-during-association
-    (let [message (:message capsule)
-          ws (:websocket connection)]
-      (if-not (authenticated? message connection)
-        :not-authenticated
-        (if-not (authorized? broker message ws)
-          :not-authorized
-          (if (capsule/expired? capsule)
-            :expired
-            :to-be-processed))))))
+  (cond
+    (and (= :open (:state connection))
+         (not is-association-request)) :to-be-ignored-during-association
+    (not (authenticated? capsule connection)) :not-authenticated
+    (not (authorized? broker capsule (:websocket connection))) :not-authorized
+    (capsule/expired? capsule) :expired
+    :else :to-be-processed))
 
 ;;
 ;; WebSocket onMessage handling
 ;;
 
+(s/defn make-error-data-content :- p/ErrorMessage
+  [description]
+  {:description description})
+
+;; TODO(ale): add the ID of the message that triggered the error (PCP-524)
 (s/defn send-error-message
   [in-reply-to-message :- (s/maybe Message) description :- String connection :- Connection]
-  (let [data-content {:description description}
+  (let [data-content (make-error-data-content description)
         error-msg (-> (message/make-message :message_type "http://puppetlabs.com/error_message"
                                             :sender "pcp:///server")
                       (message/set-json-data data-content))
@@ -461,8 +468,6 @@
                     error-msg)
         {:keys [codec websocket]} connection
         encode (:encode codec)]
-    ;; TODO(ale): consider removing s/validate; we create it, why validate?
-    (s/validate p/ErrorMessage data-content)
     (websockets-client/send! websocket (encode error-msg))
     nil))
 
@@ -481,6 +486,9 @@
   function name), otherwise nil.
   Also, log the message validation outcome via 'pcp-access' logger."
   [broker :- Broker bytes :- message/ByteArray ws :- (s/maybe Websocket)]
+  ;; TODO(ale): since we don't validate responses anymore and the schema
+  ;; checks are not performed in production, ensure that we validate incoming
+  ;; messages (message format and envelope --> in clj-pcp-common)
   (let [connection (get-connection broker ws)
         decode (get-in connection [:codec :decode])]
     (try+
@@ -500,8 +508,6 @@
               (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
               (if is-association-request
                 ;; send an unsuccessful associate_response and close the WebSocket
-                ;; TODO(ale): new behaviour; previously the broker would send a
-                ;; PCP error without closing the connection; ensure it's ok
                 (process-associate-request! broker capsule connection not-authenticated-msg)
                 (send-error-message message not-authenticated-msg connection)))
             :not-authorized
@@ -509,8 +515,6 @@
               (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
               (if is-association-request
                 ;; send an unsuccessful associate_response and close the WebSocket
-                ;; TODO(ale): new behaviour; previously the broker would only
-                ;; close the connection; ensure it's ok
                 (process-associate-request! broker capsule connection not-authorized-msg)
                 ;; TODO(ale): use 'unauthorized' in version 2
                 (send-error-message message not-authorized-msg connection)))
@@ -538,8 +542,6 @@
             ;; default case
             (assert false (i18n/trs "unexpected message validation outcome")))
           (catch map? m
-            ;; TODO(ale): this may log a duplicate pcp-access entry for the
-            ;; same received message; ensure we're happy with that
             (log-access :error (assoc message-data :accessoutcome "PROCESSING_ERROR"))
             ;; This is a processing error, say an uncaught exception in
             ;; any of the stuff we meant to do

@@ -200,7 +200,7 @@
 
 ;; Session association tests
 
-;; TODO(ale): add more tests
+;; TODO(ale): add more tests (PCP-523)
 
 (defn is-error-message
   "Assert that the message is a PCP error message with the specified description"
@@ -261,7 +261,7 @@
                                                 :version version)]
         ;; NB(ale): client/connect checks associate_response for both clients
         (let [close-websocket-msg1 (client/recv! first-client)]
-          (is (= [4000 "superceded"] close-websocket-msg1)))))))
+          (is (= [4000 "superseded"] close-websocket-msg1)))))))
 
 ;; TODO(ale): change this (PCP-521)
 (deftest second-association-same-connection-should-fail-and-disconnect-test
@@ -608,3 +608,5 @@
 (deftest no-vnext-test
   (with-app-with-config app broker-services no-vnext-config
     (is true)))
+
+(deftest sending-an-invalid-message)

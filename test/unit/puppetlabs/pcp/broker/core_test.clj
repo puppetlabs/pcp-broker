@@ -148,7 +148,8 @@
   (testing "it should return a ring request - one target"
     (let [message (message/make-message :message_type "example1"
                                         :sender "pcp://example01.example.com/agent"
-                                        :targets ["pcp://example02.example.com/agent"])]
+                                        :targets ["pcp://example02.example.com/agent"])
+          capsule (capsule/wrap message)]
       (is (= {:uri            "/pcp-broker/send"
               :request-method :post
               :remote-addr    ""
@@ -161,12 +162,13 @@
                                "targets"            "pcp://example02.example.com/agent"
                                "message_type"       "example1"
                                "destination_report" false}}
-             (make-ring-request message nil)))))
+             (make-ring-request capsule nil)))))
   (testing "it should return a ring request - two targets"
     (let [message (message/make-message :message_type "example1"
                                         :sender "pcp://example01.example.com/agent"
                                         :targets ["pcp://example02.example.com/agent"
-                                                  "pcp://example03.example.com/agent"])]
+                                                  "pcp://example03.example.com/agent"])
+          capsule (capsule/wrap message)]
       (is (= {:uri            "/pcp-broker/send"
               :request-method :post
               :remote-addr    ""
@@ -181,12 +183,13 @@
                                                      "pcp://example03.example.com/agent"]
                                "message_type"       "example1"
                                "destination_report" false}}
-             (make-ring-request message nil)))))
+             (make-ring-request capsule nil)))))
   (testing "it should return a ring request - destination report"
     (let [message (message/make-message :message_type "example1"
                                         :sender "pcp://example01.example.com/agent"
                                         :targets ["pcp://example02.example.com/agent"]
-                                        :destination_report true)]
+                                        :destination_report true)
+          capsule (capsule/wrap message)]
       (is (= {:uri            "/pcp-broker/send"
               :request-method :post
               :remote-addr    ""
@@ -199,7 +202,7 @@
                                "targets"            "pcp://example02.example.com/agent"
                                "message_type"       "example1"
                                "destination_report" true}}
-             (make-ring-request message nil))))))
+             (make-ring-request capsule nil))))))
 
 (defn yes-authorization-check [r] {:authorized true
                                    :message ""
@@ -214,9 +217,10 @@
         no-broker (assoc (make-test-broker) :authorization-check no-authorization-check)
         message (message/make-message :message_type "example1"
                                       :sender "pcp://example01.example.com/agent"
-                                      :targets ["pcp://example02.example.com/agent"])]
-    (is (= true (authorized? yes-broker message nil)))
-    (is (= false (authorized? no-broker message nil)))))
+                                      :targets ["pcp://example02.example.com/agent"])
+        capsule (capsule/wrap message)]
+    (is (= true (authorized? yes-broker capsule nil)))
+    (is (= false (authorized? no-broker capsule nil)))))
 
 (deftest accept-message-for-delivery-test
   (let [broker (make-test-broker)
@@ -295,7 +299,7 @@
                 connection2 (add-connection! broker "ws2" identity-codec)]
             (process-associate-request! broker capsule connection1)
             (is (process-associate-request! broker capsule connection2))
-            (is (= ["ws1" 4000 "superceded"] @@closed))
+            (is (= ["ws1" 4000 "superseded"] @@closed))
             (is (= ["ws2"] (keys (:connections broker))))))
         ;; TODO(ale): change this behaviour (PCP-521)
         (testing "No association for the same WebSocket session; closes and returns nil"
@@ -354,15 +358,13 @@
          :common-name common-name))
 
 (deftest authenticated?-test
-  (testing "simple match"
-    (is (authenticated? (message/make-message :sender "pcp://lolcathost/agent")
-                        (dummy-connection-from "lolcathost"))))
-  (testing "simple mismatch"
-    (is (not (authenticated? (message/make-message :sender "pcp://lolcathost/agent")
-                             (dummy-connection-from "remotecat")))))
-  (testing "accidental regex collisions"
-    (is (not (authenticated? (message/make-message :sender "pcp://lolcathost/agent")
-                             (dummy-connection-from "lol.athost"))))))
+  (let [capsule (capsule/wrap (message/make-message :sender "pcp://lolcathost/agent"))]
+    (testing "simple match"
+      (is (authenticated? capsule (dummy-connection-from "lolcathost"))))
+    (testing "simple mismatch"
+      (is (not (authenticated? capsule (dummy-connection-from "remotecat")))))
+    (testing "accidental regex collisions"
+      (is (not (authenticated? capsule (dummy-connection-from "lol.athost")))))))
 
 (defn make-valid-ring-request
   [message _]
@@ -424,7 +426,7 @@
         (is (= :to-be-processed
                (validate-message yes-broker capsule connection is-association-request)))))))
 
-;; TODO(ale): add more tests for onMessage processing
+;; TODO(ale): add more tests for onMessage processing (PCP-523)
 (deftest process-message!-test
   (let [broker (assoc (make-test-broker) :authorization-check yes-authorization-check)]
     (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request]
