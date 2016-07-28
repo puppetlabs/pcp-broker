@@ -283,7 +283,11 @@
   Otherwise, the 'Connection' object's state will be marked as associated and
   returned. Also, in case another WebSocket connection with the same client
   is currently associated, such old connection will be superseded by the new
-  one (i.e. the old connection will be closed by the brocker)."
+  one (i.e. the old connection will be closed by the brocker).
+
+  Note that this function will not update the broker by removing the connection
+  from the 'connections' map, nor the 'uri-map'. It is assumed that such update
+  will be done asynchronously by the onClose handler."
   ;; TODO(ale): make associate_request idempotent when succeed (PCP-521)
   ([broker :- Broker capsule :- Capsule connection :- Connection]
     (let [requester-uri (get-in capsule [:message :sender])

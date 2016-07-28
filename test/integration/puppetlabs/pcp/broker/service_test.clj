@@ -608,5 +608,3 @@
 (deftest no-vnext-test
   (with-app-with-config app broker-services no-vnext-config
     (is true)))
-
-(deftest sending-an-invalid-message)
