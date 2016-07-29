@@ -65,7 +65,6 @@
   (fs/delete-dir (get-in broker-config [:pcp-broker :broker-spool]))
   (f))
 
-(use-fixtures :once st/validate-schemas)
 ; increase ttl set by the `puppetlabs.pcp.message/set-expiry` function
 ; 5 times to prevent test failures caused by the expiration of the ttl
 ; on messages exchanged during the tests;
@@ -80,6 +79,7 @@
                                                            ([message timestamp]
                                                             (message-set-expiry message timestamp)))]
                           (fn-test)))))
+
 (use-fixtures :each cleanup-spool-fixture)
 
 (deftest it-talks-websockets-test
