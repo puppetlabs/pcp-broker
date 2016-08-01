@@ -406,15 +406,6 @@
       (is (not= nil @accepted)))))
 
 (deftest determine-next-state-test
-  (testing "illegal next states raise due to schema validation"
-    (let [broker (make-test-broker)
-          broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :badbadbad))})
-          connection (connection/make-connection "ws" identity-codec)
-          message (message/make-message)
-          capsule (capsule/wrap message)]
-      (is (= :open (:state connection)))
-      (is (thrown+? [:type :schema.core/error]
-                    (determine-next-state broker capsule connection)))))
   (testing "legal next states are accepted"
     (let [broker (make-test-broker)
           broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :associated))})
