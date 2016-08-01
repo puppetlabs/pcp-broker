@@ -102,13 +102,23 @@
                                   ;; Transitive dependency for lein-cloverage and puppetlabs/kitchensink
                                   [org.clojure/tools.cli "0.3.0"]]
                    :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
-             :unit {:source-paths ["test/utils" "test-resources"]
-                    :dependencies [[http.async.client ~http-async-client-version :exclusions [org.clojure/clojure]]]
-                    :test-paths ^:replace ["test/unit"]}
-             :integration [:unit
-                           {:dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
-                                           [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]
-                            :test-paths ^:replace ["test/integration"]}]
+             :dev-schema-validation [:dev
+                                     {:injections [(do
+                                                    (require 'schema.core)
+                                                    (schema.core/set-fn-validation! true))]}]
+             :test-base {:source-paths ["test/utils" "test-resources"]
+                         :dependencies [[http.async.client ~http-async-client-version :exclusions [org.clojure/clojure]]
+                                       [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
+                                       [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]
+                         :test-paths ^:replace ["test/unit" "test/integration"]}
+             :test-schema-validation [:test-base
+                                      {:injections [(do
+                                                     (require 'schema.core)
+                                                     (schema.core/set-fn-validation! true))]}]
+             :unit [:test-base
+                    {:test-paths ^:replace ["test/unit"]}]
+             :integration [:test-base
+                           {:test-paths ^:replace ["test/integration"]}]
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
                                 [lein-parent "0.2.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
@@ -126,6 +136,7 @@
             ;; cljfmt requires pl-clojure-style's root dir as per above profile;
             ;; run with 'check' then 'fix' with args (refer to the project docs)
             "cljfmt" ["with-profile" "+cljfmt" "cljfmt"]
-            "coverage" ["cloverage" "-e" "puppetlabs.puppetdb.*" "-e" "user"]}
+            "coverage" ["cloverage" "-e" "puppetlabs.puppetdb.*" "-e" "user"]
+            "test-all" ["with-profile" "test-base:test-schema-validation" "test"]}
 
   :main puppetlabs.trapperkeeper.main)
