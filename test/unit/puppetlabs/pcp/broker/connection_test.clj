@@ -7,8 +7,6 @@
   {:encode identity
    :decode identity})
 
-(use-fixtures :once st/validate-schemas)
-
 (deftest make-connection-test
   (testing "It returns a map that matches represents a new socket"
     (let [socket (make-connection "ws" identity-codec)]

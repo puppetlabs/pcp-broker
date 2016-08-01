@@ -8,8 +8,6 @@
             [slingshot.test])
   (:import [puppetlabs.pcp.broker.capsule Capsule]))
 
-(use-fixtures :once st/validate-schemas)
-
 (deftest wrap-message-test
   (testing "wrapping a Message in a capsule"
     (is (instance? Capsule (wrap (message/make-message)))))
