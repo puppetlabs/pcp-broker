@@ -65,8 +65,6 @@
   (fs/delete-dir (get-in broker-config [:pcp-broker :broker-spool]))
   (f))
 
-(use-fixtures :once st/validate-schemas)
-
 ; increase ttl set by the `puppetlabs.pcp.message/set-expiry` function
 ; 5 times to prevent test failures caused by the expiration of the ttl
 ; on messages exchanged during the tests;
@@ -263,7 +261,7 @@
         (let [close-websocket-msg1 (client/recv! first-client)]
           (is (= [4000 "superseded"] close-websocket-msg1)))))))
 
-;; TODO(ale): change this (PCP-521)
+;; TODO(ale): change this (PCP-521 - association_request idempotent)
 (deftest second-association-same-connection-should-fail-and-disconnect-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]

@@ -8,13 +8,9 @@
             [slingshot.test])
   (:import [puppetlabs.pcp.broker.capsule Capsule]))
 
-(use-fixtures :once st/validate-schemas)
-
 (deftest wrap-message-test
   (testing "wrapping a Message in a capsule"
     (is (instance? Capsule (wrap (message/make-message)))))
-  (testing "fails if an invalid message is given"
-    (is (thrown? Exception (wrap {:things "bad stuff"}))))
   (testing "does not add any debug hop entry"
     (is (empty? (:hops (wrap (message/make-message)))))))
 

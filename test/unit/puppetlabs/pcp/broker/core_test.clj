@@ -36,8 +36,6 @@
   {:encode identity
    :decode identity})
 
-(use-fixtures :once st/validate-schemas)
-
 (deftest get-broker-cn-test
   (testing "It returns the correct cn"
     (let [cn (get-broker-cn "./test-resources/ssl/certs/broker.example.com.pem")]

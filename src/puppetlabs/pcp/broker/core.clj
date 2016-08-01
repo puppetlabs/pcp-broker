@@ -457,13 +457,17 @@
 ;;
 
 (s/defn make-error-data-content :- p/ErrorMessage
-  [description]
-  {:description description})
+  [in-reply-to-message description]
+  (let [data-content {:description description}
+        data-content (if in-reply-to-message
+                       (assoc data-content :id (:id in-reply-to-message))
+                       data-content)]
+    data-content))
 
-;; TODO(ale): add the ID of the message that triggered the error (PCP-524)
+;; TODO(ale): add tests for the data's id entry (PCP-523)
 (s/defn send-error-message
   [in-reply-to-message :- (s/maybe Message) description :- String connection :- Connection]
-  (let [data-content (make-error-data-content description)
+  (let [data-content (make-error-data-content in-reply-to-message description)
         error-msg (-> (message/make-message :message_type "http://puppetlabs.com/error_message"
                                             :sender "pcp:///server")
                       (message/set-json-data data-content))

@@ -3,8 +3,6 @@
             [puppetlabs.pcp.broker.in-memory-inventory :refer :all]
             [schema.test :as st]))
 
-(use-fixtures :once st/validate-schemas)
-
 (deftest endpoint-pattern-match?-test
   (testing "direct matches"
     (is (endpoint-pattern-match? "pcp://pies/agent" "pcp://pies/agent"))
