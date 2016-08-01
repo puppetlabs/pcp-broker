@@ -45,16 +45,11 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid ""
 "Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Server generated message expired.  Dropping"
+msgid "Server generated message expired; dropping it"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -86,17 +81,19 @@ msgstr ""
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Received session association for '{uri}' from '{commonname}' "
-"'{remoteaddress}'.  Session was already associated as '{existinguri}'"
+"'{remoteaddress}'. Session was already associated as '{existinguri}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "session already associated"
+msgid "Session already associated"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Association request '{messageid}' from '{source}' has expired. Sending a "
-"ttl_expired."
+msgid "Replying to '{requester}' with associate_response: '{rawmsg}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Invalid associate_request ('{reason}'); closing '{uri}' WebSocket"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -105,18 +102,50 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Node with uri '{uri}' already associated with connection '{commonname}' "
+"Node with URI '{uri}' already associated with connection '{commonname}' "
 "'{remoteaddress}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "superceded"
+msgid "superseded"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Unhandled message type '{messagetype}' received from '{commonname}' "
 "'{remoteaddr}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid ""
+"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{auth-message}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Processing PCP message: '{rawmsg}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Message not authenticated"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Message not authorized"
+msgstr ""
+
+#. default case
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "unexpected message validation outcome"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Error {0} handling message: {1}"
+msgstr ""
+
+#. TODO(richardc): this could use a different message_type to
+#. indicate an encoding error rather than a processing error
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Could not decode message"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -133,40 +162,6 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "client '{commonname}' connected from '{remoteaddress}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"client '{commonname}' from '{remoteaddress}': cannot accept messages until "
-"session has been associated.  Dropping message."
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Cannot find transition for state '{state}'"
-msgstr ""
-
-#. TODO(richardc): When we have the message type for
-#. 'authorization_denied' use this instead of
-#. error_message
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Message not authorized"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Message '{messageid}' for '{destination}' from '{commonname}' "
-"'{remoteaddress}'"
-msgstr ""
-
-#. This is a processing error, say an uncaught exception in any of the stuff we meant to do
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Error {0} handling message: {1}"
-msgstr ""
-
-#. TODO(richardc): this could use a different message_type to
-#. indicate an encoding error rather than a processing error
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Could not decode message"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj

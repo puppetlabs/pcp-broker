@@ -41,11 +41,13 @@
   "Schema for a loggable summary of a capsule"
   {:messageid p/MessageId
    :source s/Str
+   :messagetype s/Str
    :destination (s/either p/Uri [p/Uri])})
 
 (s/defn -summarize :- CapsuleLog
   [capsule :- Capsule]
   {:messageid (get-in capsule [:message :id])
+   :messagetype (get-in capsule [:message :message_type])
    :source (get-in capsule [:message :sender])
    :destination (or (:target capsule)
                     (get-in capsule [:message :targets]))})
