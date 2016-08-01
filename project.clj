@@ -106,17 +106,19 @@
                                      {:injections [(do
                                                     (require 'schema.core)
                                                     (schema.core/set-fn-validation! true))]}]
-             :unit {:source-paths ["test/utils" "test-resources"]
-                    :dependencies [[http.async.client ~http-async-client-version :exclusions [org.clojure/clojure]]]
-                    :test-paths ^:replace ["test/unit"]}
-             :integration [:unit
-                           {:dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
-                                           [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]
-                            :test-paths ^:replace ["test/integration"]}]
+             :test {:source-paths ["test/utils" "test-resources"]
+                    :dependencies [[http.async.client ~http-async-client-version :exclusions [org.clojure/clojure]]
+                                   [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
+                                   [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]
+                    :test-paths ^:replace ["test/unit" "test/integration"]}
              :test-schema-validation [:test
                                       {:injections [(do
                                                      (require 'schema.core)
                                                      (schema.core/set-fn-validation! true))]}]
+             :unit [:test
+                    {:test-paths ^:replace ["test/unit"]}]
+             :integration [:test
+                           {:test-paths ^:replace ["test/integration"]}]
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
                                 [lein-parent "0.2.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"

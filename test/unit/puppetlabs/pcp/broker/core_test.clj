@@ -36,31 +36,6 @@
   {:encode identity
    :decode identity})
 
-
-
-
-
-
-
-; TODO(ale): THIS MUST PASS, THEN REMOVE IT
-
-
-(deftest bad-message-check
-  (testing "This should fail only with schema validation ON"
-    (let [msg {:title "dying for it"
-               :targets "bull"
-               :message_type 123}]
-      (is (not (session-association-message? msg))))))
-
-
-
-
-
-
-
-
-
-
 (deftest get-broker-cn-test
   (testing "It returns the correct cn"
     (let [cn (get-broker-cn "./test-resources/ssl/certs/broker.example.com.pem")]
