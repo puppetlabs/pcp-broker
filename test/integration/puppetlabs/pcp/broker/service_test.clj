@@ -71,14 +71,15 @@
 ; we started to see this to happen after we'd enabled the schema
 ; checks globally by using the `schema.test/validate-schemas` fixture,
 ; especially on slower (or busy) hardware
-(use-fixtures :once (fn [fn-test]
-                      (let [message-set-expiry message/set-expiry]
-                        (with-redefs [message/set-expiry (fn
-                                                           ([message number unit]
-                                                            (message-set-expiry message (* 5 number) unit))
-                                                           ([message timestamp]
-                                                            (message-set-expiry message timestamp)))]
-                          (fn-test)))))
+(use-fixtures
+  :once (fn [fn-test]
+          (let [message-set-expiry message/set-expiry]
+            (with-redefs [message/set-expiry (fn
+                                               ([message number unit]
+                                                (message-set-expiry message (* 5 number) unit))
+                                               ([message timestamp]
+                                                (message-set-expiry message timestamp)))]
+              (fn-test)))))
 
 (use-fixtures :each cleanup-spool-fixture)
 
@@ -142,7 +143,7 @@
 
 (deftest it-closes-connections-when-not-running-test
   ;; NOTE(richardc): This test is racy.  What we do is we start
-  ;; and stop a broker in an future so we can try to connect to it
+  ;; and stop a broker in a future so we can try to connect to it
   ;; while the trapperkeeper services are still starting up.
   (let [should-stop (promise)]
     (try
@@ -153,7 +154,7 @@
             start (System/currentTimeMillis)]
         (while (and (not (future-done? broker)) (< (- (System/currentTimeMillis) start) (* 120 1000)))
           (let [code (connect-and-close (* 20 1000))]
-            (if-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
+            (when-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
               (swap! close-codes conj-unique code))
             (if (= 1000 code)
               ;; we were _probably_ able to connect to the broker (or the broker was

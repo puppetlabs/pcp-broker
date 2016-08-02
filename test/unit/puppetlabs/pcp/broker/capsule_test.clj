@@ -21,10 +21,11 @@
                                                        "pcp://localhost/b"])])
 
 (deftest summarize-test
-  (dotestseq [msg messages]
+  (dotestseq
+    [msg messages]
     (testing "can summarize capsules"
-    (let [capsule (wrap msg)]
-      (is (s/validate CapsuleLog (summarize capsule)))))))
+      (let [capsule (wrap msg)]
+        (is (s/validate CapsuleLog (summarize capsule)))))))
 
 (deftest add-hop-test
   (let [capsule (wrap (message/make-message))]

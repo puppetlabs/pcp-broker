@@ -129,6 +129,9 @@
                                 :message message)
                   (i18n/trs "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"))
        allowed))))
+;;
+;; Message queueing and processing
+;;
 
 ;; message lifecycle
 (s/defn accept-message-for-delivery :- Capsule
@@ -158,9 +161,10 @@
 (s/defn process-expired-message :- Capsule
   "Enqueue a ttl_expired message to the original message sender"
   [broker :- Broker capsule :- Capsule]
-  (sl/maplog :trace (assoc (capsule/summarize capsule)
-                           :type :message-expired)
-             (i18n/trs "Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."))
+  (sl/maplog
+    :trace (assoc (capsule/summarize capsule)
+                  :type :message-expired)
+    (i18n/trs "Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."))
   (let [message (:message capsule)
         sender  (:sender message)]
     (if (= "pcp:///server" sender)
@@ -195,10 +199,11 @@
     (if (time/after? expires now)
       (let [retry-delay (retry-delay capsule)
             capsule     (capsule/add-hop capsule (broker-uri broker) "redelivery")]
-        (sl/maplog :trace (assoc (capsule/summarize capsule)
-                                 :type :message-redelivery
-                                 :delay retry-delay)
-                   (i18n/trs "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"))
+        (sl/maplog
+          :trace (assoc (capsule/summarize capsule)
+                        :type :message-redelivery
+                        :delay retry-delay)
+          (i18n/trs "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"))
         (time! (:message-queueing (:metrics broker))
                (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))
       (process-expired-message broker capsule))))
@@ -230,10 +235,11 @@
       (try
         (let [connection (get-connection broker websocket)
               encode (get-in connection [:codec :encode])]
-          (sl/maplog :debug (merge (capsule/summarize capsule)
-                                   (connection/summarize connection)
-                                   {:type :message-delivery})
-                     (i18n/trs "Delivering '{messageid}' for '{destination}' to '{commonname}' at '{remoteaddress}'"))
+          (sl/maplog
+            :debug (merge (capsule/summarize capsule)
+                          (connection/summarize connection)
+                          {:type :message-delivery})
+            (i18n/trs "Delivering '{messageid}' for '{destination}' to '{commonname}' at '{remoteaddress}'"))
           (locking websocket
             (time! (:on-send (:metrics broker))
                    (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
@@ -281,15 +287,15 @@
     (cond
       (= type "server")
       (i18n/trs "''server'' type connections not accepted")
-
       (= :associated (:state connection))
       (let [{:keys [uri]} connection]
-        (sl/maplog :debug (assoc (connection/summarize connection)
-                                 :uri as
-                                 :existinguri uri
-                                 :type :connection-already-associated)
-                   (i18n/trs "Received session association for '{uri}' from '{commonname}' '{remoteaddress}'.  Session was already associated as '{existinguri}'"))
-        (i18n/trs "session already associated")))))
+        (sl/maplog
+          :debug (assoc (connection/summarize connection)
+                        :uri as
+                        :existinguri uri
+                        :type :connection-already-associated)
+          (i18n/trs "Received session association for '{uri}' from '{commonname}' '{remoteaddress}'. Session was already associated as '{existinguri}'"))
+        (i18n/trs "Session already associated")))))
 
 (s/defn process-associate-message :- Connection
   "Process a session association message on a websocket"
@@ -534,7 +540,10 @@
    :on-text    (partial on-text! broker)
    :on-bytes   (partial on-bytes! broker)})
 
-;; service lifecycle
+;;
+;; Broker service lifecycle, codecs, status service
+;;
+
 (def InitOptions
   {:activemq-spool s/Str
    :accept-consumers s/Num
@@ -615,12 +624,8 @@
   [broker :- Broker level :- status-core/ServiceStatusDetailLevel]
   (let [{:keys [state metrics-registry]} broker
         level>= (partial status-core/compare-levels >= level)]
-  {:state @state
-   :status (cond-> {}
-
-             (level>= :info)
-             (assoc :metrics (metrics/get-pcp-metrics metrics-registry))
-
-             (level>= :debug)
-             (assoc :threads (metrics/get-thread-metrics)
-                    :memory (metrics/get-memory-metrics)))}))
+    {:state  @state
+     :status (cond-> {}
+               (level>= :info) (assoc :metrics (metrics/get-pcp-metrics metrics-registry))
+               (level>= :debug) (assoc :threads (metrics/get-thread-metrics)
+                                       :memory (metrics/get-memory-metrics)))}))
