@@ -5,6 +5,7 @@
             [puppetlabs.pcp.broker.capsule :as capsule]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.message :as message]
+            [puppetlabs.experimental.websockets.client :as websockets-client]
             [schema.core :as s]
             [schema.test :as st]
             [slingshot.test])
@@ -25,7 +26,6 @@
                 :connections        (ConcurrentHashMap.)
                 :metrics-registry   metrics.core/default-registry
                 :metrics            {}
-                :transitions        {}
                 :broker-cn          "broker.example.com"
                 :state              (atom :running)}
         metrics (build-and-register-metrics broker)
@@ -143,89 +143,90 @@
       (is (= "pcp://example01.example.com/foo" (:target (:capsule (first @queued))))))))
 
 (deftest make-ring-request-test
-  (let [broker (make-test-broker)]
-    (testing "it should return a ring request - one target"
-      (let [message (message/make-message :message_type "example1"
-                                          :sender "pcp://example01.example.com/agent"
-                                          :targets ["pcp://example02.example.com/agent"])
-            capsule (capsule/wrap message)]
-        (is (= {:uri "/pcp-broker/send"
-                :request-method :post
-                :remote-addr ""
-                :form-params {}
-                :query-params {"sender" "pcp://example01.example.com/agent"
-                               "targets" "pcp://example02.example.com/agent"
-                               "message_type" "example1"
+  (testing "it should return a ring request - one target"
+    (let [message (message/make-message :message_type "example1"
+                                        :sender "pcp://example01.example.com/agent"
+                                        :targets ["pcp://example02.example.com/agent"])
+          capsule (capsule/wrap message)]
+      (is (= {:uri            "/pcp-broker/send"
+              :request-method :post
+              :remote-addr    ""
+              :form-params    {}
+              :query-params   {"sender"             "pcp://example01.example.com/agent"
+                               "targets"            "pcp://example02.example.com/agent"
+                               "message_type"       "example1"
                                "destination_report" false}
-                :params {"sender" "pcp://example01.example.com/agent"
-                         "targets" "pcp://example02.example.com/agent"
-                         "message_type" "example1"
-                         "destination_report" false}}
-               (make-ring-request broker capsule nil)))))
-    (testing "it should return a ring request - two targets"
-      (let [message (message/make-message :message_type "example1"
-                                          :sender "pcp://example01.example.com/agent"
-                                          :targets ["pcp://example02.example.com/agent"
-                                                    "pcp://example03.example.com/agent"])
-            capsule (capsule/wrap message)]
-        (is (= {:uri "/pcp-broker/send"
-                :request-method :post
-                :remote-addr ""
-                :form-params {}
-                :query-params {"sender" "pcp://example01.example.com/agent"
-                               "targets" ["pcp://example02.example.com/agent"
-                                          "pcp://example03.example.com/agent"]
-                               "message_type" "example1"
+              :params         {"sender"             "pcp://example01.example.com/agent"
+                               "targets"            "pcp://example02.example.com/agent"
+                               "message_type"       "example1"
+                               "destination_report" false}}
+             (make-ring-request capsule nil)))))
+  (testing "it should return a ring request - two targets"
+    (let [message (message/make-message :message_type "example1"
+                                        :sender "pcp://example01.example.com/agent"
+                                        :targets ["pcp://example02.example.com/agent"
+                                                  "pcp://example03.example.com/agent"])
+          capsule (capsule/wrap message)]
+      (is (= {:uri            "/pcp-broker/send"
+              :request-method :post
+              :remote-addr    ""
+              :form-params    {}
+              :query-params   {"sender"             "pcp://example01.example.com/agent"
+                               "targets"            ["pcp://example02.example.com/agent"
+                                                     "pcp://example03.example.com/agent"]
+                               "message_type"       "example1"
                                "destination_report" false}
-                :params {"sender" "pcp://example01.example.com/agent"
-                         "targets" ["pcp://example02.example.com/agent"
-                                    "pcp://example03.example.com/agent"]
-                         "message_type" "example1"
-                         "destination_report" false}}
-               (make-ring-request broker capsule nil)))))
-    (testing "it should return a ring request - destination report"
-      (let [message (message/make-message :message_type "example1"
-                                          :sender "pcp://example01.example.com/agent"
-                                          :targets ["pcp://example02.example.com/agent"]
-                                          :destination_report true)
-            capsule (capsule/wrap message)]
-        (is (= {:uri "/pcp-broker/send"
-                :request-method :post
-                :remote-addr ""
-                :form-params {}
-                :query-params {"sender" "pcp://example01.example.com/agent"
-                               "targets" "pcp://example02.example.com/agent"
-                               "message_type" "example1"
+              :params         {"sender"             "pcp://example01.example.com/agent"
+                               "targets"            ["pcp://example02.example.com/agent"
+                                                     "pcp://example03.example.com/agent"]
+                               "message_type"       "example1"
+                               "destination_report" false}}
+             (make-ring-request capsule nil)))))
+  (testing "it should return a ring request - destination report"
+    (let [message (message/make-message :message_type "example1"
+                                        :sender "pcp://example01.example.com/agent"
+                                        :targets ["pcp://example02.example.com/agent"]
+                                        :destination_report true)
+          capsule (capsule/wrap message)]
+      (is (= {:uri            "/pcp-broker/send"
+              :request-method :post
+              :remote-addr    ""
+              :form-params    {}
+              :query-params   {"sender"             "pcp://example01.example.com/agent"
+                               "targets"            "pcp://example02.example.com/agent"
+                               "message_type"       "example1"
                                "destination_report" true}
-                :params {"sender" "pcp://example01.example.com/agent"
-                         "targets" "pcp://example02.example.com/agent"
-                         "message_type" "example1"
-                         "destination_report" true}}
-               (make-ring-request broker capsule nil)))))))
+              :params         {"sender"             "pcp://example01.example.com/agent"
+                               "targets"            "pcp://example02.example.com/agent"
+                               "message_type"       "example1"
+                               "destination_report" true}}
+             (make-ring-request capsule nil))))))
+
+(defn yes-authorization-check [r] {:authorized true
+                                   :message ""
+                                   :request r})
+
+(defn no-authorization-check [r] {:authorized false
+                                  :message "Danger Zone"
+                                  :request r})
 
 (deftest authorized?-test
-  (let [yes-check (fn [r] {:authorized true
-                           :message ""
-                           :request r})
-        no-check (fn [r] {:authorized false
-                          :message "Danger Zone"
-                          :request r})
-        yes-broker (assoc (make-test-broker) :authorization-check yes-check)
-        no-broker (assoc (make-test-broker) :authorization-check no-check)
+  (let [yes-broker (assoc (make-test-broker) :authorization-check yes-authorization-check)
+        no-broker (assoc (make-test-broker) :authorization-check no-authorization-check)
         message (message/make-message :message_type "example1"
                                       :sender "pcp://example01.example.com/agent"
                                       :targets ["pcp://example02.example.com/agent"])
         capsule (capsule/wrap message)]
-    (is (= true (authorized? yes-broker capsule)))
-    (is (= false (authorized? no-broker capsule)))))
+    (is (= true (authorized? yes-broker capsule nil)))
+    (is (= false (authorized? no-broker capsule nil)))))
 
 (deftest accept-message-for-delivery-test
   (let [broker (make-test-broker)
         capsule (capsule/wrap (message/make-message))
         queued (atom [])]
-    (with-redefs [puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule] (swap! queued conj {:queue queue
-                                                                                                       :capsule capsule}))
-                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
+    (with-redefs [puppetlabs.pcp.broker.activemq/queue-message (fn [queue capsule]
+                                                                 (swap! queued conj {:queue queue
+                                                                                     :capsule capsule}))]
       (accept-message-for-delivery broker capsule)
       (is (= 1 (count @queued)))
       (is (= accept-queue (:queue (first @queued)))))))
@@ -248,23 +249,18 @@
     (let [message (-> (message/make-message)
                       (assoc :targets ["pcp:///server"]
                              :message_type "http://puppetlabs.com/associate_request"))]
-      (is (= true (session-association-message? message)))))
+      (is (= true (session-association-request? message)))))
   (testing "It returns false when passed a message of an unknown type"
     (let [message (-> (message/make-message)
                       (assoc :targets ["pcp:///server"]
                              ;; OLDJOKE(richardc): we used to call association_request the loginschema
                              :message_type "http://puppetlabs.com/kennylogginsschema"))]
-      (is (= false (session-association-message? message)))))
+      (is (= false (session-association-request? message)))))
   (testing "It returns false when passed a message not aimed to the server target"
     (let [message (-> (message/make-message)
                       (assoc :targets ["pcp://other/server"]
                              :message_type "http://puppetlabs.com/associate_request"))]
-      (is (= false (session-association-message? message))))))
-
-(defn association-capsule
-  [sender seconds]
-  (capsule/wrap (-> (message/make-message :sender sender)
-                    (message/set-expiry seconds :seconds))))
+      (is (= false (session-association-request? message))))))
 
 (deftest reason-to-deny-association-test
   (let [broker     (make-test-broker)
@@ -273,70 +269,85 @@
     (is (= nil (reason-to-deny-association broker connection "pcp://test/foo")))
     (is (= "'server' type connections not accepted"
            (reason-to-deny-association broker connection "pcp://test/server")))
-    (is (= "session already associated"
+    (is (= "Session already associated"
            (reason-to-deny-association broker associated "pcp://test/foo")))
-    (is (= "session already associated"
+    (is (= "Session already associated"
            (reason-to-deny-association broker associated "pcp://test/bar")))))
 
-(deftest process-associate-message-test
+(deftest process-associate-request!-test
   (let [closed (atom (promise))]
     (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
-                  puppetlabs.experimental.websockets.client/send! (constantly false)
-                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
+                  puppetlabs.experimental.websockets.client/send! (constantly false)]
       (let [message (-> (message/make-message :sender "pcp://localhost/controller"
                                               :message_type "http://puppetlabs.com/login_message")
                         (message/set-expiry 3 :seconds))
             capsule (capsule/wrap message)]
-        (testing "It should return an associated session"
+        (testing "It should return an associated Connection if there's no reason to deny association"
           (reset! closed (promise))
           (let [broker     (make-test-broker)
                 connection (add-connection! broker "ws" identity-codec)
-                connection (process-associate-message broker capsule connection)]
+                connection (process-associate-request! broker capsule connection)]
             (is (not (realized? @closed)))
             (is (= :associated (:state connection)))
             (is (= "pcp://localhost/controller" (:uri connection)))))
-
-        (testing "It allows a login to from two locations for the same uri, but disconnects the first"
+        (testing "Associates a client already associated on a different session, but disconnects the first"
           (reset! closed (promise))
           (let [broker (make-test-broker)
                 connection1 (add-connection! broker "ws1" identity-codec)
                 connection2 (add-connection! broker "ws2" identity-codec)]
-            (process-associate-message broker capsule connection1)
-            (is (process-associate-message broker capsule connection2))
-            (is (= ["ws1" 4000 "superceded"] @@closed))
+            (process-associate-request! broker capsule connection1)
+            (is (process-associate-request! broker capsule connection2))
+            (is (= ["ws1" 4000 "superseded"] @@closed))
             (is (= ["ws2"] (keys (:connections broker))))))
-
-        (testing "It does not allow a login to happen twice on the same websocket"
+        ;; TODO(ale): change this behaviour (PCP-521)
+        (testing "No association for the same WebSocket session; closes and returns nil"
           (reset! closed (promise))
           (let [broker (make-test-broker)
                 connection (add-connection! broker "ws" identity-codec)
-                connection (process-associate-message broker capsule connection)
-                connection (process-associate-message broker capsule connection)]
+                connection (process-associate-request! broker capsule connection)
+                outcome1 (process-associate-request! broker capsule connection)
+                outcome2 (process-associate-request! broker capsule connection)]
+            ;; NB(ale): in this case, the Connection object is removed from the
+            ;; broker's connections map by the onClose handler once triggered
             (is (= :associated (:state connection)))
+            (is (nil? outcome1))
+            (is (nil? outcome2))
+            (is (= ["ws" 4002 "association unsuccessful"] @@closed))))
+        (testing "No association if a reason to deny is provided; closes the session and return nil"
+          (reset! closed (promise))
+          (let [broker (make-test-broker)
+                connection (add-connection! broker "ws" identity-codec)
+                outcome (process-associate-request! broker capsule connection "because I said so!")]
+            ;; NB(ale): as above, the connections map is updated after onClose
+            (is (nil? outcome))
             (is (= ["ws" 4002 "association unsuccessful"] @@closed))))))))
 
-(deftest process-inventory-message-test
+(deftest process-inventory-request-test
   (let [broker (make-test-broker)
         message (-> (message/make-message :sender "pcp://test.example.com/test")
                     (message/set-json-data  {:query ["pcp://*/*"]}))
         capsule (capsule/wrap message)
         connection (connection/make-connection "ws1" identity-codec)
+        connection (assoc connection :state :associated)
         accepted (atom nil)]
-    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule] (reset! accepted capsule))
-                  puppetlabs.pcp.broker.core/authorized? (constantly true)]
-      (process-inventory-message broker capsule connection)
-      (is (= [] (:uris (message/get-json-data (:message @accepted))))))))
+    (with-redefs
+      [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule]
+                                                                (reset! accepted capsule))]
+      (let [outcome (process-inventory-request broker capsule connection)]
+        (is (nil? outcome))
+        (is (= [] (:uris (message/get-json-data (:message @accepted)))))))))
 
-(deftest process-server-message-test
+(deftest process-server-message!-test
   (let [broker (make-test-broker)
         message (message/make-message :message_type "http://puppetlabs.com/associate_request")
         capsule (capsule/wrap message)
         connection (connection/make-connection "ws1" identity-codec)
         associate-request (atom nil)]
-    (with-redefs [puppetlabs.pcp.broker.core/process-associate-message (fn [broker capsule connection]
-                                                                         (reset! associate-request capsule)
-                                                                         connection)]
-      (process-server-message broker capsule connection)
+    (with-redefs
+      [puppetlabs.pcp.broker.core/process-associate-request! (fn [broker capsule connection]
+                                                               (reset! associate-request capsule)
+                                                               connection)]
+      (process-server-message! broker capsule connection)
       (is (not= nil @associate-request)))))
 
 (s/defn dummy-connection-from :- Connection
@@ -344,48 +355,104 @@
   (assoc (connection/make-connection "ws1" identity-codec)
          :common-name common-name))
 
-(deftest check-sender-matches-test
-  (testing "simple match"
-    (is (check-sender-matches (message/make-message :sender "pcp://lolcathost/agent")
-                              (dummy-connection-from "lolcathost"))))
-  (testing "simple mismatch"
-    (is (not (check-sender-matches (message/make-message :sender "pcp://lolcathost/agent")
-                                   (dummy-connection-from "remotecat")))))
-  (testing "accidental regex collisions"
-    (is (not (check-sender-matches (message/make-message :sender "pcp://lolcathost/agent")
-                                   (dummy-connection-from "lol.athost"))))))
+(deftest authenticated?-test
+  (let [capsule (capsule/wrap (message/make-message :sender "pcp://lolcathost/agent"))]
+    (testing "simple match"
+      (is (authenticated? capsule (dummy-connection-from "lolcathost"))))
+    (testing "simple mismatch"
+      (is (not (authenticated? capsule (dummy-connection-from "remotecat")))))
+    (testing "accidental regex collisions"
+      (is (not (authenticated? capsule (dummy-connection-from "lol.athost")))))))
 
-(deftest connection-open-test
-  (let [broker (make-test-broker)
-        message (message/make-message :targets ["pcp:///server"]
-                                      :message_type "http://puppetlabs.com/associate_request")
-        capsule (capsule/wrap message)
-        connection (connection/make-connection "ws1" identity-codec)
-        associate-request (atom nil)]
-    (with-redefs [puppetlabs.pcp.broker.core/process-associate-message (fn [broker capsule connection]
-                                                                         (reset! associate-request capsule)
-                                                                         connection)]
-      (connection-open broker capsule connection)
-      (is (not= nil @associate-request)))))
+(defn make-valid-ring-request
+  [message _]
+  (let [{:keys [sender targets message_type destination_report]} message
+        params {"sender"             sender
+                "targets"            targets
+                "message_type"       message_type
+                "destination_report" destination_report}]
+    {:uri            "/pcp-broker/send"
+     :request-method :post
+     :remote-addr    ""
+     :form-params    {}
+     :query-params   params
+     :params         params}))
 
-(deftest connection-associated-test
-  (let [broker (make-test-broker)
-        message (-> (message/make-message :message_type "http://puppetlabs.com/associate_request")
-                    (message/set-expiry 3 :seconds))
-        capsule (capsule/wrap message)
-        connection (connection/make-connection "ws1" identity-codec)
-        accepted (atom nil)]
-    (with-redefs [puppetlabs.pcp.broker.core/accept-message-for-delivery (fn [broker capsule]
-                                                                           (reset! accepted capsule))]
-      (connection-associated broker capsule connection)
-      (is (not= nil @accepted)))))
-
-(deftest determine-next-state-test
-  (testing "legal next states are accepted"
+(deftest validate-message-test
+  (testing "ignores messages other than associate_request if connection not associated"
     (let [broker (make-test-broker)
-          broker (assoc broker :transitions {:open (fn [_ _ c] (assoc c :state :associated))})
-          connection (connection/make-connection "ws" identity-codec)
-          message (message/make-message)
-          capsule (capsule/wrap message)
-          next (determine-next-state broker capsule connection)]
-      (is (= :associated (:state next))))))
+          capsule (capsule/wrap (message/make-message))
+          connection (dummy-connection-from "localpost")
+          is-association-request false]
+      (is (= :to-be-ignored-during-association
+             (validate-message broker capsule connection is-association-request)))))
+  (testing "correctly marks not authenticated messages"
+    (let [broker (make-test-broker)
+          msg (message/make-message :sender "pcp://localpost/office"
+                                    :message_type "http://puppetlabs.com/associate_request")
+          capsule (capsule/wrap msg)
+          connection (dummy-connection-from "groceryshop")
+          is-association-request true]
+      (is (= :not-authenticated
+             (validate-message broker capsule connection is-association-request)))))
+  (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request]
+    (testing "correctly marks not authorized messages"
+      (let [no-broker (assoc (make-test-broker) :authorization-check no-authorization-check)
+            msg (message/make-message :sender "pcp://greyhacker/exploit"
+                                      :message_type "http://puppetlabs.com/associate_request")
+            capsule (capsule/wrap msg)
+            connection (dummy-connection-from "greyhacker")
+            is-association-request true]
+        (is (= :not-authorized
+               (validate-message no-broker capsule connection is-association-request)))))
+    (testing "correctly marks expired messages"
+      (let [yes-broker (assoc (make-test-broker) :authorization-check yes-authorization-check)
+            msg (message/make-message :sender "pcp://localcost/gbp"
+                                      :message_type "http://puppetlabs.com/associate_request")
+            capsule (capsule/wrap (message/set-expiry msg -3 :seconds))
+            connection (dummy-connection-from "localcost")
+            is-association-request true]
+        (is (= :expired
+               (validate-message yes-broker capsule connection is-association-request)))))
+    (testing "correctly marks messages to be processed"
+      (let [yes-broker (assoc (make-test-broker) :authorization-check yes-authorization-check)
+            msg (message/make-message :sender "pcp://localghost/opera"
+                                      :message_type "http://puppetlabs.com/associate_request")
+            capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
+            connection (dummy-connection-from "localghost")
+            is-association-request true]
+        (is (= :to-be-processed
+               (validate-message yes-broker capsule connection is-association-request)))))))
+
+;; TODO(ale): add more tests for onMessage processing (PCP-523)
+(deftest process-message!-test
+  (let [broker (assoc (make-test-broker) :authorization-check yes-authorization-check)]
+    (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request]
+      (testing "sends an error message and returns nil, in case it fails to deserialize"
+        (let [error-message-description (atom nil)]
+          (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                         (fn [broker ws] (add-connection! broker "ws" identity-codec))
+                        puppetlabs.pcp.broker.core/send-error-message
+                          (fn [msg description connection] (reset! error-message-description description) nil)]
+            (let [outcome (process-message! broker (byte-array [42]) nil)]
+              (is (= "Could not decode message" @error-message-description))
+              (is (nil? outcome))))))
+      (testing "queues a ttl_expired in case of expired msg (not associate_session)"
+        (let [called-process-expired (atom false)
+              msg (message/make-message :sender "pcp://host_a/entity"
+                                        :message_type "some_kinda_love"
+                                        :targets ["pcp://host_b/entity"])
+              capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
+              raw-msg (->> capsule (capsule/encode) (message/encode))
+              connection (merge (dummy-connection-from "host_a")
+                                {:state :associated
+                                 :codec {:decode (fn [bytes] msg)
+                                         :encode (fn [msg] raw-msg)}})]
+          (.put (:connections broker) "ws1" connection)
+          (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                          (fn [broker ws] connection)
+                        puppetlabs.pcp.broker.core/process-expired-message
+                          (fn [broker capsule] (reset! called-process-expired true))]
+            (let [outcome (process-message! broker raw-msg nil)]
+              (is @called-process-expired)
+              (is (nil? outcome)))))))))
