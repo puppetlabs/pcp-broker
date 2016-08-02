@@ -58,8 +58,11 @@
 
 (s/defn get-broker-cn :- s/Str
   [certificate :- s/Str]
-  (let [x509     (ssl-utils/pem->cert certificate)]
-    (ssl-utils/get-cn-from-x509-certificate x509)))
+  (let [x509-chain (ssl-utils/pem->certs certificate)]
+    (when (empty? x509-chain)
+      (throw (IllegalArgumentException.
+               (i18n/trs "{0} must contain at least 1 certificate", certificate))))
+    (ssl-utils/get-cn-from-x509-certificate (first x509-chain))))
 
 (s/defn broker-uri :- p/Uri
   [broker :- Broker]
