@@ -1,6 +1,6 @@
 (ns puppetlabs.pcp.testutils.client
   (:require [clojure.test :refer :all]
-            [clojure.core.async :as async :refer [timeout alts!! chan >!! <!!]]
+            [clojure.core.async :as async :refer [timeout alts!! chan >!! <!! put!]]
             [http.async.client :as http]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.pcp.message :as message]
@@ -60,9 +60,9 @@
                                             :open  (fn [ws]
                                                      (http/send ws :byte (message/encode association-request)))
                                             :byte  (fn [ws msg]
-                                                     (>!! message-chan (message/decode msg)))
+                                                     (put! message-chan (message/decode msg)))
                                             :close (fn [ws code reason]
-                                                     (>!! message-chan [code reason])))
+                                                     (put! message-chan [code reason])))
         wrapper             (ChanClient. client ws message-chan)]
     (if check-association
       (let [response (recv! wrapper)]
