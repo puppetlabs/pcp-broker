@@ -28,6 +28,29 @@ intended scheme for logging levels:
 * DEBUG - client connecting, client session establishment, client disconnected, message acceptance, message delivery
 * TRACE - messages moving through queues, message information during association.
 
+## HTTP access log
+
+This logger is implemented by Jetty and the
+[logback-access][http://logback.qos.ch/access.html] module. It logs information
+about the HTTP request sent by a PCP client when the WebSocket handshake with
+the pcp-broker starts.
+
+You can enable it by simply placing the *request-logging.xml* file (contained
+in the *test-resources/log* directory) in the same directory where your logback
+configuration file is stored (see above). Note that *request-logging.xml* is the
+default file that logback looks for when configuring logback-access; for further
+details, please refer to the [logback-access][http://logback.qos.ch/access.html]
+documentation.
+
+The pattern used in the provided *request-logging.xml* follows the
+[Common Log Format][https://en.wikipedia.org/wiki/Common_Log_Format]. It will
+log entries like:
+
+'''
+0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:44:55 +0100] "GET /pcp/ HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
+0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:45:07 +0100] "GET /pcp/vNext HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
+'''
+
 ## Types of messages
 
 In order to allow you to more readily search through your structured
