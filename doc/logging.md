@@ -1,7 +1,21 @@
 # Logging in pcp-broker
 
-We use the puppetlabs/structured-logging to log certain events as they
-are handled by the broker.
+We use the [puppetlabs/structured-logging][https://github.com/puppetlabs/structured-logging]
+to log certain events as they are handled by the broker.
+
+## Configuration
+
+pcp-broker uses [logback][http://logback.qos.ch/]. The logging configuration
+file should be specified by setting the `global.logging-config` entry in the
+*global.conf* file in the [configuration][./configuration.md] directory.
+Example:
+
+'''
+    global: {
+      logging-config = ./eng-resources/logback-dev.xml
+    }
+'''
+
 
 ## Levels and their uses
 
