@@ -39,7 +39,14 @@
 (deftest get-broker-cn-test
   (testing "It returns the correct cn"
     (let [cn (get-broker-cn "./test-resources/ssl/certs/broker.example.com.pem")]
-      (is (= "broker.example.com" cn)))))
+      (is (= "broker.example.com" cn))))
+  (testing "It returns the correct cn from a certificate chain"
+    (let [cn (get-broker-cn "./test-resources/ssl/certs/broker-chain.example.com.pem")]
+      (is (= "broker.example.com" cn))))
+  (testing "It throws an exception when the certificate file is empty"
+    (is (thrown-with-msg? IllegalArgumentException
+                          #"\./test-resources/ssl/certs/broker-empty\.example\.com.pem must contain at least 1 certificate"
+                          (get-broker-cn "./test-resources/ssl/certs/broker-empty.example.com.pem")))))
 
 (deftest add-connection!-test
   (testing "It should add a connection to the connection map"
