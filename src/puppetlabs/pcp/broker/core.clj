@@ -33,6 +33,7 @@
    :record-client      IFn
    :find-clients       IFn
    :authorization-check IFn
+   :reject-expired-msg s/Bool
    :uri-map            ConcurrentHashMap ;; Mapping of Uri to Websocket, for sending
    :connections        ConcurrentHashMap ;; Mapping of Websocket session to Connection state
    :metrics-registry   Object
@@ -164,19 +165,17 @@
                            :type :message-delivery-failure
                            :reason reason)
              (i18n/trs "Failed to deliver '{messageid}' for '{destination}': '{reason}'"))
-  (let [expires (:expires capsule)
-        now     (time/now)]
-    (if (time/after? expires now)
-      (let [retry-delay (retry-delay capsule)
-            capsule     (capsule/add-hop capsule (broker-uri broker) "redelivery")]
-        (sl/maplog
-          :trace (assoc (capsule/summarize capsule)
-                        :type :message-redelivery
-                        :delay retry-delay)
-          (i18n/trs "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"))
-        (time! (:message-queueing (:metrics broker))
-               (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))
-      (process-expired-message broker capsule))))
+  (if (capsule/expired? capsule)
+    (process-expired-message broker capsule)
+    (let [retry-delay (retry-delay capsule)
+          capsule     (capsule/add-hop capsule (broker-uri broker) "redelivery")]
+      (sl/maplog
+        :trace (assoc (capsule/summarize capsule)
+                      :type :message-redelivery
+                      :delay retry-delay)
+        (i18n/trs "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"))
+      (time! (:message-queueing (:metrics broker))
+             (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))))
 
 (s/defn make-destination-report :- p/DestinationReport
   [id targets]
@@ -203,7 +202,7 @@
 (s/defn deliver-message
   "Message consumer. Delivers a message to the websocket indicated by the :target field"
   [broker :- Broker capsule :- Capsule]
-  (if (capsule/expired? capsule)
+  (if (and (:reject-expired-msg broker) (capsule/expired? capsule))
     (process-expired-message broker capsule)
     (if-let [websocket (get-websocket broker (:target capsule))]
       (try
@@ -456,7 +455,7 @@
          (not is-association-request)) :to-be-ignored-during-association
     (not (authenticated? capsule connection)) :not-authenticated
     (not (authorized? broker capsule (:websocket connection))) :not-authorized
-    (capsule/expired? capsule) :expired
+    (and (:reject-expired-msg broker) (capsule/expired? capsule)) :expired
     :else :to-be-processed))
 
 ;;
@@ -687,6 +686,7 @@
                               :record-client      record-client
                               :find-clients       find-clients
                               :authorization-check authorization-check
+                              :reject-expired-msg false
                               :metrics            {}
                               :metrics-registry   (get-metrics-registry)
                               :connections        (ConcurrentHashMap.)

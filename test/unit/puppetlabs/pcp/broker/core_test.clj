@@ -22,6 +22,7 @@
                 :record-client      (constantly true)
                 :find-clients       (constantly ())
                 :authorization-check (constantly true)
+                :reject-expired-msg false
                 :uri-map            (ConcurrentHashMap.)
                 :connections        (ConcurrentHashMap.)
                 :metrics-registry   metrics.core/default-registry
@@ -125,15 +126,33 @@
 
 (deftest deliver-message-test
   (let [broker (make-test-broker)
-        message (-> (message/make-message)
-                    (message/set-expiry 3 :seconds))
-        capsule (assoc (capsule/wrap message) :target "pcp://example01.example.com/foo")
         failure (atom nil)]
-    (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure (fn [broker capsule message]
-                                                                       (reset! failure {:capsule capsule
-                                                                                        :message message}))]
-      (deliver-message broker capsule)
-      (is (= "not connected" (:message @failure))))))
+    (testing "delivers messages"
+      (let [message (-> (message/make-message)
+                        (message/set-expiry 3 :seconds))
+            capsule (assoc (capsule/wrap message) :target "pcp://example01.example.com/foo")]
+        (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure (fn [broker capsule message]
+                                                                           (reset! failure {:capsule capsule
+                                                                                            :message message}))]
+          (deliver-message broker capsule)
+          (is (= "not connected" (:message @failure))))))
+    (testing "delivers expired messages if reject-expired-msg is disabled"
+      (let [message (-> (message/make-message)
+                        (message/set-expiry 0 :seconds))
+            capsule (assoc (capsule/wrap message) :target "pcp://example01.example.com/foo")]
+        (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure (fn [broker capsule message]
+                                                                           (reset! failure {:capsule capsule
+                                                                                            :message message}))]
+          (deliver-message (assoc broker :reject-expired-msg false) capsule)
+          (is (= "not connected" (:message @failure))))))
+    (testing "drops expired messages if reject-expired-msg is enabled"
+      (let [message (-> (message/make-message)
+                        (message/set-expiry 0 :seconds))
+            capsule (assoc (capsule/wrap message) :target "pcp://example01.example.com/foo")]
+        (with-redefs [puppetlabs.pcp.broker.core/process-expired-message (fn [broker capsule]
+                                                                           (reset! failure "expired!"))]
+          (deliver-message (assoc broker :reject-expired-msg true) capsule)
+          (is (= "expired!" @failure)))))))
 
 (deftest expand-destinations-test
   (let [broker (make-test-broker)
@@ -412,8 +431,21 @@
             is-association-request true]
         (is (= :not-authorized
                (validate-message no-broker capsule connection is-association-request)))))
-    (testing "correctly marks expired messages"
-      (let [yes-broker (assoc (make-test-broker) :authorization-check yes-authorization-check)
+    (testing "marks expired messages as to be processed when reject-expired-msg disabled"
+      (let [yes-broker (assoc (make-test-broker)
+                              :authorization-check yes-authorization-check
+                              :reject-expired-msg false)
+            msg (message/make-message :sender "pcp://localcost/gbp"
+                                      :message_type "http://puppetlabs.com/associate_request")
+            capsule (capsule/wrap (message/set-expiry msg -3 :seconds))
+            connection (dummy-connection-from "localcost")
+            is-association-request true]
+        (is (= :to-be-processed
+               (validate-message yes-broker capsule connection is-association-request)))))
+    (testing "marks expired messages when reject-expired-msg enabled"
+      (let [yes-broker (assoc (make-test-broker)
+                              :authorization-check yes-authorization-check
+                              :reject-expired-msg true)
             msg (message/make-message :sender "pcp://localcost/gbp"
                                       :message_type "http://puppetlabs.com/associate_request")
             capsule (capsule/wrap (message/set-expiry msg -3 :seconds))
@@ -433,33 +465,58 @@
 
 ;; TODO(ale): add more tests for onMessage processing (PCP-523)
 (deftest process-message!-test
-  (let [broker (assoc (make-test-broker) :authorization-check yes-authorization-check)]
-    (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request]
-      (testing "sends an error message and returns nil, in case it fails to deserialize"
-        (let [error-message-description (atom nil)]
-          (with-redefs [puppetlabs.pcp.broker.core/get-connection
-                         (fn [broker ws] (add-connection! broker "ws" identity-codec))
-                        puppetlabs.pcp.broker.core/send-error-message
-                          (fn [msg description connection] (reset! error-message-description description) nil)]
-            (let [outcome (process-message! broker (byte-array [42]) nil)]
-              (is (= "Could not decode message" @error-message-description))
-              (is (nil? outcome))))))
-      (testing "queues a ttl_expired in case of expired msg (not associate_session)"
-        (let [called-process-expired (atom false)
-              msg (message/make-message :sender "pcp://host_a/entity"
-                                        :message_type "some_kinda_love"
-                                        :targets ["pcp://host_b/entity"])
-              capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
-              raw-msg (->> capsule (capsule/encode) (message/encode))
-              connection (merge (dummy-connection-from "host_a")
-                                {:state :associated
-                                 :codec {:decode (fn [bytes] msg)
-                                         :encode (fn [msg] raw-msg)}})]
-          (.put (:connections broker) "ws1" connection)
-          (with-redefs [puppetlabs.pcp.broker.core/get-connection
-                          (fn [broker ws] connection)
-                        puppetlabs.pcp.broker.core/process-expired-message
-                          (fn [broker capsule] (reset! called-process-expired true))]
-            (let [outcome (process-message! broker raw-msg nil)]
-              (is @called-process-expired)
-              (is (nil? outcome)))))))))
+  (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request]
+    (testing "sends an error message and returns nil, in case it fails to deserialize"
+      (let [broker (assoc (make-test-broker) :authorization-check yes-authorization-check)
+            error-message-description (atom nil)]
+        (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                      (fn [broker ws] (add-connection! broker "ws" identity-codec))
+                      puppetlabs.pcp.broker.core/send-error-message
+                      (fn [msg description connection] (reset! error-message-description description) nil)]
+          (let [outcome (process-message! broker (byte-array [42]) nil)]
+            (is (= "Could not decode message" @error-message-description))
+            (is (nil? outcome))))))
+    (testing "queues message for delivery in case of expired msg (not associate_session)"
+      (let [broker (assoc (make-test-broker)
+                          :authorization-check yes-authorization-check
+                          :reject-expired-msg false)
+            called-accept-message (atom false)
+            msg (message/make-message :sender "pcp://host_a/entity"
+                                      :message_type "some_kinda_love"
+                                      :targets ["pcp://host_b/entity"])
+            capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
+            raw-msg (->> capsule (capsule/encode) (message/encode))
+            connection (merge (dummy-connection-from "host_a")
+                              {:state :associated
+                               :codec {:decode (fn [bytes] msg)
+                                       :encode (fn [msg] raw-msg)}})]
+        (.put (:connections broker) "ws1" connection)
+        (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                      (fn [broker ws] connection)
+                      puppetlabs.pcp.broker.core/accept-message-for-delivery
+                      (fn [broker capsule] (reset! called-accept-message true))]
+          (let [outcome (process-message! broker raw-msg nil)]
+            (is @called-accept-message)
+            (is (nil? outcome))))))
+    (testing "queues a ttl_expired in case of expired msg (not associate_session) when reject_expired_msg enabled"
+      (let [broker (assoc (make-test-broker)
+                          :authorization-check yes-authorization-check
+                          :reject-expired-msg true)
+            called-process-expired (atom false)
+            msg (message/make-message :sender "pcp://host_a/entity"
+                                      :message_type "some_kinda_love"
+                                      :targets ["pcp://host_b/entity"])
+            capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
+            raw-msg (->> capsule (capsule/encode) (message/encode))
+            connection (merge (dummy-connection-from "host_a")
+                              {:state :associated
+                               :codec {:decode (fn [bytes] msg)
+                                       :encode (fn [msg] raw-msg)}})]
+        (.put (:connections broker) "ws1" connection)
+        (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                      (fn [broker ws] connection)
+                      puppetlabs.pcp.broker.core/process-expired-message
+                      (fn [broker capsule] (reset! called-process-expired true))]
+          (let [outcome (process-message! broker raw-msg nil)]
+            (is @called-process-expired)
+            (is (nil? outcome))))))))

@@ -248,7 +248,7 @@
                                          :check-association false
                                          :version version)]
         (let [response (client/recv! client)]
-          (is (= "http://puppetlabs.com/ttl_expired" (:message_type response))))))))
+          (is (= "http://puppetlabs.com/associate_response" (:message_type response))))))))
 
 (deftest second-association-new-connection-closes-first-test
   (with-app-with-config app broker-services broker-config
@@ -494,7 +494,7 @@
                           (message/set-expiry -1 :seconds))]
           (client/send! client message)
           (let [response (client/recv! client)]
-            (is (= "http://puppetlabs.com/ttl_expired" (:message_type response)))))))))
+            (is (= "greeting" (:message_type response)))))))))
 
 (deftest send-to-never-connected-will-get-expired-test
   (with-app-with-config app broker-services broker-config
