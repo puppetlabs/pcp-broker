@@ -5,7 +5,21 @@
         </encoder>
     </appender>
 
+    <appender name="PCP_ACCESS" class="ch.qos.logback.core.ConsoleAppender">
+        <file>./test-resources/log/pcp-broker-messages.log</file>
+        <encoder>
+            <pattern>[%d] %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="pcp_access">
+        <appender-ref ref="PCP_ACCESS"/>
+    </logger>
+
     <root level="error">
         <appender-ref ref="STDOUT" />
     </root>
+
+    <logger name="puppetlabs.pcp.broker" level="trace"/>
+
 </configuration>

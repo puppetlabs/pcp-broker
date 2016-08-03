@@ -1,21 +1,22 @@
 # Logging in pcp-broker
 
-We use the [puppetlabs/structured-logging][https://github.com/puppetlabs/structured-logging]
+We use the [puppetlabs/structured-logging](https://github.com/puppetlabs/structured-logging)
 to log certain events as they are handled by the broker.
 
 ## Configuration
 
-pcp-broker uses [logback][http://logback.qos.ch/]. The logging configuration
-file should be specified by setting the `global.logging-config` entry in the
-*global.conf* file in the [configuration][./configuration.md] directory.
-Example:
+pcp-broker relies on [logback](http://logback.qos.ch/). The logging
+configuration file should be specified by setting the `global.logging-config`
+entry in the *global.conf* file in the [configuration](./configuration.md)
+directory. Example:
 
-'''
+```
     global: {
       logging-config = ./eng-resources/logback-dev.xml
     }
-'''
+```
 
+An example of logging configuration file is `test-resources/logback-dev.xml`.
 
 ## Levels and their uses
 
@@ -31,7 +32,7 @@ intended scheme for logging levels:
 ## HTTP access log
 
 This logger is implemented by Jetty and the
-[logback-access][http://logback.qos.ch/access.html] module. It logs information
+[logback-access](http://logback.qos.ch/access.html) module. It logs information
 about the HTTP request sent by a PCP client when the WebSocket handshake with
 the pcp-broker starts.
 
@@ -39,17 +40,60 @@ You can enable it by simply placing the *request-logging.xml* file (contained
 in the *test-resources/log* directory) in the same directory where your logback
 configuration file is stored (see above). Note that *request-logging.xml* is the
 default file that logback looks for when configuring logback-access; for further
-details, please refer to the [logback-access][http://logback.qos.ch/access.html]
+details, please refer to the [logback-access](http://logback.qos.ch/access.html)
 documentation.
 
 The pattern used in the provided *request-logging.xml* follows the
-[Common Log Format][https://en.wikipedia.org/wiki/Common_Log_Format]. It will
+[Common Log Format](https://en.wikipedia.org/wiki/Common_Log_Format). It will
 log entries like:
 
-'''
-0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:44:55 +0100] "GET /pcp/ HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
-0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:45:07 +0100] "GET /pcp/vNext HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
-'''
+```
+  0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:44:55 +0100] "GET /pcp/ HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
+  0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:45:07 +0100] "GET /pcp/vNext HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
+```
+
+## PCP access log
+
+The `pcp_access` logger provides information about incoming PCP messages.
+
+To enable it you must set the level of `puppetlabs.pcp.broker.pcp_access` to
+*INFO* in your logback configuration file (see above). The
+*test-resources/logback-dev.xml* and *logback-test.xml* files provide examples
+of logback configuration where the `pcp_access` logger is configured to *ERROR*;
+such log level will prevent any pcp_access entry.
+
+Each pcp_access entry is composed of 8 fields:
+
+```
+    [<date time>] <access outcome> <sender SSL common name> <sender PCP URI> <PCP messagetype> <PCP message id> [<list of PCP targets>]
+```
+
+Examples of log entries are:
+
+```
+[2016-07-28 14:25:56,364] AUTHORIZATION_SUCCESS 0:0:0:0:0:0:0:1:61955 0002agent.example.com pcp://0002agent.example.com/test_agent pcp-test-response 8abdfc04-3b74-4a39-97b5-ff237c9acdb0 ["pcp://0001controller.example.com/test_controller"]
+[2016-07-29 18:53:43,606] AUTHORIZATION_SUCCESS 0:0:0:0:0:0:0:1:62360 pxp-agent.example.com pcp://pxp-agent.example.com/agent http://puppetlabs.com/associate_request 311fd3ef-02fa-469d-b88b-d7f81b5b3acc ["pcp:///server"]
+```
+
+The second entry gives the outcome of the message validation; possible values
+are:
+
+| validation outcome | log level | description
+|--------------------|-----------|------------
+| DESERIALIZATION_ERROR | WARN | invalid PCP message that can't be deserialized
+| IGNORED_DURING_ASSOCIATION | WARN | PCP message other than `associate_request` during Session Association
+| AUTHENTICATION_FAILURE | WARN | authentication failure (refer to the [authentication](./authentication.md) section)
+| AUTHORIZATION_FAILURE | WARN | authorization failure (refer to the [authorization](./authorization.md) section)
+| EXPIRED | WARN | the message's TTL expired
+| AUTHORIZATION_SUCCESS | INFO | the message will be processed by pcp-broker
+| PROCESSING_ERROR | WARN | an error occurred when processing the message
+
+For each incoming message, the `pcp_access` logger will produce only one entry.
+Only in case of a processing error a second `PROCESSING_ERROR` entry will
+be logged after the `AUTHORIZATION_SUCCESS` one.
+
+All entries will be logged at *WARN* level, except `AUTHORIZATION_SUCCESS` that
+is logged as *INFO*.
 
 ## Types of messages
 
