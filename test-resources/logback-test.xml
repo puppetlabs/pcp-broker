@@ -19,7 +19,4 @@
     <root level="error">
         <appender-ref ref="STDOUT" />
     </root>
-
-    <logger name="puppetlabs.pcp.broker" level="trace"/>
-
 </configuration>

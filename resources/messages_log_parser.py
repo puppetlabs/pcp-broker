@@ -36,7 +36,7 @@ def parse_entry(line):
 
 def main():
     if len(sys.argv) != 2:
-        print("pcp_message_log_parser must be invoked with the log file path")
+        print("messages_log_parser must be invoked with the log file path")
         return 1
 
     file_path = sys.argv[1].strip()

@@ -390,7 +390,7 @@
 ;;
 
 (s/defn make-ring-request :- ring/Request
-  [capsule :-  Capsule websocket :- (s/maybe Websocket)]
+  [capsule :-  Capsule connection :- (s/maybe Connection)]
   (let [{:keys [sender targets message_type destination_report]} (:message capsule)
         form-params {}
         query-params {"sender" sender
@@ -403,19 +403,19 @@
                  :form-params    form-params
                  :query-params   query-params
                  :params         (merge query-params form-params)}]
-    ;; some things we can only know when sender is connected
-    (if websocket
-      (let [remote-addr (.. websocket (getSession) (getRemoteAddress) (toString))
-            ssl-client-cert (first (websockets-client/peer-certs websocket))]
+    ;; NB(ale): we may not have the Connection when running tests
+    (if connection
+      (let [remote-addr (:remote-address connection)
+            ssl-client-cert (first (websockets-client/peer-certs (:websocket connection)))]
         (merge request {:remote-addr remote-addr
                         :ssl-client-cert ssl-client-cert}))
       request)))
 
-;; NB(ale): using (s/Maybe Websocket) in the signature for the sake of testing
+;; NB(ale): using (s/Maybe Connection) in the signature for the sake of testing
 (s/defn authorized? :- s/Bool
   "Check if the message within the specified capsule is authorized"
-  [broker :- Broker capsule :- Capsule websocket :- (s/maybe Websocket)]
-  (let [ring-request (make-ring-request capsule websocket)
+  [broker :- Broker capsule :- Capsule connection :- (s/maybe Connection)]
+  (let [ring-request (make-ring-request capsule connection)
         {:keys [authorization-check]} broker
         {:keys [authorized message]} (authorization-check ring-request)
         allowed (boolean authorized)]
@@ -454,7 +454,7 @@
     (and (= :open (:state connection))
          (not is-association-request)) :to-be-ignored-during-association
     (not (authenticated? capsule connection)) :not-authenticated
-    (not (authorized? broker capsule (:websocket connection))) :not-authorized
+    (not (authorized? broker capsule connection)) :not-authorized
     (and (:reject-expired-msg broker) (capsule/expired? capsule)) :expired
     :else :to-be-processed))
 
@@ -555,7 +555,11 @@
             ;; default case
             (assert false (i18n/trs "unexpected message validation outcome")))
           (catch map? m
-            (log-access :warn (assoc message-data :accessoutcome "PROCESSING_ERROR"))
+            (sl/maplog
+              :debug (merge (connection/summarize connection)
+                            (capsule/summarize capsule)
+                            {:type :processing-error :errortype (:type m)})
+              (i18n/trs "Failed to process '{messagetype}' '{messageid}' from '{commonname}' '{remoteaddress}': '{errortype}'"))
             (send-error-message
               message
               (i18n/trs "Error {0} handling message: {1}" (:type m) (:message &throw-context))

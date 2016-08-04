@@ -86,12 +86,8 @@ are:
 | AUTHORIZATION_FAILURE | WARN | authorization failure (refer to the [authorization](./authorization.md) section)
 | EXPIRED | WARN | the message's TTL expired
 | AUTHORIZATION_SUCCESS | INFO | the message will be processed by pcp-broker
-| PROCESSING_ERROR | WARN | an error occurred when processing the message
 
 For each incoming message, the `pcp_access` logger will produce only one entry.
-Only in case of a processing error a second `PROCESSING_ERROR` entry will
-be logged after the `AUTHORIZATION_SUCCESS` one.
-
 All entries will be logged at *WARN* level, except `AUTHORIZATION_SUCCESS` that
 is logged as *INFO*.
 
