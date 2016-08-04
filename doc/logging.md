@@ -48,8 +48,8 @@ The pattern used in the provided *request-logging.xml* follows the
 log entries like:
 
 ```
-  0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:44:55 +0100] "GET /pcp/ HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
-  0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:45:07 +0100] "GET /pcp/vNext HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
+0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:44:55 +0100] "GET /pcp/ HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
+0:0:0:0:0:0:0:1 - - [02/Aug/2016:20:45:07 +0100] "GET /pcp/vNext HTTP/1.1" 101 0 "-" "WebSocket++/0.7.0" 2
 ```
 
 ## PCP access log
@@ -65,7 +65,7 @@ such log level will prevent any pcp_access entry.
 Each pcp_access entry is composed of 8 fields:
 
 ```
-    [<date time>] <access outcome> <sender SSL common name> <sender PCP URI> <PCP messagetype> <PCP message id> [<list of PCP targets>]
+[<date time>] <access outcome> <sender: IP address and port> <sender: SSL common name> <sender: PCP URI> <PCP messagetype> <PCP message id> [<list of PCP targets>]
 ```
 
 Examples of log entries are:
@@ -94,6 +94,9 @@ be logged after the `AUTHORIZATION_SUCCESS` one.
 
 All entries will be logged at *WARN* level, except `AUTHORIZATION_SUCCESS` that
 is logged as *INFO*.
+
+You can find a trivial python script for parsing `pcp_access` log files
+[here](../resources/messages_log_parser.py).
 
 ## Types of messages
 
