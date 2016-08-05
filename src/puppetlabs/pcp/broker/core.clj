@@ -504,8 +504,6 @@
         decode (get-in connection [:codec :decode])]
     (try+
       (let [message (decode bytes)
-            ;; TODO(ale): consider moving the validation to pcp-common (PCP-525)
-            message (s/validate Message message)
             capsule (capsule/wrap message)
             message-data (merge (connection/summarize connection)
                                 (capsule/summarize capsule))
