@@ -4,6 +4,9 @@ As discussed in greater depth in the PCP specifications PCP
 communications are secured and authenticated using the client
 certificates from a standard puppet x509 certificate authority.
 
+In case a certificate bundle is used, pcp-broker will use the first certificate
+of the chain.
+
 If you need to set up some certificates for testing, you can use the
 following recipes to create some certs:
 

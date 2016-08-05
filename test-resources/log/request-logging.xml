@@ -1,0 +1,10 @@
+<configuration debug="false" scan="true">
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>./test-resources/log/pcp-broker-access.log</file>
+        <encoder>
+            <!-- The first 7 fields are Common Log Format. -->
+            <pattern>%h %l %u [%t] "%r" %s %b "%i{Referer}" "%i{User-Agent}" %D</pattern>
+        </encoder>
+    </appender>
+    <appender-ref ref="FILE" />
+</configuration>

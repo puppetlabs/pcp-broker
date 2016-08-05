@@ -390,7 +390,7 @@
 ;;
 
 (s/defn make-ring-request :- ring/Request
-  [capsule :-  Capsule websocket :- (s/maybe Websocket)]
+  [capsule :-  Capsule connection :- (s/maybe Connection)]
   (let [{:keys [sender targets message_type destination_report]} (:message capsule)
         form-params {}
         query-params {"sender" sender
@@ -403,19 +403,19 @@
                  :form-params    form-params
                  :query-params   query-params
                  :params         (merge query-params form-params)}]
-    ;; some things we can only know when sender is connected
-    (if websocket
-      (let [remote-addr (.. websocket (getSession) (getRemoteAddress) (toString))
-            ssl-client-cert (first (websockets-client/peer-certs websocket))]
+    ;; NB(ale): we may not have the Connection when running tests
+    (if connection
+      (let [remote-addr (:remote-address connection)
+            ssl-client-cert (first (websockets-client/peer-certs (:websocket connection)))]
         (merge request {:remote-addr remote-addr
                         :ssl-client-cert ssl-client-cert}))
       request)))
 
-;; NB(ale): using (s/Maybe Websocket) in the signature for the sake of testing
+;; NB(ale): using (s/Maybe Connection) in the signature for the sake of testing
 (s/defn authorized? :- s/Bool
   "Check if the message within the specified capsule is authorized"
-  [broker :- Broker capsule :- Capsule websocket :- (s/maybe Websocket)]
-  (let [ring-request (make-ring-request capsule websocket)
+  [broker :- Broker capsule :- Capsule connection :- (s/maybe Connection)]
+  (let [ring-request (make-ring-request capsule connection)
         {:keys [authorization-check]} broker
         {:keys [authorized message]} (authorization-check ring-request)
         allowed (boolean authorized)]
@@ -454,7 +454,7 @@
     (and (= :open (:state connection))
          (not is-association-request)) :to-be-ignored-during-association
     (not (authenticated? capsule connection)) :not-authenticated
-    (not (authorized? broker capsule (:websocket connection))) :not-authorized
+    (not (authorized? broker capsule connection)) :not-authorized
     (and (:reject-expired-msg broker) (capsule/expired? capsule)) :expired
     :else :to-be-processed))
 
@@ -485,6 +485,13 @@
     (websockets-client/send! websocket (encode error-msg))
     nil))
 
+(defn log-access
+  [lvl message-data]
+  (sl/maplog
+    [:puppetlabs.pcp.broker.pcp_access lvl]
+    message-data
+    "{accessoutcome} {remoteaddress} {commonname} {source} {messagetype} {messageid} {destination}"))
+
 ;; NB(ale): using (s/Maybe Websocket) in the signature for the sake of testing
 (s/defn process-message! :- (s/maybe Connection)
   "Deserialize, validate (authentication, authorization, and expiration), and
@@ -508,16 +515,17 @@
         (try+
           (case (validate-message broker capsule connection is-association-request)
             :to-be-ignored-during-association
-            ;; TODO(ale): log access (PCP-385); doing nothing for now
-            (do)
+            (log-access :warn (assoc message-data :accessoutcome "IGNORED_DURING_ASSOCIATION"))
             :not-authenticated
             (let [not-authenticated-msg (i18n/trs "Message not authenticated")]
+              (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
               (if is-association-request
                 ;; send an unsuccessful associate_response and close the WebSocket
                 (process-associate-request! broker capsule connection not-authenticated-msg)
                 (send-error-message message not-authenticated-msg connection)))
             :not-authorized
             (let [not-authorized-msg (i18n/trs "Message not authorized")]
+              (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
               (if is-association-request
                 ;; send an unsuccessful associate_response and close the WebSocket
                 (process-associate-request! broker capsule connection not-authorized-msg)
@@ -525,7 +533,7 @@
                 (send-error-message message not-authorized-msg connection)))
             :expired
             (do
-              ;; TODO(ale): log access (PCP-385)
+              (log-access :warn (assoc message-data :accessoutcome "EXPIRED"))
               (if is-association-request
                 ;; send back the ttl-expired immediately, without queueing
                 (let [response (make-ttl_expired-message message)
@@ -535,7 +543,7 @@
               nil)
             :to-be-processed
             (do
-              ;; TODO(ale): log access (PCP-385)
+              (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))
               (let [uri (broker-uri broker)
                     capsule (capsule/add-hop capsule uri "accepted")]
                 (if (= (:targets message) ["pcp:///server"])
@@ -547,13 +555,21 @@
             ;; default case
             (assert false (i18n/trs "unexpected message validation outcome")))
           (catch map? m
-            ;; This is a processing error, say an uncaught exception in
-            ;; any of the stuff we meant to do
+            (sl/maplog
+              :debug (merge (connection/summarize connection)
+                            (capsule/summarize capsule)
+                            {:type :processing-error :errortype (:type m)})
+              (i18n/trs "Failed to process '{messagetype}' '{messageid}' from '{commonname}' '{remoteaddress}': '{errortype}'"))
             (send-error-message
               message
               (i18n/trs "Error {0} handling message: {1}" (:type m) (:message &throw-context))
               connection))))
       (catch map? m
+        (sl/maplog
+          [:puppetlabs.pcp.broker.pcp_access :warn]
+          (assoc (connection/summarize connection) :type :deserialization-failure
+                                                   :outcome "DESERIALIZATION_ERROR")
+          "{outcome} {remoteaddress} {commonname} unknown unknown unknown unknown unknown")
         ;; TODO(richardc): this could use a different message_type to
         ;; indicate an encoding error rather than a processing error
         (send-error-message nil (i18n/trs "Could not decode message") connection)))))

@@ -143,6 +143,12 @@ msgid "unexpected message validation outcome"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid ""
+"Failed to process '{messagetype}' '{messageid}' from '{commonname}' "
+"'{remoteaddress}': '{errortype}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Error {0} handling message: {1}"
 msgstr ""
 
