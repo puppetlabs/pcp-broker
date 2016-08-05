@@ -122,7 +122,15 @@
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
                                 [lein-parent "0.2.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
-                                       :inherit [:cljfmt]}}}
+                                       :inherit [:cljfmt]}}
+             :internal-mirrors {:mirrors [["releases" {:name "internal-releases"
+                                                       :url "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"}]
+                                          ["central" {:name "internal-central-mirror"
+                                                      :url "http://nexus.delivery.puppetlabs.net/content/repositories/central" }]
+                                          ["clojars" {:name "internal-clojars-mirror"
+                                                      :url"http://nexus.delivery.puppetlabs.net/content/repositories/clojars" }]
+                                          ["snapshots" {:name "internal-snapshots"
+                                                        :url "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/" }]]}}
 
   :repl-options {:init-ns user}
 
