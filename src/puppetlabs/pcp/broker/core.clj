@@ -602,7 +602,7 @@
 ;;
 
 (defn- on-connect!
-  "OnMessage WebSocket event handler. Close the WebSocket connection if the
+  "OnOpen WebSocket event handler. Close the WebSocket connection if the
    Broker service is not running or if the client common name is not obtainalbe
    from its cert. Otherwise set the idle timeout of the WebSocket connection
    to 15 min."
