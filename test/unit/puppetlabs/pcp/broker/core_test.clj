@@ -470,7 +470,7 @@
       (let [broker (assoc (make-test-broker) :authorization-check yes-authorization-check)
             error-message-description (atom nil)]
         (with-redefs [puppetlabs.pcp.broker.core/get-connection
-                      (fn [broker ws] (add-connection! broker "ws" identity-codec))
+                      (fn [broker ws] (add-connection! broker "ws" v1-codec))
                       puppetlabs.pcp.broker.core/send-error-message
                       (fn [msg description connection] (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (byte-array [42]) nil)]
