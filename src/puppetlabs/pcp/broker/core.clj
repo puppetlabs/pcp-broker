@@ -504,8 +504,6 @@
         decode (get-in connection [:codec :decode])]
     (try+
       (let [message (decode bytes)
-            ;; TODO(ale): consider moving the validation to pcp-common (PCP-525)
-            message (s/validate Message message)
             capsule (capsule/wrap message)
             message-data (merge (connection/summarize connection)
                                 (capsule/summarize capsule))
@@ -602,7 +600,7 @@
 ;;
 
 (defn- on-connect!
-  "OnMessage WebSocket event handler. Close the WebSocket connection if the
+  "OnOpen WebSocket event handler. Close the WebSocket connection if the
    Broker service is not running or if the client common name is not obtainalbe
    from its cert. Otherwise set the idle timeout of the WebSocket connection
    to 15 min."

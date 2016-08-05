@@ -1,6 +1,7 @@
 (ns puppetlabs.pcp.broker.core-test
   (:require [clojure.test :refer :all]
             [metrics.core]
+            [puppetlabs.pcp.testutils :refer [dotestseq]]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.capsule :as capsule]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
@@ -470,12 +471,22 @@
       (let [broker (assoc (make-test-broker) :authorization-check yes-authorization-check)
             error-message-description (atom nil)]
         (with-redefs [puppetlabs.pcp.broker.core/get-connection
-                      (fn [broker ws] (add-connection! broker "ws" identity-codec))
+                      (fn [broker ws] (add-connection! broker "ws" v1-codec))
                       puppetlabs.pcp.broker.core/send-error-message
                       (fn [msg description connection] (reset! error-message-description description) nil)]
-          (let [outcome (process-message! broker (byte-array [42]) nil)]
-            (is (= "Could not decode message" @error-message-description))
-            (is (nil? outcome))))))
+          (dotestseq
+            [raw-message [(byte-array [])           ; empty message
+                          (byte-array [0])          ; bad message
+                          (byte-array [3 3 3 3 3])  ; bad message
+                          (byte-array [1,           ; first chunk not envelope
+                                       2, 0 0 0 2, 123 125])
+                          (byte-array [1,           ; bad envelope
+                                       1, 0 0 0 1, 12 12 12 12])
+                          (byte-array [1,           ; bad (incomplete) envelope
+                                       1, 0 0 0 2, 123])]]
+            (let [outcome (process-message! broker (byte-array raw-message) nil)]
+              (is (= "Could not decode message" @error-message-description))
+                       (is (nil? outcome)))))))
     (testing "queues message for delivery in case of expired msg (not associate_session)"
       (let [broker (assoc (make-test-broker)
                           :authorization-check yes-authorization-check
