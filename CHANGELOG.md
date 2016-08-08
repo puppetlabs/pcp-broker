@@ -123,7 +123,7 @@ This is a feature release
 
 ## 0.3.0
 
-This is a feature and maintance release
+This is a feature and maintenance release
 
 * [CTH-134](https://tickets.puppetlabs.com/browse/CTH-134) Server
   identity is derived from the webserver certificate.
@@ -134,7 +134,7 @@ This is a feature and maintance release
 
 ## 0.2.2
 
-This is a bugfix release.
+This is a bugfix release
 
 * [CTH-351](https://tickets.puppetlabs.com/browse/CTH-351) Fix broker startup
   to always start a working broker.
