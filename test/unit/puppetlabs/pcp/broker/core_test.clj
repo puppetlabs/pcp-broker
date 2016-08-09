@@ -6,7 +6,6 @@
             [puppetlabs.pcp.broker.capsule :as capsule]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.message :as message]
-            [puppetlabs.experimental.websockets.client :as websockets-client]
             [schema.core :as s]
             [schema.test :as st]
             [slingshot.test])
