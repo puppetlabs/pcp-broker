@@ -1,3 +1,28 @@
+## 0.8.0
+
+This is an improvement and bugfix release
+
+* [PCP-525](https://tickets.puppetlabs.com/browse/PCP-525) Rely on
+pcp-common.message for validating Messages
+* [PCP-385](https://tickets.puppetlabs.com/browse/PCP-385) Add pcp-access logger
+and improve docs
+* [PCP-354](https://tickets.puppetlabs.com/browse/PCP-354) Add profile to use
+Puppet internal mirrors for deps
+* [PCP-538](https://tickets.puppetlabs.com/browse/PCP-538) Restore initial
+delivery of expired messages
+* [PCP-531](https://tickets.puppetlabs.com/browse/PCP-531) Allow cert chains in
+broker certificate
+* [PCP-489](https://tickets.puppetlabs.com/browse/PCP-489) Improve onMessage
+handling
+* [PCP-526](https://tickets.puppetlabs.com/browse/PCP-526) Don't do schema
+validation in tests by default
+* [PCP-528](https://tickets.puppetlabs.com/browse/PCP-528) Fix unit and
+integration lein profiles
+* [PCP-524](https://tickets.puppetlabs.com/browse/PCP-524) Add error_message
+data's id when available
+* [PCP-516](https://tickets.puppetlabs.com/browse/PCP-516) CapsuleLog's sender
+may not be a PCP URI
+
 ## 0.7.2
 
 This is a bugfix release
