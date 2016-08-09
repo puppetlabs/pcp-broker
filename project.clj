@@ -3,7 +3,7 @@
 (def i18n-version "0.4.1")
 (def http-async-client-version "0.6.1")
 
-(defproject puppetlabs/pcp-broker "0.7.3-SNAPSHOT"
+(defproject puppetlabs/pcp-broker "0.7.3"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name "Apache License, Version 2.0"
