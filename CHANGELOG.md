@@ -23,6 +23,10 @@ data's id when available
 * [PCP-516](https://tickets.puppetlabs.com/browse/PCP-516) CapsuleLog's sender
 may not be a PCP URI
 
+## 0.7.3
+
+This is an accidental release with the contents of 0.8.0
+
 ## 0.7.2
 
 This is a bugfix release
