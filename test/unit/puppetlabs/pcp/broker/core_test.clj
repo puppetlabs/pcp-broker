@@ -478,7 +478,7 @@
           (is (nil? outcome))
           (is (not (contains? msg-data :id)))
           (is (= error-description (:description msg-data)))))
-      (testing "sends errror_message correctly and returns nil if received msg is given"
+      (testing "sends error_message correctly and returns nil if received msg is given"
         (reset! error-msg nil)
         (let [the-uuid (ks/uuid)
               received-msg (message/make-message :sender "pcp://test_example/pcp_client_alpha"
