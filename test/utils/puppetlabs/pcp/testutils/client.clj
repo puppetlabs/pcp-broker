@@ -48,8 +48,9 @@
 
 (defn connect
   "Makes a client for testing"
-  [& {:keys [certname uri version modify-association check-association]
+  [& {:keys [certname uri version modify-association check-association modify-association-encoding]
       :or {modify-association identity
+           modify-association-encoding identity
            check-association true
            version "vNext"}}]
   (let [uri                 (or uri (str "pcp://" certname "/test"))
@@ -58,7 +59,10 @@
         message-chan        (chan)
         ws                  (http/websocket client (str "wss://127.0.0.1:8143/pcp/" version)
                                             :open  (fn [ws]
-                                                     (http/send ws :byte (message/encode association-request)))
+                                                     (http/send
+                                                       ws :byte
+                                                       (modify-association-encoding
+                                                         (message/encode association-request))))
                                             :byte  (fn [ws msg]
                                                      (put! message-chan (message/decode msg)))
                                             :close (fn [ws code reason]

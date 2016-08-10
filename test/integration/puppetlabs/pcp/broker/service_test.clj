@@ -141,6 +141,29 @@
   [seq elem]
   (if (= (last seq) elem) seq (conj seq elem)))
 
+(defn is-error-message
+  "Assert that the message is a PCP error message with the specified description"
+  [message version expected-description check-in-reply-to]
+  (is (= "http://puppetlabs.com/error_message" (:message_type message)))
+  ;; NB(ale): in-reply-to is optional, as it won't be included in case of
+  ;; deserialization error
+  (if (= "v1.0" version)
+    (is (= nil (:in-reply-to message)))
+    (when check-in-reply-to
+      (is (:in-reply-to message))))
+  (is (= expected-description (:description (message/get-json-data message)))))
+
+(defn is-association_response
+  "Assert that the message is an association_response with the specified success and reason entries"
+  [message version success reason]
+  (is (= "http://puppetlabs.com/associate_response" (:message_type message)))
+  (if (= "v1.0" version)
+    (is (= nil (:in-reply-to message)))
+    (is (:in-reply-to message)))
+  (let [data (message/get-json-data message)]
+    (is (= success (:success data)))
+    (is (= reason (:reason data)))))
+
 (deftest it-closes-connections-when-not-running-test
   ;; NOTE(richardc): This test is racy.  What we do is we start
   ;; and stop a broker in a future so we can try to connect to it
@@ -192,34 +215,34 @@
         ;; encoding of a pcp message is a 0-length array.  Sorry future people.
         (client/sendbytes! client (byte-array 0))
         (let [response (client/recv! client)]
-          (is (= "http://puppetlabs.com/error_message" (:message_type response)))
-          (is (= nil (:in-reply-to response)))
-          (is (= "Could not decode message" (:description (message/get-json-data response)))))))))
+          (is-error-message response version "Could not decode message" false))))))
 
 ;; Session association tests
 
-;; TODO(ale): add more tests (PCP-523)
+(deftest reply-to-malformed-messages-during-association-test
+  (testing "During association, broker replies with error_message to a deserialization failure"
+    (with-app-with-config
+      app broker-services broker-config
+      (dotestseq
+        [version protocol-versions]
+        (with-open [client (client/connect :certname "client01.example.com"
+                                           :modify-association-encoding
+                                             (fn [_] (byte-array [0]))
+                                           :check-association false
+                                           :version version)]
+          (let [response (client/recv! client)]
+            (is-error-message response version "Could not decode message" false)))))))
 
-(defn is-error-message
-  "Assert that the message is a PCP error message with the specified description"
-  [message version expected-description]
-  (is (= "http://puppetlabs.com/error_message" (:message_type message)))
-  (if (= "v1.0" version)
-    (is (= nil (:in-reply-to message)))
-    (is (:in-reply-to message)))
-  (is (= expected-description (:description (message/get-json-data message)))))
-
-(defn is-association_response
-  "Assert that the message is an association_response with the specified
-   success and reason entries"
-  [message version success reason]
-  (is (= "http://puppetlabs.com/associate_response" (:message_type message)))
-  (if (= "v1.0" version)
-    (is (= nil (:in-reply-to message)))
-    (is (:in-reply-to message)))
-  (let [data (message/get-json-data message)]
-    (is (= success (:success data)))
-    (is (= reason (:reason data)))))
+(deftest other-messages-are-ignored-during-association-test
+  (testing "During association, broker ignores messages other than associate_request"
+    (with-app-with-config app broker-services broker-config
+      (dotestseq[version protocol-versions]
+        (with-open [client (client/connect :certname "client01.example.com"
+                                           :modify-association #(assoc % :messate_type "a_message_to_be_ignored")
+                                           :check-association false
+                                           :version version)]
+          (let [response (client/recv! client 500)]
+            (is (nil? response))))))))
 
 (deftest certificate-must-match-for-authentication-test
   (testing "Unsuccessful associate_response and WebSocket closes if client not authenticated"
@@ -237,6 +260,7 @@
 (deftest basic-session-association-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
+       ;; NB(ale): client/connect checks associate_response for both clients
       (with-open [client (client/connect :certname "client01.example.com"
                                          :version version)]))))
 
@@ -323,6 +347,7 @@
               (is (= nil message)))))))))
 
 ;; Inventory service
+
 (deftest inventory-node-can-find-itself-explicit-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
@@ -404,9 +429,10 @@
                             (message/set-json-data {:query ["pcp://client01.example.com/test"]}))]
             (client/send! client request)
             (let [response (client/recv! client)]
-              (is (is-error-message response version "Message not authorized")))))))))
+              (is (is-error-message response version "Message not authorized" true)))))))))
 
 ;; Message sending
+
 (deftest send-to-self-explicit-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]

@@ -470,7 +470,6 @@
                        data-content)]
     data-content))
 
-;; TODO(ale): add tests for the data's id entry (PCP-523)
 (s/defn send-error-message
   [in-reply-to-message :- (s/maybe Message) description :- String connection :- Connection]
   (let [data-content (make-error-data-content in-reply-to-message description)
@@ -601,7 +600,7 @@
 
 (defn- on-connect!
   "OnOpen WebSocket event handler. Close the WebSocket connection if the
-   Broker service is not running or if the client common name is not obtainalbe
+   Broker service is not running or if the client common name is not obtainable
    from its cert. Otherwise set the idle timeout of the WebSocket connection
    to 15 min."
   [broker codec ws]

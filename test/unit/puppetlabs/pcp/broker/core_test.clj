@@ -6,7 +6,7 @@
             [puppetlabs.pcp.broker.capsule :as capsule]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.message :as message]
-            [puppetlabs.experimental.websockets.client :as websockets-client]
+            [puppetlabs.kitchensink.core :as ks]
             [schema.core :as s]
             [schema.test :as st]
             [slingshot.test])
@@ -326,7 +326,7 @@
             (is (process-associate-request! broker capsule connection2))
             (is (= ["ws1" 4000 "superseded"] @@closed))
             (is (= ["ws2"] (keys (:connections broker))))))
-        ;; TODO(ale): change this behaviour (PCP-521)
+        ;; TODO(ale): change this behaviour (Association Request idempotent - PCP-521)
         (testing "No association for the same WebSocket session; closes and returns nil"
           (reset! closed (promise))
           (let [broker (make-test-broker)
@@ -464,7 +464,34 @@
         (is (= :to-be-processed
                (validate-message yes-broker capsule connection is-association-request)))))))
 
-;; TODO(ale): add more tests for onMessage processing (PCP-523)
+(deftest send-error-message-test
+  (let [error-msg (atom nil)
+        connection (merge (dummy-connection-from "host_x")
+                          {:codec v1-codec})]
+    (with-redefs [puppetlabs.experimental.websockets.client/send!
+                  (fn [websocket raw-message] (reset! error-msg (message/decode raw-message)))]
+      (testing "sends errror_message correctly and returns nil if received msg is NOT given"
+        (let [received-msg nil
+              error-description "something wrong!"
+              outcome (send-error-message received-msg error-description connection)
+              msg-data (message/get-json-data @error-msg)]
+          (is (nil? outcome))
+          (is (not (contains? msg-data :id)))
+          (is (= error-description (:description msg-data)))))
+      (testing "sends error_message correctly and returns nil if received msg is given"
+        (reset! error-msg nil)
+        (let [the-uuid (ks/uuid)
+              received-msg (message/make-message :sender "pcp://test_example/pcp_client_alpha"
+                                                 :message_type "gossip"
+                                                 :targets ["pcp://test_broker/server"])
+              received-msg (assoc received-msg :id the-uuid)
+              error-description "something really wrong :o"
+              outcome (send-error-message received-msg error-description connection)
+              msg-data (message/get-json-data @error-msg)]
+          (is (nil? outcome))
+          (is (= the-uuid (:id msg-data)))
+          (is (= error-description (:description msg-data))))))))
+
 (deftest process-message!-test
   (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request]
     (testing "sends an error message and returns nil, in case it fails to deserialize"
@@ -475,22 +502,22 @@
                       puppetlabs.pcp.broker.core/send-error-message
                       (fn [msg description connection] (reset! error-message-description description) nil)]
           (dotestseq
-            [raw-message [(byte-array [])           ; empty message
-                          (byte-array [0])          ; bad message
-                          (byte-array [3 3 3 3 3])  ; bad message
-                          (byte-array [1,           ; first chunk not envelope
+            [raw-message [(byte-array [])                   ; empty message
+                          (byte-array [0])                  ; bad message
+                          (byte-array [3 3 3 3 3])          ; bad message
+                          (byte-array [1,                   ; first chunk not envelope
                                        2, 0 0 0 2, 123 125])
-                          (byte-array [1,           ; bad envelope
+                          (byte-array [1,                   ; bad envelope
                                        1, 0 0 0 1, 12 12 12 12])
-                          (byte-array [1,           ; bad (incomplete) envelope
+                          (byte-array [1,                   ; bad (incomplete) envelope
                                        1, 0 0 0 2, 123])]]
             (let [outcome (process-message! broker (byte-array raw-message) nil)]
               (is (= "Could not decode message" @error-message-description))
-                       (is (nil? outcome)))))))
+              (is (nil? outcome)))))))
     (testing "queues message for delivery in case of expired msg (not associate_session)"
       (let [broker (assoc (make-test-broker)
-                          :authorization-check yes-authorization-check
-                          :reject-expired-msg false)
+                     :authorization-check yes-authorization-check
+                     :reject-expired-msg false)
             called-accept-message (atom false)
             msg (message/make-message :sender "pcp://host_a/entity"
                                       :message_type "some_kinda_love"
@@ -511,8 +538,8 @@
             (is (nil? outcome))))))
     (testing "queues a ttl_expired in case of expired msg (not associate_session) when reject_expired_msg enabled"
       (let [broker (assoc (make-test-broker)
-                          :authorization-check yes-authorization-check
-                          :reject-expired-msg true)
+                     :authorization-check yes-authorization-check
+                     :reject-expired-msg true)
             called-process-expired (atom false)
             msg (message/make-message :sender "pcp://host_a/entity"
                                       :message_type "some_kinda_love"
@@ -530,4 +557,83 @@
                       (fn [broker capsule] (reset! called-process-expired true))]
           (let [outcome (process-message! broker raw-msg nil)]
             (is @called-process-expired)
+            (is (nil? outcome))))))
+    (testing "sends an error message and returns nil in case of authentication failure"
+      (let [broker (make-test-broker)
+            error-message-description (atom nil)
+            msg (message/make-message :sender "pcp://popgroup/entity"
+                                      :message_type "some_kinda_hate"
+                                      :targets ["pcp://gangoffour/entity"])
+            capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
+            raw-msg (->> capsule (capsule/encode) (message/encode))
+            connection (merge (dummy-connection-from "wire")
+                              {:state :associated
+                               :codec {:decode (fn [bytes] msg)
+                                       :encode (fn [msg] raw-msg)}})]
+        (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                      (fn [broker ws] connection)
+                      puppetlabs.pcp.broker.core/send-error-message
+                      (fn [msg description connection] (reset! error-message-description description) nil)]
+          (let [outcome (process-message! broker (byte-array raw-msg) nil)]
+            (is (= "Message not authenticated" @error-message-description))
+            (is (nil? outcome))))))
+    (testing "sends an error message and returns nil in case of authorization failure"
+      (let [broker (assoc (make-test-broker)
+                     :authorization-check no-authorization-check)
+            error-message-description (atom nil)
+            msg (message/make-message :sender "pcp://thegunclub/entity"
+                                      :message_type "sexbeat"
+                                      :targets ["pcp://fourtet/entity"])
+            capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
+            raw-msg (->> capsule (capsule/encode) (message/encode))
+            connection (merge (dummy-connection-from "thegunclub")
+                              {:state :associated
+                               :codec {:decode (fn [bytes] msg)
+                                       :encode (fn [msg] raw-msg)}})]
+        (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                      (fn [broker ws] connection)
+                      puppetlabs.pcp.broker.core/send-error-message
+                      (fn [msg description connection] (reset! error-message-description description) nil)]
+          (let [outcome (process-message! broker (byte-array raw-msg) nil)]
+            (is (= "Message not authorized" @error-message-description))
+            (is (nil? outcome))))))
+    (testing "process an authorized message sent to broker"
+      (let [broker (assoc (make-test-broker)
+                     :authorization-check yes-authorization-check)
+            processed-server-message (atom false)
+            msg (message/make-message :sender "pcp://thegunclub/entity"
+                                      :message_type "jackonfire"
+                                      :targets ["pcp:///server"])
+            capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
+            raw-msg (->> capsule (capsule/encode) (message/encode))
+            connection (merge (dummy-connection-from "thegunclub")
+                              {:state :associated
+                               :codec {:decode (fn [bytes] msg)
+                                       :encode (fn [msg] raw-msg)}})]
+        (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                      (fn [broker ws] connection)
+                      puppetlabs.pcp.broker.core/process-server-message!
+                      (fn [broker capsule connection] (reset! processed-server-message true) nil)]
+          (let [outcome (process-message! broker (byte-array raw-msg) nil)]
+            (is @processed-server-message)
+            (is (nil? outcome))))))
+    (testing "accepts an authorized message for delivery"
+      (let [broker (assoc (make-test-broker)
+                     :authorization-check yes-authorization-check)
+            accepted-message-for-delivery (atom false)
+            msg (message/make-message :sender "pcp://gangoffour/entity"
+                                      :message_type "ether"
+                                      :targets ["pcp://wire/entity"])
+            capsule (capsule/wrap (message/set-expiry msg 5 :seconds))
+            raw-msg (->> capsule (capsule/encode) (message/encode))
+            connection (merge (dummy-connection-from "gangoffour")
+                              {:state :associated
+                               :codec {:decode (fn [bytes] msg)
+                                       :encode (fn [msg] raw-msg)}})]
+        (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                      (fn [broker ws] connection)
+                      puppetlabs.pcp.broker.core/accept-message-for-delivery
+                      (fn [broker capsule] (reset! accepted-message-for-delivery true) nil)]
+          (let [outcome (process-message! broker (byte-array raw-msg) nil)]
+            (is @accepted-message-for-delivery)
             (is (nil? outcome))))))))
