@@ -19,4 +19,9 @@
     <root level="error">
         <appender-ref ref="STDOUT" />
     </root>
+
+    <logger name="puppetlabs.pcp.client" level="warn"/>
+    <logger name="puppetlabs.pcp.broker" level="warn"/>
+    <logger name="puppetlabs.pcp.broker.pcp_access" level="error"/>
+    <logger name="puppetlabs.pcp.testutils" level="warn"/>
 </configuration>
