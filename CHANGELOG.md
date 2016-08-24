@@ -1,3 +1,11 @@
+## 0.8.1
+
+This is a maintenance release
+
+* [PCP-523](https://tickets.puppetlabs.com/browse/PCP-523) Add new unit and
+integration tests for message processing functions
+* Update clj-i18n to 0.4.2 for a performance-related bug fix
+
 ## 0.8.0
 
 This is an improvement and bugfix release
