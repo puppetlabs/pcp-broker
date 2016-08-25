@@ -1,6 +1,6 @@
 (def tk-version "1.4.0")
 (def ks-version "1.3.0")
-(def i18n-version "0.4.2")
+(def i18n-version "0.4.3")
 (def http-async-client-version "0.6.1")
 
 (defproject puppetlabs/pcp-broker "0.8.1-SNAPSHOT"
@@ -65,7 +65,7 @@
                  ;; try+/throw+
                  [slingshot "0.12.2"]
 
-                 [puppetlabs/pcp-common "0.5.3"]
+                 [puppetlabs/pcp-common "0.5.4"]
 
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4"]
