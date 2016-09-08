@@ -38,7 +38,8 @@
    :connections        ConcurrentHashMap ;; Mapping of Websocket session to Connection state
    :metrics-registry   Object
    :metrics            {s/Keyword Object}
-   :broker-cn          s/Str
+   :ssl-cert           s/Str
+   :broker-cn          Atom
    :state              Atom})
 
 (s/defn build-and-register-metrics :- {s/Keyword Object}
@@ -704,7 +705,8 @@
                               :metrics-registry   (get-metrics-registry)
                               :connections        (ConcurrentHashMap.)
                               :uri-map            (ConcurrentHashMap.)
-                              :broker-cn          (get-broker-cn ssl-cert)
+                              :ssl-cert           ssl-cert
+                              :broker-cn          (atom "")
                               :state              (atom :starting)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
@@ -719,7 +721,8 @@
 
 (s/defn start
   [broker :- Broker]
-  (let [{:keys [activemq-broker state]} broker]
+  (let [{:keys [activemq-broker ssl-cert broker-cn state]} broker]
+    (reset! broker-cn (get-broker-cn ssl-cert))
     (mq/start-broker! activemq-broker)
     (subscribe-to-queues! broker)
     (reset! state :running)))
