@@ -1,4 +1,4 @@
-(def tk-version "1.4.0")
+(def tk-version "1.5.0")
 (def ks-version "1.3.0")
 (def i18n-version "0.4.3")
 (def http-async-client-version "0.6.1")
@@ -21,12 +21,7 @@
                  ;;   puppetlabs/trapperkeeper-metrics
                  ;;   puppetlabs/structured-logging
                  ;;   org.slf4j/jcl-over-slf4
-                 [org.slf4j/slf4j-api "1.7.12"]
-
-                 ;; Transitive dependency for:
-                 ;;   ch.qos.logback/logback-classic via puppetlabs/trapperkeeper
-                 ;;   net.logstash.logback/logstash-logback-encoder via puppetlabs/structured-logging
-                 [ch.qos.logback/logback-core "1.1.3"]
+                 [org.slf4j/slf4j-api "1.7.20"]
 
                  ;; Transitive dependency for puppetlabs/trapperkeeper-authorization, and a direct dependency
                  [clj-time "0.10.0"]
@@ -44,7 +39,7 @@
                  [puppetlabs/trapperkeeper-authorization "0.1.5"]
                  [puppetlabs/trapperkeeper-metrics "0.1.1"]
                  ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
-                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.7" :exclusions [org.clojure/clojure]]
+                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.10" :exclusions [org.clojure/clojure]]
                  [puppetlabs/trapperkeeper-status "0.2.1"]
 
                  ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
@@ -52,14 +47,8 @@
 
                  [cheshire "5.5.0"]
 
-                 ;; Transitive dependency for:
-                 ;;   nippy
-                 ;;   org.clojure/tools.analyzer.jvm via org.clojure/core.async via puppetlabs/trapperkeeper
-                 [org.clojure/tools.reader "1.0.0-alpha1"]
-
                  [com.taoensso/nippy "2.9.0"]
 
-                 [org.clojure/java.jmx "0.3.0"]
                  [metrics-clojure "2.5.1"]
 
                  ;; try+/throw+
