@@ -1,6 +1,5 @@
 (ns puppetlabs.pcp.broker.core
   (:require [clamq.protocol.consumer :as mq-cons]
-            [clj-time.coerce :as time-coerce]
             [clj-time.core :as time]
             [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
@@ -10,23 +9,26 @@
             [puppetlabs.pcp.broker.metrics :as metrics]
             [puppetlabs.pcp.message :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
-            [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.pcp.broker.borrowed.mq :as mq]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
+            [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]]
             [puppetlabs.i18n.core :as i18n])
-  (:import (puppetlabs.pcp.broker.capsule Capsule)
-           (puppetlabs.pcp.broker.connection Connection)
-           (clojure.lang IFn Atom)
-           (java.util.concurrent ConcurrentHashMap)))
+  (:import [puppetlabs.pcp.broker.capsule Capsule]
+           [puppetlabs.pcp.broker.connection Connection]
+           [clojure.lang IFn Atom]
+           [java.util.concurrent ConcurrentHashMap]
+           [java.net InetAddress UnknownHostException]
+           [java.security KeyStore]))
 
 (def Broker
   {:activemq-broker    Object
+   :broker-name        (s/maybe s/Str)
    :accept-consumers   s/Int
    :delivery-consumers s/Int
    :activemq-consumers Atom
@@ -38,7 +40,6 @@
    :connections        ConcurrentHashMap ;; Mapping of Websocket session to Connection state
    :metrics-registry   Object
    :metrics            {s/Keyword Object}
-   :broker-cn          s/Str
    :state              Atom})
 
 (s/defn build-and-register-metrics :- {s/Keyword Object}
@@ -57,17 +58,49 @@
 
 (def delivery-queue "delivery")
 
-(s/defn get-broker-cn :- s/Str
-  [certificate :- s/Str]
-  (let [x509-chain (ssl-utils/pem->certs certificate)]
-    (when (empty? x509-chain)
-      (throw (IllegalArgumentException.
-               (i18n/trs "{0} must contain at least 1 certificate", certificate))))
-    (ssl-utils/get-cn-from-x509-certificate (first x509-chain))))
+(defn get-certificate-chain
+  "Return the first non-empty certificate chain encountered while scanning the
+  entries in the key store of the specified org.eclipse.jetty.util.ssl.SslContextFactory
+  instance - `ssl-context-factory`."
+  [ssl-context-factory]
+  (try
+    (let [load-key-store-method (doto
+                                  (-> (class ssl-context-factory)
+                                      (.getDeclaredMethod "loadKeyStore" (into-array Class [])))
+                                  (.setAccessible true))
+          ^KeyStore key-store (.invoke load-key-store-method ssl-context-factory (into-array Object []))]
+      (->> (.aliases key-store)
+           enumeration-seq
+           (some #(.getCertificateChain key-store %))))
+    (catch Exception _)))
+
+(s/defn get-webserver-cn :- (s/maybe s/Str)
+  "Return the common name from the certificate the webserver specified by its
+  context - `webserver-context` - will use when establishing SSL connections
+  or nil if there was a problem finding out the certificate (for instance
+  when the webserver is not SSL enabled)."
+  [webserver-context :- jetty9-core/ServerContext]
+  (some-> webserver-context
+          :state
+          deref
+          :ssl-context-factory
+          get-certificate-chain
+          first
+          ssl-utils/get-cn-from-x509-certificate))
+
+(s/defn get-localhost-hostname :- s/Str
+  "Return the hostname of the host executing the code."
+  []
+  (try
+    (-> (InetAddress/getLocalHost)
+        .getHostName)
+    (catch UnknownHostException e
+      (let [message (.getMessage e)]
+        (subs message 0 (.indexOf message (int \:)))))))
 
 (s/defn broker-uri :- p/Uri
   [broker :- Broker]
-  (str "pcp://" (:broker-cn broker) "/server"))
+  (str "pcp://" (:broker-name broker) "/server"))
 
 ;; connection map lifecycle
 (s/defn add-connection! :- Connection
@@ -399,7 +432,7 @@
   (if-not (re-matches #"^[\w\-.:/*]*$" target)
     (i18n/trs "Illegal message target: ''{0}''" target)))
 
-(s/defn make-ring-request :- ring/Request
+(s/defn make-ring-request :- (s/maybe ring/Request)
   [capsule :-  Capsule connection :- (s/maybe Connection)]
   (let [{:keys [sender targets message_type destination_report]} (:message capsule)]
     (if-let [validation-result (or (validate-message-type message_type) (some validate-target targets))]
@@ -686,7 +719,7 @@
    :authorization-check IFn
    :get-metrics-registry IFn
    :get-route IFn
-   :ssl-cert s/Str})
+   (s/optional-key :broker-name) s/Str})
 
 (s/def default-codec :- Codec
   {:decode message/decode
@@ -705,13 +738,14 @@
 
 (s/defn init :- Broker
   [options :- InitOptions]
-  (let [{:keys [path activemq-spool accept-consumers delivery-consumers
+  (let [{:keys [broker-name activemq-spool accept-consumers delivery-consumers
                 add-websocket-handler
                 record-client find-clients authorization-check
                 get-route
-                get-metrics-registry ssl-cert]} options]
+                get-metrics-registry]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
           broker             {:activemq-broker    activemq-broker
+                              :broker-name        broker-name
                               :accept-consumers   accept-consumers
                               :delivery-consumers delivery-consumers
                               :activemq-consumers (atom [])
@@ -723,7 +757,6 @@
                               :metrics-registry   (get-metrics-registry)
                               :connections        (ConcurrentHashMap.)
                               :uri-map            (ConcurrentHashMap.)
-                              :broker-cn          (get-broker-cn ssl-cert)
                               :state              (atom :starting)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]

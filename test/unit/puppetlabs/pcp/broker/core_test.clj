@@ -7,16 +7,19 @@
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.message :as message]
             [puppetlabs.kitchensink.core :as ks]
+            [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
+            [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]
             [schema.core :as s]
             [schema.test :as st]
             [slingshot.test])
-  (:import (puppetlabs.pcp.broker.connection Connection)
-           (java.util.concurrent ConcurrentHashMap)))
+  (:import [puppetlabs.pcp.broker.connection Connection]
+           [java.util.concurrent ConcurrentHashMap]))
 
 (s/defn make-test-broker :- Broker
   "Return a minimal clean broker state"
   []
   (let [broker {:activemq-broker    "JMSOMGBBQ"
+                :broker-name        nil
                 :accept-consumers   2
                 :delivery-consumers 2
                 :activemq-consumers (atom [])
@@ -28,7 +31,6 @@
                 :connections        (ConcurrentHashMap.)
                 :metrics-registry   metrics.core/default-registry
                 :metrics            {}
-                :broker-cn          "broker.example.com"
                 :state              (atom :running)}
         metrics (build-and-register-metrics broker)
         broker (assoc broker :metrics metrics)]
@@ -38,17 +40,51 @@
   {:encode identity
    :decode identity})
 
-(deftest get-broker-cn-test
+(s/defn make-mock-ssl-context-factory :- org.eclipse.jetty.util.ssl.SslContextFactory
+  "Return an instance of the SslContextFactory with only a minimal configuration
+  of the key & trust stores. If the specified `certificate-chain` is not nil it is
+  included with the PrivateKey entry in the factory's key store."
+  [certificate-chain :- (s/maybe s/Str)]
+  (let [pem-config {:ssl-key "./test-resources/ssl/private_keys/broker.example.com.pem"
+                    :ssl-cert "./test-resources/ssl/certs/broker.example.com.pem"
+                    :ssl-ca-cert "./test-resources/ssl/certs/ca.pem"}
+        pem-config (if (nil? certificate-chain)
+                     pem-config
+                     (assoc pem-config :ssl-cert-chain certificate-chain))
+        keystore-config (jetty9-config/pem-ssl-config->keystore-ssl-config pem-config)]
+    (doto (org.eclipse.jetty.util.ssl.SslContextFactory.)
+      (.setKeyStore (:keystore keystore-config))
+      (.setKeyStorePassword (:key-password keystore-config))
+      (.setTrustStore (:truststore keystore-config)))))
+
+(s/defn make-mock-webserver-context :- jetty9-core/ServerContext
+  "Return a mock webserver context including the specfied `ssl-context-factory`."
+  [ssl-context-factory :- org.eclipse.jetty.util.ssl.SslContextFactory]
+  {:server   nil
+   :handlers (org.eclipse.jetty.server.handler.ContextHandlerCollection.)
+   :state    (atom {:mbean-container             nil
+                    :overrides-read-by-webserver true
+                    :overrides                   nil
+                    :endpoints                   {}
+                    :ssl-context-factory         ssl-context-factory})})
+
+(deftest get-webserver-cn-test
   (testing "It returns the correct cn"
-    (let [cn (get-broker-cn "./test-resources/ssl/certs/broker.example.com.pem")]
+    (let [cn (-> nil
+                 make-mock-ssl-context-factory
+                 make-mock-webserver-context
+                 get-webserver-cn)]
       (is (= "broker.example.com" cn))))
   (testing "It returns the correct cn from a certificate chain"
-    (let [cn (get-broker-cn "./test-resources/ssl/certs/broker-chain.example.com.pem")]
+    (let [cn (-> "./test-resources/ssl/certs/broker-chain.example.com.pem"
+                 make-mock-ssl-context-factory
+                 make-mock-webserver-context
+                 get-webserver-cn)]
       (is (= "broker.example.com" cn))))
-  (testing "It throws an exception when the certificate file is empty"
-    (is (thrown-with-msg? IllegalArgumentException
-                          #"\./test-resources/ssl/certs/broker-empty\.example\.com.pem must contain at least 1 certificate"
-                          (get-broker-cn "./test-resources/ssl/certs/broker-empty.example.com.pem")))))
+  (testing "It returns nil if anything goes wrong"
+    (is (nil? (-> (org.eclipse.jetty.util.ssl.SslContextFactory.)
+                  make-mock-webserver-context
+                  get-webserver-cn)))))
 
 (deftest add-connection!-test
   (testing "It should add a connection to the connection map"

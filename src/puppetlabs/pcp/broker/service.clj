@@ -3,8 +3,9 @@
             [puppetlabs.pcp.broker.in-memory-inventory :refer [make-inventory record-client find-clients]]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
-            [puppetlabs.trapperkeeper.services :refer [service-context]]
+            [puppetlabs.trapperkeeper.services :refer [service-context get-service]]
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
+            [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
             [puppetlabs.i18n.core :as i18n]))
 
 (trapperkeeper/defservice broker-service
@@ -19,9 +20,6 @@
           accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
           delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
           inventory          (make-inventory)
-          ssl-cert           (if-let [server (get-server this :v1)]
-                               (get-in-config [:webserver (keyword server) :ssl-cert])
-                               (get-in-config [:webserver :ssl-cert]))
           broker             (core/init {:activemq-spool activemq-spool
                                          :accept-consumers accept-consumers
                                          :delivery-consumers delivery-consumers
@@ -30,8 +28,7 @@
                                          :find-clients   (partial find-clients inventory)
                                          :authorization-check authorization-check
                                          :get-metrics-registry get-metrics-registry
-                                         :get-route (partial get-route this)
-                                         :ssl-cert ssl-cert})]
+                                         :get-route (partial get-route this)})]
       (register-status "broker-service"
                        (status-core/get-artifact-version "puppetlabs" "pcp-broker")
                        1
@@ -39,13 +36,24 @@
       (assoc context :broker broker)))
   (start [this context]
     (sl/maplog :info {:type :broker-start} (i18n/trs "Starting broker service"))
-    (let [broker (:broker (service-context this))]
-      (core/start broker))
-    (sl/maplog :debug {:type :broker-started} (i18n/trs "Broker service started"))
-    context)
+    (let [broker (:broker context)
+          broker-name (or (:broker-name broker)
+                          (some-> (get-service this :WebserverService)
+                                  service-context
+                                  (jetty9-core/get-server-context (keyword (get-server this :v1)))
+                                  core/get-webserver-cn)
+                          (core/get-localhost-hostname))
+          broker (assoc broker :broker-name broker-name)
+          context (assoc context :broker broker)]
+      (core/start broker)
+      (sl/maplog :debug {:type :broker-started :brokername broker-name}
+                 (i18n/trs "Broker service <'{brokername}'> started"))
+      context))
   (stop [this context]
     (sl/maplog :info {:type :broker-stop} (i18n/trs "Shutting down broker service"))
-    (let [broker (:broker (service-context this))]
-      (core/stop broker))
-    (sl/maplog :debug {:type :broker-stopped} (i18n/trs "Broker service stopped"))
+    (let [broker (:broker context)
+          broker-name (:broker-name broker)]
+      (core/stop broker)
+      (sl/maplog :debug {:type :broker-stopped :brokername broker-name}
+                 (i18n/trs "Broker service <'{brokername}'> stopped")))
     context))
