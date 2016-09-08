@@ -1,6 +1,3 @@
-(def tk-version "1.4.0")
-(def ks-version "1.3.0")
-(def i18n-version "0.4.3")
 (def http-async-client-version "0.6.1")
 
 (defproject puppetlabs/pcp-broker "0.8.5-SNAPSHOT"
@@ -9,75 +6,51 @@
   :license {:name "Apache License, Version 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0.html"}
 
+  :min-lein-version "2.7.1"
+
   ;; Abort when version ranges or version conflicts are detected in
   ;; dependencies. Also supports :warn to simply emit warnings.
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/tools.logging "0.3.1"]
+  :parent-project {:coords [puppetlabs/clj-parent "0.1.7"]
+                   :inherit [:managed-dependencies]}
 
-                 ;; Transitive dependency for:
-                 ;;   puppetlabs/trapperkeeper-metrics
-                 ;;   puppetlabs/structured-logging
-                 ;;   org.slf4j/jcl-over-slf4
-                 [org.slf4j/slf4j-api "1.7.12"]
+  :dependencies [[org.clojure/clojure]
+                 [org.clojure/tools.logging]
 
-                 ;; Transitive dependency for:
-                 ;;   ch.qos.logback/logback-classic via puppetlabs/trapperkeeper
-                 ;;   net.logstash.logback/logstash-logback-encoder via puppetlabs/structured-logging
-                 [ch.qos.logback/logback-core "1.1.3"]
-
-                 ;; Transitive dependency for puppetlabs/trapperkeeper-authorization, and a direct dependency
-                 [clj-time "0.10.0"]
-
-                 ;; Transitive dependency for puppetlabs/trapperkeeper and puppetlabs/trapperkeeper-authorization
-                 [puppetlabs/typesafe-config "0.1.5"]
-
-                 ;; Transitive dependency for:
-                 ;;   puppetlabs/trapperkeeper
-                 ;;   compojure via puppetlabs/comidi via puppetlabs/trapperkeeper-status
-                 [org.clojure/tools.macro "0.1.5"]
-
-                 [puppetlabs/kitchensink ~ks-version]
-                 [puppetlabs/trapperkeeper ~tk-version]
-                 [puppetlabs/trapperkeeper-authorization "0.1.5"]
+                 [puppetlabs/kitchensink]
+                 [puppetlabs/trapperkeeper]
+                 [puppetlabs/trapperkeeper-authorization]
                  [puppetlabs/trapperkeeper-metrics "0.1.1"]
-                 ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
-                 [puppetlabs/trapperkeeper-webserver-jetty9 "1.5.7" :exclusions [org.clojure/clojure]]
-                 [puppetlabs/trapperkeeper-status "0.2.1"]
+                 [puppetlabs/trapperkeeper-webserver-jetty9]
+                 [puppetlabs/trapperkeeper-status]
 
-                 ;; Exclude clojure dep for now as that will force a ripple up to clojure 1.7.0
-                 [puppetlabs/structured-logging "0.1.0" :exclusions [org.clojure/clojure]]
+                 [puppetlabs/structured-logging "0.1.0"]
 
-                 [cheshire "5.5.0"]
-
-                 ;; Transitive dependency for:
-                 ;;   nippy
-                 ;;   org.clojure/tools.analyzer.jvm via org.clojure/core.async via puppetlabs/trapperkeeper
-                 [org.clojure/tools.reader "1.0.0-alpha1"]
+                 [cheshire]
 
                  [com.taoensso/nippy "2.9.0"]
 
-                 [org.clojure/java.jmx "0.3.0"]
                  [metrics-clojure "2.5.1"]
 
                  ;; try+/throw+
-                 [slingshot "0.12.2"]
+                 [slingshot]
 
                  [puppetlabs/pcp-common "0.5.4"]
 
                  ;; MQ - activemq
                  [clamq/clamq-activemq "0.4"]
                  [org.apache.activemq/activemq-core "5.6.0"
-                  :exclusions [org.fusesource.fuse-extra/fusemq-leveldb]]
+                  :exclusions [org.fusesource.fuse-extra/fusemq-leveldb commons-logging]]
                  ;; bridge to allow some spring/activemq stuff to log over slf4j
                  [org.slf4j/jcl-over-slf4j "1.7.10"]
 
-                 [puppetlabs/i18n ~i18n-version]]
+                 [puppetlabs/i18n]]
 
-  :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]
-            [puppetlabs/i18n ~i18n-version]]
+  :plugins [[lein-parent "0.3.1"]
+            [puppetlabs/i18n "0.4.3"]
+            [lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
 
   :lein-release {:scm :git
                  :deploy-via :lein-deploy}
@@ -94,22 +67,20 @@
                                   ;; - it actually brings in netty 3.9.2.Final, but we
                                   ;; want some fixes to websocket handling that are in later .x releases
                                   [io.netty/netty "3.9.9.Final"]
-                                  [http.async.client ~http-async-client-version :exclusions [org.clojure/clojure]]
-                                  [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]
-                                  [puppetlabs/ssl-utils "0.8.1"]
-                                  [org.clojure/tools.namespace "0.2.4"]
-                                  ;; Transitive dependency for lein-cloverage and puppetlabs/kitchensink
-                                  [org.clojure/tools.cli "0.3.0"]]
+                                  [http.async.client ~http-async-client-version]
+                                  [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
+                                  [puppetlabs/kitchensink :classifier "test" :scope "test"]
+                                  [puppetlabs/ssl-utils]
+                                  [org.clojure/tools.namespace]]
                    :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
              :dev-schema-validation [:dev
                                      {:injections [(do
                                                     (require 'schema.core)
                                                     (schema.core/set-fn-validation! true))]}]
              :test-base {:source-paths ["test/utils" "test-resources"]
-                         :dependencies [[http.async.client ~http-async-client-version :exclusions [org.clojure/clojure]]
-                                       [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
-                                       [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]
+                         :dependencies [[http.async.client ~http-async-client-version]
+                                       [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
+                                       [puppetlabs/kitchensink :classifier "test" :scope "test"]]
                          :test-paths ^:replace ["test/unit" "test/integration"]}
              :test-schema-validation [:test-base
                                       {:injections [(do
@@ -120,7 +91,7 @@
              :integration [:test-base
                            {:test-paths ^:replace ["test/integration"]}]
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
-                                [lein-parent "0.2.1"]]
+                                [lein-parent "0.3.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
                                        :inherit [:cljfmt]}}
              :internal-mirrors {:mirrors [["releases" {:name "internal-releases"
