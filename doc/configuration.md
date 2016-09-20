@@ -79,20 +79,3 @@ web-router-service: {
     }
 }
 ```
-
-The broker itself will need to be configured with a spool directory
-and some upper bounds on accept/delivery threads.
-
-```
-# pcp-broker.conf
-pcp-broker: {
-    ## A path where in-flight messages will be persisted - required
-    broker-spool /var/lib/pcp-broker
-
-    ## Number of consumers for the accept queue.  Default is 4
-    # accept-consumers = 4
-
-    ## Number of consumers for the delivery queue.  Default is 16
-    # delivery-consumers = 16
-}
-```

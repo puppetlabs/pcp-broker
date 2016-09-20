@@ -1,16 +1,11 @@
 (ns puppetlabs.pcp.broker.core
-  (:require [clamq.protocol.consumer :as mq-cons]
-            [clj-time.core :as time]
-            [metrics.gauges :as gauges]
+  (:require [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
-            [puppetlabs.pcp.broker.activemq :as activemq]
-            [puppetlabs.pcp.broker.capsule :as capsule]
             [puppetlabs.pcp.broker.connection :as connection :refer [Websocket Codec ConnectionState]]
             [puppetlabs.pcp.broker.metrics :as metrics]
             [puppetlabs.pcp.message :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
-            [puppetlabs.pcp.broker.borrowed.mq :as mq]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
@@ -19,23 +14,17 @@
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]]
             [puppetlabs.i18n.core :as i18n])
-  (:import [puppetlabs.pcp.broker.capsule Capsule]
-           [puppetlabs.pcp.broker.connection Connection]
+  (:import [puppetlabs.pcp.broker.connection Connection]
            [clojure.lang IFn Atom]
            [java.util.concurrent ConcurrentHashMap]
            [java.net InetAddress UnknownHostException]
            [java.security KeyStore]))
 
 (def Broker
-  {:activemq-broker    Object
-   :broker-name        (s/maybe s/Str)
-   :accept-consumers   s/Int
-   :delivery-consumers s/Int
-   :activemq-consumers Atom
+  {:broker-name        (s/maybe s/Str)
    :record-client      IFn
    :find-clients       IFn
    :authorization-check IFn
-   :reject-expired-msg s/Bool
    :uri-map            ConcurrentHashMap ;; Mapping of Uri to Websocket, for sending
    :connections        ConcurrentHashMap ;; Mapping of Websocket session to Connection state
    :metrics-registry   Object
@@ -52,11 +41,6 @@
      :on-message       (.timer registry "puppetlabs.pcp.on-message")
      :message-queueing (.timer registry "puppetlabs.pcp.message-queueing")
      :on-send          (.timer registry "puppetlabs.pcp.on-send")}))
-
-;; names of activemq queues - as vars so they're harder to typo
-(def accept-queue "accept")
-
-(def delivery-queue "delivery")
 
 (defn get-certificate-chain
   "Return the first non-empty certificate chain encountered while scanning the
@@ -127,158 +111,82 @@
   (get (:uri-map broker) uri))
 
 ;;
-;; Message queueing and processing
+;; Message processing
 ;;
 
-;; message lifecycle
-(s/defn accept-message-for-delivery :- Capsule
-  "Add a debug hop entry to the specified Capsule and accept the contained
-   Message for later delivery. Return the specified (unmodified) Capsule."
-  [broker :- Broker capsule :- Capsule]
-  (time! (:message-queueing (:metrics broker))
-         (let [capsule (capsule/add-hop capsule (broker-uri broker) "accept-to-queue")]
-           (activemq/queue-message accept-queue capsule)))
-  capsule)
+(def MessageLog
+  "Schema for a loggable summary of a message"
+  {:messageid p/MessageId
+   :source s/Str
+   :messagetype s/Str
+   :destination [p/Uri]})
 
-(s/defn make-ttl_expired-data-content :- p/TTLExpiredMessage
-  [in-reply-to]
-  {:id in-reply-to})
-
-(s/defn make-ttl_expired-message :- Message
-  "Return the ttl_expired message advising about the expiry of the given message"
+(s/defn summarize :- MessageLog
   [message :- Message]
-  (let [sender (:sender message)
-        in-reply-to (:id message)
-        response-data (make-ttl_expired-data-content in-reply-to)
-        response (-> (message/make-message :message_type "http://puppetlabs.com/ttl_expired"
-                                           :targets [sender]
-                                           :sender "pcp:///server"
-                                           :in-reply-to in-reply-to)
-                     (message/set-json-data response-data)
-                     (message/set-expiry 3 :seconds))]
-    response))
+  {:messageid (:id message)
+   :messagetype (:message_type message)
+   :source (:sender message)
+   :destination (:targets message)})
 
-(s/defn process-expired-message :- Capsule
-  "If the sender of the specified Capsule is not `pcp:///sender`, enqueue a
-   ttl_expired for it and return a Capsule containing the ttl_expired.
-   Otherwise, if the sender is `pcp:///sender`, don't do anything but logging
-   and return the specified Capsule."
-  [broker :- Broker capsule :- Capsule]
-  (sl/maplog
-    :trace (assoc (capsule/summarize capsule)
-                  :type :message-expired)
-    (i18n/trs "Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."))
-  (let [message (:message capsule)
-        sender  (:sender message)]
-    (if (= "pcp:///server" sender)
-      (do
-        (sl/maplog :trace {:type :message-expired-from-server}
-                   (i18n/trs "Server generated message expired; dropping it"))
-        capsule)
-      (accept-message-for-delivery broker (capsule/wrap (make-ttl_expired-message message))))))
+;; message lifecycle
 
-(s/defn retry-delay :- s/Num
-  "Compute the delay we should pause for before retrying the delivery of this Capsule"
-  [capsule :- Capsule]
-  (let [expires (:expires capsule)
-        now (time/now)]
-    ;; time/interval will raise if the times are not different
-    (if (or (= expires now) (time/after? now expires))
-      1
-      (let [difference (time/in-seconds (time/interval now expires))]
-        (min (max 1 (/ difference 2)) 15)))))
+(s/defn make-error-data-content :- p/ErrorMessage
+  [in-reply-to-message description]
+  (let [data-content {:description description}
+        data-content (if in-reply-to-message
+                       (assoc data-content :id (:id in-reply-to-message))
+                       data-content)]
+    data-content))
 
+(s/defn send-error-message
+  [in-reply-to-message :- (s/maybe Message) description :- s/Str connection :- Connection]
+  (let [data-content (make-error-data-content in-reply-to-message description)
+        error-msg (-> (message/make-message :message_type "http://puppetlabs.com/error_message"
+                                            :sender "pcp:///server")
+                      (message/set-json-data data-content))
+        error-msg (if in-reply-to-message
+                    (assoc error-msg :in-reply-to (:id in-reply-to-message))
+                    error-msg)
+        {:keys [codec websocket]} connection
+        encode (:encode codec)]
+    (websockets-client/send! websocket (encode error-msg))
+    nil))
+
+;; NB(michael): using (s/maybe Connection) in the signature for the sake of testing
 (s/defn handle-delivery-failure
-  "If the message is not expired, schedule it for a future delivery by inserting
-  a `redelivery` hop entry into its debug chunk and adding the message to the
-  delivery queue with a delay property.
-  Otherwise, if the message is expired, reply with a TTL expired message."
-  [broker :- Broker capsule :- Capsule reason :- s/Str]
-  (sl/maplog :trace (assoc (capsule/summarize capsule)
+  "Send an error message with the specified description."
+  [broker :- Broker message :- Message sender :- (s/maybe Connection) reason :- s/Str]
+  (sl/maplog :trace (assoc (summarize message)
                            :type :message-delivery-failure
                            :reason reason)
              (i18n/trs "Failed to deliver '{messageid}' for '{destination}': '{reason}'"))
-  (if (capsule/expired? capsule)
-    (process-expired-message broker capsule)
-    (let [retry-delay (retry-delay capsule)
-          capsule     (capsule/add-hop capsule (broker-uri broker) "redelivery")]
-      (sl/maplog
-        :trace (assoc (capsule/summarize capsule)
-                      :type :message-redelivery
-                      :delay retry-delay)
-        (i18n/trs "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"))
-      (time! (:message-queueing (:metrics broker))
-             (activemq/queue-message delivery-queue capsule (mq/delay-property retry-delay :seconds))))))
+  (send-error-message message reason sender))
 
-(s/defn make-destination-report :- p/DestinationReport
-  [id targets]
-  {:id id
-   :targets targets})
-
-(s/defn maybe-send-destination-report
-  "Send a destination_report containing the targets of the specified Message,
-   if requested"
-  [broker :- Broker message :- Message targets :- [p/Uri]]
-  (when (:destination_report message)
-    (let [report (make-destination-report (:id message) targets)]
-      (accept-message-for-delivery
-        broker
-        (-> (message/make-message :targets [(:sender message)]
-                                  :message_type "http://puppetlabs.com/destination_report"
-                                  :in-reply-to (:id message)
-                                  :sender "pcp:///server")
-            (message/set-json-data report)
-            (message/set-expiry 3 :seconds)
-            (capsule/wrap))))))
-
-;; ActiveMQ queue consumers
+;; NB(michael): using (s/maybe Connection) in the signature for the sake of testing
 (s/defn deliver-message
-  "Message consumer. Delivers a message to the websocket indicated by the :target field"
-  [broker :- Broker capsule :- Capsule]
-  (if (and (:reject-expired-msg broker) (capsule/expired? capsule))
-    (process-expired-message broker capsule)
-    (if-let [websocket (get-websocket broker (:target capsule))]
+  "Message consumer. Delivers a message to the websocket indicated by the :targets field"
+  [broker :- Broker message :- Message sender :- (s/maybe Connection)]
+  ;; return error if multiple targets specified
+  (if (or (not= 1 (count (:targets message))) (p/uri-wildcard? (first (:targets message))))
+    (handle-delivery-failure broker message sender (i18n/trs "multiple recipients no longer supported"))
+    (if-let [websocket (get-websocket broker (first (:targets message)))]
       (try
         (let [connection (get-connection broker websocket)
               encode (get-in connection [:codec :encode])]
           (sl/maplog
-            :debug (merge (capsule/summarize capsule)
+            :debug (merge (summarize message)
                           (connection/summarize connection)
                           {:type :message-delivery})
             (i18n/trs "Delivering '{messageid}' for '{destination}' to '{commonname}' at '{remoteaddress}'"))
           (locking websocket
             (time! (:on-send (:metrics broker))
-                   (let [capsule (capsule/add-hop capsule (broker-uri broker) "deliver")]
-                     (websockets-client/send! websocket (encode (capsule/encode capsule)))))))
+                   (websockets-client/send! websocket (encode message)))))
         (catch Exception e
           (sl/maplog :error e
                      {:type :message-delivery-error}
                      (i18n/trs "Error in deliver-message"))
-          (handle-delivery-failure broker capsule (str e))))
-      (handle-delivery-failure broker capsule (i18n/trs "not connected")))))
-
-(s/defn expand-destinations
-  "Message consumer. Process the specified Capsule by expanding the message
-  targets (resolving wildcards), sending a destination_report (if requested),
-  and enqueueing the message to the `delivery-queue`"
-  [broker :- Broker capsule :- Capsule]
-  (let [message   (:message capsule)
-        explicit  (filter (complement p/uri-wildcard?) (:targets message))
-        wildcards (filter p/uri-wildcard? (:targets message))
-        targets   (flatten [explicit ((:find-clients broker) wildcards)])
-        capsules  (map #(assoc capsule :target %) targets)]
-    (maybe-send-destination-report broker message targets)
-    ;; TODO(richardc): can we wrap all these enqueues in a JMS transaction?
-    ;; if so we should
-    (time! (:message-queueing (:metrics broker))
-           (doall (map #(activemq/queue-message delivery-queue %) capsules)))))
-
-(s/defn subscribe-to-queues!
-  [broker :- Broker]
-  (let [{:keys [activemq-consumers accept-consumers delivery-consumers]} broker]
-    (reset! activemq-consumers
-            (concat (activemq/subscribe-to-queue accept-queue (partial expand-destinations broker) accept-consumers)
-                    (activemq/subscribe-to-queue delivery-queue (partial deliver-message broker) delivery-consumers)))))
+          (handle-delivery-failure broker message sender (str e))))
+      (handle-delivery-failure broker message sender (i18n/trs "not connected")))))
 
 (s/defn session-association-request? :- s/Bool
   "Return true if message is a session association message"
@@ -328,14 +236,13 @@
   from the 'connections' map, nor the 'uri-map'. It is assumed that such update
   will be done asynchronously by the onClose handler."
   ;; TODO(ale): make associate_request idempotent when succeed (PCP-521)
-  ([broker :- Broker capsule :- Capsule connection :- Connection]
-    (let [requester-uri (get-in capsule [:message :sender])
+  ([broker :- Broker message :- Message connection :- Connection]
+    (let [requester-uri (:sender message)
           reason-to-deny (reason-to-deny-association broker connection requester-uri)]
-      (process-associate-request! broker capsule connection reason-to-deny)))
-  ([broker :- Broker capsule :- Capsule connection :- Connection reason-to-deny :- (s/maybe s/Str)]
+      (process-associate-request! broker message connection reason-to-deny)))
+  ([broker :- Broker request :- Message connection :- Connection reason-to-deny :- (s/maybe s/Str)]
     ;; NB(ale): don't validate the associate_request as there's no data chunk...
     (let [ws (:websocket connection)
-          request (:message capsule)
           id (:id request)
           encode (get-in connection [:codec :encode])
           requester-uri (:sender request)
@@ -384,14 +291,13 @@
   "Process a request for inventory data.
    This function assumes that the requester client is associated.
    Returns nil."
-  [broker :- Broker capsule :- Capsule connection :- Connection]
+  [broker :- Broker message :- Message connection :- Connection]
   (assert (= (:state connection) :associated))
-  (let [message (:message capsule)
-        data (message/get-json-data message)]
+  (let [data (message/get-json-data message)]
     (s/validate p/InventoryRequest data)
     (let [uris (doall (filter (partial get-websocket broker) ((:find-clients broker) (:query data))))
           response-data (make-inventory_response-data-content uris)]
-      (accept-message-for-delivery
+      (deliver-message
         broker
         (-> (message/make-message :message_type "http://puppetlabs.com/inventory_response"
                                   :targets [(:sender message)]
@@ -400,17 +306,17 @@
             (message/set-json-data response-data)
             ;; set expiration last so if any of the previous steps take
             ;; significant time the message doesn't expire
-            (message/set-expiry 3 :seconds)
-            (capsule/wrap)))))
+            (message/set-expiry 3 :seconds))
+        connection)))
   nil)
 
 (s/defn process-server-message! :- (s/maybe Connection)
   "Process a message directed at the middleware"
-  [broker :- Broker capsule :- Capsule connection :- Connection]
-  (let [message-type (get-in capsule [:message :message_type])]
+  [broker :- Broker message :- Message connection :- Connection]
+  (let [message-type (:message_type message)]
     (case message-type
-      "http://puppetlabs.com/associate_request" (process-associate-request! broker capsule connection)
-      "http://puppetlabs.com/inventory_request" (process-inventory-request broker capsule connection)
+      "http://puppetlabs.com/associate_request" (process-associate-request! broker message connection)
+      "http://puppetlabs.com/inventory_request" (process-inventory-request broker message connection)
       (do
         (sl/maplog
           :debug (assoc (connection/summarize connection)
@@ -433,12 +339,12 @@
     (i18n/trs "Illegal message target: ''{0}''" target)))
 
 (s/defn make-ring-request :- (s/maybe ring/Request)
-  [capsule :-  Capsule connection :- (s/maybe Connection)]
-  (let [{:keys [sender targets message_type destination_report]} (:message capsule)]
+  [message :- Message connection :- (s/maybe Connection)]
+  (let [{:keys [sender targets message_type destination_report]} message]
     (if-let [validation-result (or (validate-message-type message_type) (some validate-target targets))]
       (do
         (sl/maplog
-          :warn (merge (capsule/summarize capsule)
+          :warn (merge (summarize message)
                        {:type    :message-authorization
                         :allowed false
                         :message validation-result})
@@ -462,30 +368,30 @@
                            :ssl-client-cert ssl-client-cert))
           request)))))
 
-;; NB(ale): using (s/Maybe Connection) in the signature for the sake of testing
+;; NB(ale): using (s/maybe Connection) in the signature for the sake of testing
 (s/defn authorized? :- s/Bool
-  "Check if the message within the specified capsule is authorized"
-  [broker :- Broker capsule :- Capsule connection :- (s/maybe Connection)]
-  (if-let [ring-request (make-ring-request capsule connection)]
+  "Check if the message within the specified message is authorized"
+  [broker :- Broker request :- Message connection :- (s/maybe Connection)]
+  (if-let [ring-request (make-ring-request request connection)]
     (let [{:keys [authorization-check]} broker
           {:keys [authorized message]} (authorization-check ring-request)
           allowed (boolean authorized)]
       (sl/maplog
-        :trace (merge (capsule/summarize capsule)
+        :trace (merge (summarize request)
                       {:type    :message-authorization
                        :allowed allowed
-                       :message message})
-        (i18n/trs "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"))
+                       :auth-message message})
+        (i18n/trs "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{auth-message}'"))
       allowed)
     false))
 
 (s/defn authenticated? :- s/Bool
   "Check if the cert name advertised by the sender of the message contained in
-   the specified Capsule matches the cert name in the certificate of the
+   the specified Message matches the cert name in the certificate of the
    given Connection"
-  [capsule :- Capsule connection :- Connection]
+  [message :- Message connection :- Connection]
   (let [{:keys [common-name]} connection
-        sender (get-in capsule [:message :sender])
+        sender (:sender message)
         [client] (p/explode-uri sender)]
     (= client common-name)))
 
@@ -494,47 +400,23 @@
   (s/enum :to-be-ignored-during-association
           :not-authenticated
           :not-authorized
-          :expired
           :to-be-processed))
 
 (s/defn validate-message :- MessageValidationOutcome
   "Determine whether the specified message should be processed by checking,
    in order, if the message: 1) is an associate-request as expected during
    Session Association; 2) is authenticated; 3) is authorized; 4) expired"
-  [broker :- Broker capsule :- Capsule connection :- Connection is-association-request :- s/Bool]
+  [broker :- Broker message :- Message connection :- Connection is-association-request :- s/Bool]
   (cond
     (and (= :open (:state connection))
          (not is-association-request)) :to-be-ignored-during-association
-    (not (authenticated? capsule connection)) :not-authenticated
-    (not (authorized? broker capsule connection)) :not-authorized
-    (and (:reject-expired-msg broker) (capsule/expired? capsule)) :expired
+    (not (authenticated? message connection)) :not-authenticated
+    (not (authorized? broker message connection)) :not-authorized
     :else :to-be-processed))
 
 ;;
 ;; WebSocket onMessage handling
 ;;
-
-(s/defn make-error-data-content :- p/ErrorMessage
-  [in-reply-to-message description]
-  (let [data-content {:description description}
-        data-content (if in-reply-to-message
-                       (assoc data-content :id (:id in-reply-to-message))
-                       data-content)]
-    data-content))
-
-(s/defn send-error-message
-  [in-reply-to-message :- (s/maybe Message) description :- String connection :- Connection]
-  (let [data-content (make-error-data-content in-reply-to-message description)
-        error-msg (-> (message/make-message :message_type "http://puppetlabs.com/error_message"
-                                            :sender "pcp:///server")
-                      (message/set-json-data data-content))
-        error-msg (if in-reply-to-message
-                    (assoc error-msg :in-reply-to (:id in-reply-to-message))
-                    error-msg)
-        {:keys [codec websocket]} connection
-        encode (:encode codec)]
-    (websockets-client/send! websocket (encode error-msg))
-    nil))
 
 (defn log-access
   [lvl message-data]
@@ -543,7 +425,7 @@
     message-data
     "{accessoutcome} {remoteaddress} {commonname} {source} {messagetype} {messageid} {destination}"))
 
-;; NB(ale): using (s/Maybe Websocket) in the signature for the sake of testing
+;; NB(ale): using (s/maybe Websocket) in the signature for the sake of testing
 (s/defn process-message! :- (s/maybe Connection)
   "Deserialize, validate (authentication, authorization, and expiration), and
   process the specified raw message. Return the 'Connection' object associated
@@ -555,14 +437,13 @@
         decode (get-in connection [:codec :decode])]
     (try+
       (let [message (decode bytes)
-            capsule (capsule/wrap message)
             message-data (merge (connection/summarize connection)
-                                (capsule/summarize capsule))
+                                (summarize message))
             is-association-request (session-association-request? message)]
         (sl/maplog :trace {:type :incoming-message-trace :rawmsg message}
                    (i18n/trs "Processing PCP message: '{rawmsg}'"))
         (try+
-          (case (validate-message broker capsule connection is-association-request)
+          (case (validate-message broker message connection is-association-request)
             :to-be-ignored-during-association
             (log-access :warn (assoc message-data :accessoutcome "IGNORED_DURING_ASSOCIATION"))
             :not-authenticated
@@ -570,48 +451,36 @@
               (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
               (if is-association-request
                 ;; send an unsuccessful associate_response and close the WebSocket
-                (process-associate-request! broker capsule connection not-authenticated-msg)
+                (process-associate-request! broker message connection not-authenticated-msg)
                 (send-error-message message not-authenticated-msg connection)))
             :not-authorized
             (let [not-authorized-msg (i18n/trs "Message not authorized")]
               (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
               (if is-association-request
                 ;; send an unsuccessful associate_response and close the WebSocket
-                (process-associate-request! broker capsule connection not-authorized-msg)
+                (process-associate-request! broker message connection not-authorized-msg)
                 ;; TODO(ale): use 'unauthorized' in version 2
                 (send-error-message message not-authorized-msg connection)))
-            :expired
-            (do
-              (log-access :warn (assoc message-data :accessoutcome "EXPIRED"))
-              (if is-association-request
-                ;; send back the ttl-expired immediately, without queueing
-                (let [response (make-ttl_expired-message message)
-                      encode (get-in connection [:codec :encode])]
-                  (websockets-client/send! ws (encode response)))
-                (process-expired-message broker capsule))
-              nil)
             :to-be-processed
             (do
               (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))
-              (let [uri (broker-uri broker)
-                    capsule (capsule/add-hop capsule uri "accepted")]
-                (if (= (:targets message) ["pcp:///server"])
-                  (process-server-message! broker capsule connection)
-                  (do
-                    (assert (= (:state connection) :associated))
-                    (accept-message-for-delivery broker capsule)
-                    nil))))
+              (if (= (:targets message) ["pcp:///server"])
+                (process-server-message! broker message connection)
+                (do
+                  (assert (= (:state connection) :associated))
+                  (deliver-message broker message connection)
+                  nil)))
             ;; default case
             (assert false (i18n/trs "unexpected message validation outcome")))
           (catch map? m
             (sl/maplog
               :debug (merge (connection/summarize connection)
-                            (capsule/summarize capsule)
+                            (summarize message)
                             {:type :processing-error :errortype (:type m)})
               (i18n/trs "Failed to process '{messagetype}' '{messageid}' from '{commonname}' '{remoteaddress}': '{errortype}'"))
             (send-error-message
               message
-              (i18n/trs "Error {0} handling message: {1}" (:type m) (:message &throw-context))
+              (i18n/trs "Error {0} handling message: {1}" (:type m) &throw-context)
               connection))))
       (catch map? m
         (sl/maplog
@@ -710,10 +579,7 @@
 ;;
 
 (def InitOptions
-  {:activemq-spool s/Str
-   :accept-consumers s/Num
-   :delivery-consumers s/Num
-   :add-websocket-handler IFn
+  {:add-websocket-handler IFn
    :record-client IFn
    :find-clients IFn
    :authorization-check IFn
@@ -738,21 +604,15 @@
 
 (s/defn init :- Broker
   [options :- InitOptions]
-  (let [{:keys [broker-name activemq-spool accept-consumers delivery-consumers
+  (let [{:keys [broker-name
                 add-websocket-handler
                 record-client find-clients authorization-check
                 get-route
-                get-metrics-registry]} options]
-    (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
-          broker             {:activemq-broker     activemq-broker
-                              :broker-name         broker-name
-                              :accept-consumers    accept-consumers
-                              :delivery-consumers  delivery-consumers
-                              :activemq-consumers  (atom [])
+                get-metrics-registry ssl-cert]} options]
+    (let [broker             {:broker-name         broker-name
                               :record-client       record-client
                               :find-clients        find-clients
                               :authorization-check authorization-check
-                              :reject-expired-msg  false
                               :metrics             {}
                               :metrics-registry    (get-metrics-registry)
                               :connections         (ConcurrentHashMap.)
@@ -771,18 +631,13 @@
 
 (s/defn start
   [broker :- Broker]
-  (let [{:keys [activemq-broker state]} broker]
-    (mq/start-broker! activemq-broker)
-    (subscribe-to-queues! broker)
+  (let [{:keys [state]} broker]
     (reset! state :running)))
 
 (s/defn stop
   [broker :- Broker]
-  (let [{:keys [activemq-broker activemq-consumers state]} broker]
-    (reset! state :stopping)
-    (doseq [consumer @activemq-consumers]
-      (mq-cons/close consumer))
-    (mq/stop-broker! activemq-broker)))
+  (let [{:keys [state]} broker]
+    (reset! state :stopping)))
 
 (s/defn status :- status-core/StatusCallbackResponse
   [broker :- Broker level :- status-core/ServiceStatusDetailLevel]

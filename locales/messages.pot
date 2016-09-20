@@ -17,47 +17,12 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/puppetlabs/pcp/broker/activemq.clj
-msgid "Delivering message '{messageid}' for '{destination}' to '{queue}' queue"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/activemq.clj
-msgid "Consuming message '{messageid}' for '{destination}' from '{queue}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/activemq.clj
-msgid "Error consuming message from '{queue}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/borrowed/mq.clj
-msgid "Setting ActiveMQ {0} limit to {1} MB"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/borrowed/mq.clj
-msgid ""
-"Caught EOFException on broker startup, trying to restart it again to see if "
-"that solves it. This is probably due to KahaDB corruption."
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/borrowed/mq.clj
-msgid "Expected an object implementing either {0} or {1}, instead found: {2}"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Server generated message expired; dropping it"
-msgstr ""
-
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Scheduling message '{messageid}' to be delivered in '{delay}' seconds"
+msgid "multiple recipients no longer supported"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -132,7 +97,7 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
+"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{auth-message}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
