@@ -15,7 +15,7 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
-             :refer [with-test-logging with-test-logging-debug]]
+             :refer [with-test-logging with-log-level]]
             [slingshot.slingshot :refer [throw+ try+]]
             [schema.test :as st]))
 
@@ -430,6 +430,40 @@
             (client/send! client request)
             (let [response (client/recv! client)]
               (is (is-error-message response version "Message not authorized" true)))))))))
+
+(deftest invalid-message-types-not-authorized
+  (with-app-with-config app broker-services broker-config
+    (dotestseq [version protocol-versions]
+      (with-open [client (client/connect :certname "client01.example.com"
+                                         :version version)]
+        (testing "cannot submit a message with an invalid message_type"
+          (with-test-logging
+            (let [request (-> (message/make-message)
+                              (assoc :message_type "http://puppetlabs.com/inventory_request\u0000"
+                                     :targets ["pcp:///server"]
+                                     :sender "pcp://client01.example.com/test")
+                              (message/set-expiry 5 :seconds))]
+              (client/send! client request)
+              (let [response (client/recv! client)]
+                (is (is-error-message response version "Message not authorized" true))
+                (is (logged? #"Illegal message type: 'http://puppetlabs.com/inventory_request" :warn))))))))))
+
+(deftest invalid-targets-not-authorized
+  (with-app-with-config app broker-services broker-config
+    (dotestseq [version protocol-versions]
+      (with-open [client (client/connect :certname "client01.example.com"
+                                         :version version)]
+        (testing "cannot submit a message with an invalid message_type"
+          (with-test-logging
+            (let [request (-> (message/make-message)
+                              (assoc :message_type "http://puppetlabs.com/inventory_request"
+                                     :targets ["pcp:///server\u0000"]
+                                     :sender "pcp://client01.example.com/test")
+                              (message/set-expiry 5 :seconds))]
+              (client/send! client request)
+              (let [response (client/recv! client)]
+                (is (is-error-message response version "Message not authorized" true))
+                (is (logged? #"Illegal message target: 'pcp:///server" :warn))))))))))
 
 ;; Message sending
 

@@ -245,6 +245,8 @@
                                       :targets ["pcp://example02.example.com/agent"])
         capsule (capsule/wrap message)]
     (is (= true (authorized? yes-broker capsule nil)))
+    (is (= false (authorized? yes-broker (assoc-in capsule [:message :message_type] "no\u0000good") nil)))
+    (is (= false (authorized? yes-broker (assoc-in capsule [:message :targets] ["pcp://bad/\u0000target"]) nil)))
     (is (= false (authorized? no-broker capsule nil)))))
 
 (deftest accept-message-for-delivery-test
