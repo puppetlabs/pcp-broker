@@ -121,8 +121,22 @@ msgid ""
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid "Illegal message type: ''{0}''"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Illegal message target: ''{0}''"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{auth-message}'"
+"Message '{messageid}' for '{destination}' didn''t pass pre-authorization "
+"validation: '{message}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid ""
+"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj

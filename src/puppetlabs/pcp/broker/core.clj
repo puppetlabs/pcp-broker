@@ -389,43 +389,62 @@
 ;; Message validation
 ;;
 
+(defn- validate-message-type
+  [^String message-type]
+  (if-not (re-matches #"^[\w\-.:/]*$" message-type)
+    (i18n/trs "Illegal message type: ''{0}''" message-type)))
+
+(defn- validate-target
+  [^String target]
+  (if-not (re-matches #"^[\w\-.:/*]*$" target)
+    (i18n/trs "Illegal message target: ''{0}''" target)))
+
 (s/defn make-ring-request :- ring/Request
   [capsule :-  Capsule connection :- (s/maybe Connection)]
-  (let [{:keys [sender targets message_type destination_report]} (:message capsule)
-        form-params {}
-        query-params {"sender" sender
-                      "targets" (if (= 1 (count targets)) (first targets) targets)
-                      "message_type" message_type
-                      "destination_report" (boolean destination_report)}
-        request {:uri            "/pcp-broker/send"
-                 :request-method :post
-                 :remote-addr    ""
-                 :form-params    form-params
-                 :query-params   query-params
-                 :params         (merge query-params form-params)}]
-    ;; NB(ale): we may not have the Connection when running tests
-    (if connection
-      (let [remote-addr (:remote-address connection)
-            ssl-client-cert (first (websockets-client/peer-certs (:websocket connection)))]
-        (merge request {:remote-addr remote-addr
-                        :ssl-client-cert ssl-client-cert}))
-      request)))
+  (let [{:keys [sender targets message_type destination_report]} (:message capsule)]
+    (if-let [validation-result (or (validate-message-type message_type) (some validate-target targets))]
+      (do
+        (sl/maplog
+          :warn (merge (capsule/summarize capsule)
+                       {:type    :message-authorization
+                        :allowed false
+                        :message validation-result})
+          (i18n/trs "Message '{messageid}' for '{destination}' didn''t pass pre-authorization validation: '{message}'"))
+        nil)                                                ; make sure to return nil
+      (let [query-params {"sender" sender
+                          "targets" (if (= 1 (count targets)) (first targets) targets)
+                          "message_type" message_type
+                          "destination_report" (boolean destination_report)}
+            request {:uri            "/pcp-broker/send"
+                     :request-method :post
+                     :remote-addr    ""
+                     :form-params    {}
+                     :query-params   query-params
+                     :params         query-params}]
+        ;; NB(ale): we may not have the Connection when running tests
+        (if connection
+          (let [remote-addr (:remote-address connection)
+                ssl-client-cert (first (websockets-client/peer-certs (:websocket connection)))]
+            (assoc request :remote-addr remote-addr
+                           :ssl-client-cert ssl-client-cert))
+          request)))))
 
 ;; NB(ale): using (s/Maybe Connection) in the signature for the sake of testing
 (s/defn authorized? :- s/Bool
   "Check if the message within the specified capsule is authorized"
   [broker :- Broker capsule :- Capsule connection :- (s/maybe Connection)]
-  (let [ring-request (make-ring-request capsule connection)
-        {:keys [authorization-check]} broker
-        {:keys [authorized message]} (authorization-check ring-request)
-        allowed (boolean authorized)]
-    (sl/maplog
-      :trace (merge (capsule/summarize capsule)
-                    {:type         :message-authorization
-                     :allowed      allowed
-                     :auth-message message})
-      (i18n/trs "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{auth-message}'"))
-    allowed))
+  (if-let [ring-request (make-ring-request capsule connection)]
+    (let [{:keys [authorization-check]} broker
+          {:keys [authorized message]} (authorization-check ring-request)
+          allowed (boolean authorized)]
+      (sl/maplog
+        :trace (merge (capsule/summarize capsule)
+                      {:type    :message-authorization
+                       :allowed allowed
+                       :message message})
+        (i18n/trs "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"))
+      allowed)
+    false))
 
 (s/defn authenticated? :- s/Bool
   "Check if the cert name advertised by the sender of the message contained in
