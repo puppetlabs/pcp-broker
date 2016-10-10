@@ -82,9 +82,9 @@
   :lein-release {:scm :git
                  :deploy-via :lein-deploy}
 
-  :deploy-repositories [["releases" {:url "https://clojars.org/repo"
-                                     :username :env/clojars_jenkins_username
-                                     :password :env/clojars_jenkins_password
+  :deploy-repositories [["releases" {:url  "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"
+                                     :username :env/nexus_jenkins_username
+                                     :password :env/nexus_jenkins_password
                                      :sign-releases false}]]
 
   :test-paths ["test/unit" "test/integration" "test/utils" "test-resources"]
