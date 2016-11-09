@@ -1,3 +1,18 @@
+## 0.8.4
+
+This is a maintenance release to publish 0.8.2 to clojars.
+
+## 0.8.3
+
+This is a maintenance release to publish to an internal clojars repository.
+
+## 0.8.2
+
+This is a private security release, never published to clojars.
+
+* [PCP-655](https://tickets.puppetlabs.com/browse/PCP-655) PCP broker builds
+ring requests without enough validation
+
 ## 0.8.1
 
 This is a maintenance release
