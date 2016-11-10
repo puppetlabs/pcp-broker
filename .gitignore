@@ -12,6 +12,7 @@ pom.xml.asc
 *~
 /.idea
 /test-resources/tmp/
+/test-resources/log/pcp-broker-messages.log
 /resources/locales.clj
 /eng-resources
 
