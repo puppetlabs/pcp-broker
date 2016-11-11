@@ -744,20 +744,20 @@
                 get-route
                 get-metrics-registry]} options]
     (let [activemq-broker    (mq/build-embedded-broker activemq-spool)
-          broker             {:activemq-broker    activemq-broker
-                              :broker-name        broker-name
-                              :accept-consumers   accept-consumers
-                              :delivery-consumers delivery-consumers
-                              :activemq-consumers (atom [])
-                              :record-client      record-client
-                              :find-clients       find-clients
+          broker             {:activemq-broker     activemq-broker
+                              :broker-name         broker-name
+                              :accept-consumers    accept-consumers
+                              :delivery-consumers  delivery-consumers
+                              :activemq-consumers  (atom [])
+                              :record-client       record-client
+                              :find-clients        find-clients
                               :authorization-check authorization-check
-                              :reject-expired-msg false
-                              :metrics            {}
-                              :metrics-registry   (get-metrics-registry)
-                              :connections        (ConcurrentHashMap.)
-                              :uri-map            (ConcurrentHashMap.)
-                              :state              (atom :starting)}
+                              :reject-expired-msg  false
+                              :metrics             {}
+                              :metrics-registry    (get-metrics-registry)
+                              :connections         (ConcurrentHashMap.)
+                              :uri-map             (ConcurrentHashMap.)
+                              :state               (atom :starting)}
           metrics            (build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
       (add-websocket-handler (build-websocket-handlers broker v1-codec) {:route-id :v1})

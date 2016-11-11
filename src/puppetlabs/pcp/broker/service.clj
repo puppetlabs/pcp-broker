@@ -20,15 +20,15 @@
           accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
           delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
           inventory          (make-inventory)
-          broker             (core/init {:activemq-spool activemq-spool
-                                         :accept-consumers accept-consumers
-                                         :delivery-consumers delivery-consumers
+          broker             (core/init {:activemq-spool        activemq-spool
+                                         :accept-consumers      accept-consumers
+                                         :delivery-consumers    delivery-consumers
                                          :add-websocket-handler (partial add-websocket-handler this)
-                                         :record-client  (partial record-client inventory)
-                                         :find-clients   (partial find-clients inventory)
-                                         :authorization-check authorization-check
-                                         :get-metrics-registry get-metrics-registry
-                                         :get-route (partial get-route this)})]
+                                         :record-client         (partial record-client inventory)
+                                         :find-clients          (partial find-clients inventory)
+                                         :authorization-check   authorization-check
+                                         :get-metrics-registry  get-metrics-registry
+                                         :get-route             (partial get-route this)})]
       (register-status "broker-service"
                        (status-core/get-artifact-version "puppetlabs" "pcp-broker")
                        1

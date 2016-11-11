@@ -18,20 +18,20 @@
 (s/defn make-test-broker :- Broker
   "Return a minimal clean broker state"
   []
-  (let [broker {:activemq-broker    "JMSOMGBBQ"
-                :broker-name        nil
-                :accept-consumers   2
-                :delivery-consumers 2
-                :activemq-consumers (atom [])
-                :record-client      (constantly true)
-                :find-clients       (constantly ())
+  (let [broker {:activemq-broker     "JMSOMGBBQ"
+                :broker-name         nil
+                :accept-consumers    2
+                :delivery-consumers  2
+                :activemq-consumers  (atom [])
+                :record-client       (constantly true)
+                :find-clients        (constantly ())
                 :authorization-check (constantly true)
-                :reject-expired-msg false
-                :uri-map            (ConcurrentHashMap.)
-                :connections        (ConcurrentHashMap.)
-                :metrics-registry   metrics.core/default-registry
-                :metrics            {}
-                :state              (atom :running)}
+                :reject-expired-msg  false
+                :uri-map             (ConcurrentHashMap.)
+                :connections         (ConcurrentHashMap.)
+                :metrics-registry    metrics.core/default-registry
+                :metrics             {}
+                :state               (atom :running)}
         metrics (build-and-register-metrics broker)
         broker (assoc broker :metrics metrics)]
     broker))
