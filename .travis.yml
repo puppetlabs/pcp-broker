@@ -1,9 +1,9 @@
 language: clojure
 sudo: false
-lein: lein2
+lein: 2.7.1
 jdk:
   - oraclejdk7
   - openjdk7
-script: lein2 test
+script: lein test
 notifications:
   email: false

@@ -44,10 +44,6 @@ msgid "Expected an object implementing either {0} or {1}, instead found: {2}"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "{0} must contain at least 1 certificate"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Message '{messageid}' for '{destination}' has expired. Sending a ttl_expired."
 msgstr ""
@@ -211,7 +207,7 @@ msgid "Starting broker service"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Broker service started"
+msgid "Broker service <'{brokername}'> started"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/service.clj
@@ -219,5 +215,5 @@ msgid "Shutting down broker service"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Broker service stopped"
+msgid "Broker service <'{brokername}'> stopped"
 msgstr ""
