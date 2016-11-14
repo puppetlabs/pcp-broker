@@ -110,7 +110,7 @@
 
   :aliases {"tk" ["trampoline" "run" "--config" "test-resources/conf.d"]
             ;; runs trapperkeeper with schema validations enabled
-            "tkv" ["trampoline" "run" "-m" "user" "--config" "test-resources/conf.d"]
+            "tkv" ["with-profile" "dev-schema-validation" "tk"]
             "certs" ["trampoline" "run" "-m" "puppetlabs.pcp.testutils.certs" "--config" "test-resources/conf.d" "--"]
             ;; cljfmt requires pl-clojure-style's root dir as per above profile;
             ;; run with 'check' then 'fix' with args (refer to the project docs)
