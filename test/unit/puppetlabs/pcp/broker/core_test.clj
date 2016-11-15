@@ -114,6 +114,20 @@
         (handle-delivery-failure broker msg nil "Out of cheese")
         (is (= 1 (count @delivered)))))))
 
+(deftest multicast-message?-test
+  (testing "returns false if targets specifies a single host with no wildcards"
+    (let [message (message/make-message :targets ["pcp://example01.example.com/foo"])]
+      (is (not (multicast-message? message)))))
+  (testing "returns true if targets includes wildcard hostname"
+    (let [message (message/make-message :targets ["pcp://*/foo"])]
+      (is (multicast-message? message))))
+  (testing "returns true if targets includes wildcard client type"
+    (let [message (message/make-message :targets ["pcp://example01.example.com/*"])]
+      (is (multicast-message? message))))
+  (testing "returns true if more than one target specified"
+    (let [message (message/make-message :targets ["pcp://example01.example.com/foo" "pcp://example02.example.com/foo"])]
+      (is (multicast-message? message)))))
+
 (deftest deliver-message-test
   (let [broker (make-test-broker)
         failure (atom nil)]
@@ -123,24 +137,10 @@
                       (fn [broker message sender err] (reset! failure err))]
           (deliver-message broker message nil)
           (is (= "not connected" @failure)))))
-    (testing "errors if targets includes wildcard hostname"
-      (let [message (message/make-message :targets ["pcp://*/foo"])]
-        (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure
-                      (fn [broker message sender err] (reset! failure err))]
-          (deliver-message broker message nil)
-          (is (= "multiple recipients no longer supported" @failure)))))
-    (testing "errors if targets includes wildcard client type"
-      (let [message (message/make-message :targets ["pcp://example01.example.com/*"])]
-        (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure
-                      (fn [broker message sender err] (reset! failure err))]
-          (deliver-message broker message nil)
-          (is (= "multiple recipients no longer supported" @failure)))))
-    (testing "errors if more than one target specified"
-      (let [message (message/make-message :targets ["pcp://example01.example.com/foo" "pcp://example02.example.com/foo"])]
-        (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure
-                      (fn [broker message sender err] (reset! failure err))]
-          (deliver-message broker message nil)
-          (is (= "multiple recipients no longer supported" @failure)))))))
+    (testing "errors if multicast message"
+      (let [message (message/make-message)]
+        (with-redefs [puppetlabs.pcp.broker.core/multicast-message?  (fn [message] true)]
+          (is (thrown? java.lang.AssertionError (deliver-message broker message nil))))))))
 
 (deftest make-ring-request-test
   (testing "it should return a ring request - one target"
@@ -374,6 +374,16 @@
             is-association-request true]
         (is (= :not-authorized
                (validate-message no-broker msg connection is-association-request)))))
+    (testing "marks multicast messages as unsupported"
+      (let [yes-broker (assoc (make-test-broker)
+                              :authorization-check yes-authorization-check)
+            msg (message/make-message :sender "pcp://localcost/gbp"
+                                      :message_type "http://puppetlabs.com/associate_request")
+            connection (dummy-connection-from "localcost")
+            is-association-request true]
+        (with-redefs [puppetlabs.pcp.broker.core/multicast-message?  (fn [message] true)]
+          (is (= :multicast-unsupported
+                 (validate-message yes-broker msg connection is-association-request))))))
     (testing "marks expired messages as to be processed"
       (let [yes-broker (assoc (make-test-broker)
                               :authorization-check yes-authorization-check)
@@ -523,6 +533,26 @@
                       (fn [broker message connection] (reset! processed-server-message true) nil)]
           (let [outcome (process-message! broker (byte-array raw-msg) nil)]
             (is @processed-server-message)
+            (is (nil? outcome))))))
+    (testing "sends an error message and returns nil in case of a multicast message"
+      (let [broker (assoc (make-test-broker)
+                     :authorization-check yes-authorization-check)
+            error-message-description (atom nil)
+            msg (-> (message/make-message :sender "pcp://thegunclub/entity"
+                                          :message_type "ether"
+                                          :targets ["pcp://wire/*"])
+                    (message/set-expiry 5 :seconds))
+            raw-msg (message/encode msg)
+            connection (merge (dummy-connection-from "thegunclub")
+                              {:state :associated
+                               :codec {:decode (fn [bytes] msg)
+                                       :encode (fn [msg] raw-msg)}})]
+        (with-redefs [puppetlabs.pcp.broker.core/get-connection
+                      (fn [broker ws] connection)
+                      puppetlabs.pcp.broker.core/send-error-message
+                      (fn [msg description connection] (reset! error-message-description description) nil)]
+          (let [outcome (process-message! broker (byte-array raw-msg) nil)]
+            (is (= "Multiple recipients no longer supported" @error-message-description))
             (is (nil? outcome))))))
     (testing "delivers an authorized message"
       (let [broker (assoc (make-test-broker)

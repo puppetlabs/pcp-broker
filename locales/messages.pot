@@ -22,10 +22,6 @@ msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "multiple recipients no longer supported"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Delivering '{messageid}' for '{destination}' to '{commonname}' at "
 "'{remoteaddress}'"
@@ -110,6 +106,10 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authorized"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Multiple recipients no longer supported"
 msgstr ""
 
 #. default case

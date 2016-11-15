@@ -162,31 +162,36 @@
              (i18n/trs "Failed to deliver '{messageid}' for '{destination}': '{reason}'"))
   (send-error-message message reason sender))
 
+(s/defn multicast-message?
+  "Returns a boolean specifying whether the message uses multicast in the target field."
+  [message :- Message]
+  (if-let [targets (:targets message)]
+    (if-let [first-target (first targets)]
+      (or (not= 1 (count targets)) (p/uri-wildcard? first-target)))))
+
 ;; NB(michael): using (s/maybe Connection) in the signature for the sake of testing
 (s/defn deliver-message
   "Message consumer. Delivers a message to the websocket indicated by the :targets field"
   [broker :- Broker message :- Message sender :- (s/maybe Connection)]
-  ;; return error if multiple targets specified
-  (if (or (not= 1 (count (:targets message))) (p/uri-wildcard? (first (:targets message))))
-    (handle-delivery-failure broker message sender (i18n/trs "multiple recipients no longer supported"))
-    (if-let [websocket (get-websocket broker (first (:targets message)))]
-      (try
-        (let [connection (get-connection broker websocket)
-              encode (get-in connection [:codec :encode])]
-          (sl/maplog
-            :debug (merge (summarize message)
-                          (connection/summarize connection)
-                          {:type :message-delivery})
-            (i18n/trs "Delivering '{messageid}' for '{destination}' to '{commonname}' at '{remoteaddress}'"))
-          (locking websocket
-            (time! (:on-send (:metrics broker))
-                   (websockets-client/send! websocket (encode message)))))
-        (catch Exception e
-          (sl/maplog :error e
-                     {:type :message-delivery-error}
-                     (i18n/trs "Error in deliver-message"))
-          (handle-delivery-failure broker message sender (str e))))
-      (handle-delivery-failure broker message sender (i18n/trs "not connected")))))
+  (assert (not (multicast-message? message)))
+  (if-let [websocket (get-websocket broker (first (:targets message)))]
+    (try
+      (let [connection (get-connection broker websocket)
+            encode (get-in connection [:codec :encode])]
+        (sl/maplog
+          :debug (merge (summarize message)
+                        (connection/summarize connection)
+                        {:type :message-delivery})
+          (i18n/trs "Delivering '{messageid}' for '{destination}' to '{commonname}' at '{remoteaddress}'"))
+        (locking websocket
+          (time! (:on-send (:metrics broker))
+                 (websockets-client/send! websocket (encode message)))))
+      (catch Exception e
+        (sl/maplog :error e
+                   {:type :message-delivery-error}
+                   (i18n/trs "Error in deliver-message"))
+        (handle-delivery-failure broker message sender (str e))))
+    (handle-delivery-failure broker message sender (i18n/trs "not connected"))))
 
 (s/defn session-association-request? :- s/Bool
   "Return true if message is a session association message"
@@ -400,18 +405,21 @@
   (s/enum :to-be-ignored-during-association
           :not-authenticated
           :not-authorized
+          :multicast-unsupported
           :to-be-processed))
 
 (s/defn validate-message :- MessageValidationOutcome
   "Determine whether the specified message should be processed by checking,
    in order, if the message: 1) is an associate-request as expected during
-   Session Association; 2) is authenticated; 3) is authorized; 4) expired"
+   Session Association; 2) is authenticated; 3) is authorized; 4) does not
+   use multicast delivery."
   [broker :- Broker message :- Message connection :- Connection is-association-request :- s/Bool]
   (cond
     (and (= :open (:state connection))
          (not is-association-request)) :to-be-ignored-during-association
     (not (authenticated? message connection)) :not-authenticated
     (not (authorized? broker message connection)) :not-authorized
+    (multicast-message? message) :multicast-unsupported
     :else :to-be-processed))
 
 ;;
@@ -461,6 +469,10 @@
                 (process-associate-request! broker message connection not-authorized-msg)
                 ;; TODO(ale): use 'unauthorized' in version 2
                 (send-error-message message not-authorized-msg connection)))
+            :multicast-unsupported
+            (let [multicast-unsupported-message (i18n/trs "Multiple recipients no longer supported")]
+              (log-access :warn (assoc message-data :accessoutcome "MULTICAST_UNSUPPORTED"))
+              (send-error-message message multicast-unsupported-message connection))
             :to-be-processed
             (do
               (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))

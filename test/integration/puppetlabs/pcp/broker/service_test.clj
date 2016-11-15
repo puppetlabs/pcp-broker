@@ -468,7 +468,7 @@
                           (message/set-json-data "Hello"))]
           (client/send! client message)
           (let [response (client/recv! client)]
-            (is-error-message response version "multiple recipients no longer supported" false)))))))
+            (is-error-message response version "Multiple recipients no longer supported" false)))))))
 
 (deftest send-with-destination-report-ignored-test
   (with-app-with-config app broker-services broker-config
