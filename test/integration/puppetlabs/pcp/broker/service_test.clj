@@ -45,11 +45,7 @@
     :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
    :metrics {:enabled true
-             :server-id "localhost"}
-
-   :pcp-broker {:broker-spool "test-resources/tmp/spool"
-                :accept-consumers 2
-                :delivery-consumers 2}})
+             :server-id "localhost"}})
 
 (def protocol-versions
   "The short names of protocol versions"
@@ -58,30 +54,6 @@
 (def broker-services
   "The trapperkeeper services the broker needs"
   [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service])
-
-(defn cleanup-spool-fixture
-  "Deletes the broker-spool before each test"
-  [f]
-  (fs/delete-dir (get-in broker-config [:pcp-broker :broker-spool]))
-  (f))
-
-; increase ttl set by the `puppetlabs.pcp.message/set-expiry` function
-; 5 times to prevent test failures caused by the expiration of the ttl
-; on messages exchanged during the tests;
-; we started to see this to happen after we'd enabled the schema
-; checks globally by using the `schema.test/validate-schemas` fixture,
-; especially on slower (or busy) hardware
-(use-fixtures
-  :once (fn [fn-test]
-          (let [message-set-expiry message/set-expiry]
-            (with-redefs [message/set-expiry (fn
-                                               ([message number unit]
-                                                (message-set-expiry message (* 5 number) unit))
-                                               ([message timestamp]
-                                                (message-set-expiry message timestamp)))]
-              (fn-test)))))
-
-(use-fixtures :each cleanup-spool-fixture)
 
 (deftest it-talks-websockets-test
   (with-app-with-config app broker-services broker-config
@@ -483,7 +455,7 @@
             (is (= "greeting" (:message_type message)))
             (is (= "Hello" (message/get-json-data message)))))))))
 
-(deftest send-to-self-wildcard-test
+(deftest send-to-self-wildcard-denied-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
       (with-open [client (client/connect :certname "client01.example.com"
@@ -495,11 +467,10 @@
                           (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! client message)
-          (let [message (client/recv! client)]
-            (is (= "greeting" (:message_type message)))
-            (is (= "Hello" (message/get-json-data message)))))))))
+          (let [response (client/recv! client)]
+            (is-error-message response version "Multiple recipients no longer supported" false)))))))
 
-(deftest send-with-destination-report-test
+(deftest send-with-destination-report-ignored-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
       (with-open [sender   (client/connect :certname "client01.example.com"
@@ -514,34 +485,9 @@
                           (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
           (client/send! sender message)
-          (let [report  (client/recv! sender)
-                message (client/recv! receiver)]
-            (is (= "http://puppetlabs.com/destination_report" (:message_type report)))
-            (is (= (case version
-                     "v1.0" nil
-                     (:id message))
-                   (:in-reply-to report)))
-            (is (= {:id (:id message)
-                    :targets ["pcp://client02.example.com/test"]}
-                   (message/get-json-data report)))
+          (let [message (client/recv! receiver)]
             (is (= "greeting" (:message_type message)))
             (is (= "Hello" (message/get-json-data message)))))))))
-
-(deftest send-expired-wildcard-gets-no-expiry-test
-  (with-app-with-config app broker-services broker-config
-    (dotestseq [version protocol-versions]
-      (with-open [client (client/connect :certname "client01.example.com"
-                                         :version version)]
-        (let [message (-> (message/make-message)
-                          (assoc :sender "pcp://client01.example.com/test"
-                                 :targets ["pcp://client02.example.com/*"]
-                                 :message_type "greeting")
-                          (message/set-expiry 5 :seconds)
-                          (message/set-json-data "Hello"))]
-          (client/send! client message)
-          (let [response (client/recv! client 1000)]
-            ;; Should get no message
-            (is (= nil response))))))))
 
 (deftest send-expired-test
   (with-app-with-config app broker-services broker-config
@@ -556,7 +502,7 @@
           (let [response (client/recv! client)]
             (is (= "greeting" (:message_type response)))))))))
 
-(deftest send-to-never-connected-will-get-expired-test
+(deftest send-to-never-connected-will-get-not-connected-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
       (with-open [client (client/connect :certname "client01.example.com"
@@ -569,31 +515,25 @@
                           (message/set-json-data "Hello"))]
           (client/send! client message)
           (let [response (client/recv! client)]
-            (is (= "http://puppetlabs.com/ttl_expired" (:message_type response)))
-            (is (= (case version
-                     "v1.0" nil
-                     (:id message))
-                   (:in-reply-to response)))
-            ;; TODO(richardc): should we say for whom we expired,
-            ;; in case we only expire for 1 of the expanded
-            ;; destinations
-            (is (= {:id (:id message)} (message/get-json-data response)))))))))
+            (is-error-message response version "not connected" false)))))))
 
-(deftest send-disconnect-connect-receive-test
+(deftest send-disconnect-connect-not-delivered-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
-      (with-open [client (client/connect :certname "client01.example.com"
-                                         :version version)]
+      (with-open [client1 (client/connect :certname "client01.example.com"
+                                          :version version)]
         (let [message (-> (message/make-message)
                           (assoc :sender "pcp://client01.example.com/test"
                                  :targets ["pcp://client02.example.com/test"]
                                  :message_type "greeting")
                           (message/set-expiry 5 :seconds)
                           (message/set-json-data "Hello"))]
-          (client/send! client message)))
-      (with-open [client (client/connect :certname "client02.example.com")]
-        (let [message (client/recv! client)]
-          (is (= "Hello" (message/get-json-data message))))))))
+          (client/send! client1 message))
+        (with-open [client2 (client/connect :certname "client02.example.com")]
+          (let [response (client/recv! client1)]
+            (is-error-message response version "not connected" false))
+          (let [response (client/recv! client2 1000)]
+            (is (= nil response))))))))
 
 (def strict-broker-config
   "A broker that only allows test/sensitive message types from client01"

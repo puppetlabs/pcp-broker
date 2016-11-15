@@ -16,14 +16,8 @@
    [:StatusService register-status]]
   (init [this context]
     (sl/maplog :info {:type :broker-init} (i18n/trs "Initializing broker service"))
-    (let [activemq-spool     (get-in-config [:pcp-broker :broker-spool])
-          accept-consumers   (get-in-config [:pcp-broker :accept-consumers] 4)
-          delivery-consumers (get-in-config [:pcp-broker :delivery-consumers] 16)
-          inventory          (make-inventory)
-          broker             (core/init {:activemq-spool        activemq-spool
-                                         :accept-consumers      accept-consumers
-                                         :delivery-consumers    delivery-consumers
-                                         :add-websocket-handler (partial add-websocket-handler this)
+    (let [inventory          (make-inventory)
+          broker             (core/init {:add-websocket-handler (partial add-websocket-handler this)
                                          :record-client         (partial record-client inventory)
                                          :find-clients          (partial find-clients inventory)
                                          :authorization-check   authorization-check
