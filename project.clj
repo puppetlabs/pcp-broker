@@ -13,7 +13,7 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "0.1.7"]
+  :parent-project {:coords [puppetlabs/clj-parent "0.2.4"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -22,7 +22,7 @@
                  [puppetlabs/kitchensink]
                  [puppetlabs/trapperkeeper]
                  [puppetlabs/trapperkeeper-authorization]
-                 [puppetlabs/trapperkeeper-metrics "0.1.1"]
+                 [puppetlabs/trapperkeeper-metrics]
                  [puppetlabs/trapperkeeper-webserver-jetty9]
                  [puppetlabs/trapperkeeper-status]
 
