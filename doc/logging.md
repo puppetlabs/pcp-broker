@@ -27,7 +27,7 @@ intended scheme for logging levels:
 * WARN - mostly bad things
 * INFO - service started/stopped
 * DEBUG - client connecting, client session establishment, client disconnected, message acceptance, message delivery
-* TRACE - messages moving through queues, message information during association.
+* TRACE - messages moving through delivery, message information during association.
 
 ## HTTP access log
 
@@ -81,7 +81,6 @@ are:
 | validation outcome | log level | description
 |--------------------|-----------|------------
 | DESERIALIZATION_ERROR | WARN | invalid PCP message that can't be deserialized
-| IGNORED_DURING_ASSOCIATION | WARN | PCP message other than `associate_request` during Session Association
 | AUTHENTICATION_FAILURE | WARN | authentication failure (refer to the [authentication](./authentication.md) section)
 | AUTHORIZATION_FAILURE | WARN | authorization failure (refer to the [authorization](./authorization.md) section)
 | EXPIRED | WARN | the message's TTL expired
@@ -155,6 +154,7 @@ A client has connected to the broker.
 
 * [`commonname`](#commonname)
 * [`remoteaddress`](#remoteaddress)
+* [`uri`](#uri)
 
 Level: DEBUG
 
@@ -165,6 +165,7 @@ Received a message from a client
 * [`commonname`](#commonname)
 * [`remoteaddress`](#remoteaddress)
 * [`messageid`](#messageid)
+* [`messagetype`](#messagetype)
 * [`sender`](#sender)
 * [`destination`](#destination)
 
@@ -176,8 +177,8 @@ A client that is associated attempted to associate again.
 
 * [`commonname`](#commonname)
 * [`remoteaddress`](#remoteaddress)
-* `uri` String - PCP uri of the new association
-* `existinguri` String - PCP uri of the existing association
+* `uri` String - PCP URI of the new association
+* `existinguri` String - PCP URI of the existing association
 
 Level: WARN
 
@@ -185,9 +186,8 @@ Level: WARN
 
 A client failed to become associated with the broker
 
-* [`commonname`](#commonname)
-* [`remoteaddress`](#remoteaddress)
-* `uri` String - PCP uri of the association
+* [`uri`](#uri)
+* `reason` String - the reason given for association failure
 
 Level: DEBUG
 
@@ -206,6 +206,7 @@ A client sent a message before it was associated with the broker
 * [`commonname`](#commonname)
 * [`remoteaddress`](#remoteaddress)
 * [`messageid`](#messageid)
+* [`messagetype`](#messagetype)
 * [`sender`](#sender)
 * [`destination`](#destination)
 
@@ -226,16 +227,27 @@ A client has disconnected from the broker.
 
 * [`commonname`](#commonname)
 * [`remoteaddress`](#remoteaddress)
+* [`uri`](#uri)
 * `statuscode` Numeric - the websockets status code
 * `reason`  String - the reason given for disconnection
 
 Level: DEBUG
+
+### `send-message`
+
+Sending a PCP message.
+
+* [`uri`](#uri)
+* `rawmsg` String - the decoded PCP message
+
+Level: TRACE
 
 ### `message-authorization`
 
 A message has been checked if it can be relayed by the broker.
 
 * [`messageid`](#messageid)
+* [`messagetype`](#messagetype)
 * [`sender`](#sender)
 * [`destination`](#destination)
 * `allowed` Boolean - was the message allowed
@@ -243,41 +255,49 @@ A message has been checked if it can be relayed by the broker.
 
 Level: TRACE
 
-### `message-expired`
+Note: a level WARN is also used for messages that failed validation prior to
+authorization.
 
-A message has hit its expiry (discovered when sending).
+### `incoming-message-trace`
 
+A received message.
+
+* [`uri`](#uri)
+* `rawmsg` String - the decoded PCP message
+
+Level: TRACE
+
+### `processing-error`
+
+An error occured while processing a message.
+
+* [`commonname`](#commonname)
+* [`remoteaddress`](#remoteaddress)
 * [`messageid`](#messageid)
+* [`messagetype`](#messagetype)
 * [`sender`](#sender)
 * [`destination`](#destination)
 
-Level: TRACE
-
-### `message-expired-from-server`
-
-A message that hit its expiry was sourced from the server.
-
-Level: TRACE
+Level: DEBUG
 
 ### `message-delivery-failure`
 
-A message delivery failed.   This may not be fatal, the message may be retried later.
+A message delivery failed. This may not be fatal, the message may be retried later.
 
 * [`messageid`](#messageid)
+* [`messagetype`](#messagetype)
 * [`sender`](#sender)
 * [`destination`](#destination)
 * `reason` String - description of why the delivery failed
 
 Level: TRACE
 
-### `message-redelivery`
+### `outgoing-message-trace`
 
-A message has been scheduled for redelivery.
+A message being sent.
 
-* [`messageid`](#messageid)
-* [`sender`](#sender)
-* [`destination`](#destination)
-* `delay` Number - how far in the future will we retry delivery
+* [`uri`](#uri)
+* [`rawmsg`](#rawmsg)
 
 Level: TRACE
 
@@ -286,6 +306,7 @@ Level: TRACE
 A message is being delivered to a client.
 
 * [`messageid`](#messageid)
+* [`messagetype`](#messagetype)
 * [`sender`](#sender)
 * [`destination`](#destination)
 * [`commonname`](#commonname)
@@ -293,39 +314,9 @@ A message is being delivered to a client.
 
 Level: DEBUG
 
-### `message-deliver-error`
+### `message-delivery-error`
 
 An exception was raised during message delivery.
-
-Level: ERROR
-
-### `queue-enqueue`
-
-A message is being spooled to an internal queue
-
-* [`messageid`](#messageid)
-* [`sender`](#sender)
-* [`destination`](#destination)
-* `queue`  String - name of the queue
-
-Level: TRACE
-
-### `queue-dequeue`
-
-A message is being consumed from an internal queue
-
-* [`messageid`](#messageid)
-* [`sender`](#sender)
-* [`destination`](#destination)
-* `queue`  String - name of the queue
-
-Level: TRACE
-
-### `queue-dequeue-error`
-
-A failure happened in consuming/processing a message from an internal queue
-
-* `queue`  String - name of the queue
 
 Level: ERROR
 
@@ -333,6 +324,12 @@ Level: ERROR
 
 The pcp-broker manages connections and messages, and so log data will
 often include there common properties about these primitives.
+
+## General
+
+### `uri`
+
+PCP URI of the associated connection
 
 ## Connections
 
@@ -356,10 +353,14 @@ information:
 
 The string uuid of a message
 
+### `messagetype`
+
+The string identifying the type of message
+
 ### `source`
 
-The sender of the message as a PCP Uri
+The sender of the message as a PCP URI
 
 ### `destination`
 
-An array or single PCP Uri
+An array or single PCP URI
