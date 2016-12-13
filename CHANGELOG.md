@@ -1,3 +1,7 @@
+## 0.8.5
+
+This is a maintenance release to bump clj-pcp-common to 0.5.5.
+
 ## 0.8.4
 
 This is a maintenance release to publish 0.8.2 to clojars.
