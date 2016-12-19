@@ -303,8 +303,8 @@
         connection (assoc connection :state :associated)
         accepted (atom nil)]
     (with-redefs
-      [puppetlabs.pcp.broker.core/deliver-message (fn [broker message connection]
-                                                    (reset! accepted message))]
+     [puppetlabs.pcp.broker.core/deliver-message (fn [broker message connection]
+                                                   (reset! accepted message))]
       (let [outcome (process-inventory-request broker message connection)]
         (is (nil? outcome))
         (is (= [] (:uris (message/get-json-data @accepted))))))))
@@ -315,9 +315,9 @@
         connection (connection/make-connection "ws1" identity-codec)
         associate-request (atom nil)]
     (with-redefs
-      [puppetlabs.pcp.broker.core/process-associate-request! (fn [broker message connection]
-                                                               (reset! associate-request message)
-                                                               connection)]
+     [puppetlabs.pcp.broker.core/process-associate-request! (fn [broker message connection]
+                                                              (reset! associate-request message)
+                                                              connection)]
       (process-server-message! broker message connection)
       (is (not= nil @associate-request)))))
 
@@ -442,21 +442,21 @@
                       puppetlabs.pcp.broker.core/send-error-message
                       (fn [msg description connection] (reset! error-message-description description) nil)]
           (dotestseq
-            [raw-message [(byte-array [])                   ; empty message
-                          (byte-array [0])                  ; bad message
-                          (byte-array [3 3 3 3 3])          ; bad message
-                          (byte-array [1,                   ; first chunk not envelope
-                                       2, 0 0 0 2, 123 125])
-                          (byte-array [1,                   ; bad envelope
-                                       1, 0 0 0 1, 12 12 12 12])
-                          (byte-array [1,                   ; bad (incomplete) envelope
-                                       1, 0 0 0 2, 123])]]
-            (let [outcome (process-message! broker (byte-array raw-message) nil)]
-              (is (= "Could not decode message" @error-message-description))
-              (is (nil? outcome)))))))
+           [raw-message [(byte-array [])                   ; empty message
+                         (byte-array [0])                  ; bad message
+                         (byte-array [3 3 3 3 3])          ; bad message
+                         (byte-array [1,                   ; first chunk not envelope
+                                      2, 0 0 0 2, 123 125])
+                         (byte-array [1,                   ; bad envelope
+                                      1, 0 0 0 1, 12 12 12 12])
+                         (byte-array [1,                   ; bad (incomplete) envelope
+                                      1, 0 0 0 2, 123])]]
+           (let [outcome (process-message! broker (byte-array raw-message) nil)]
+             (is (= "Could not decode message" @error-message-description))
+             (is (nil? outcome)))))))
     (testing "delivers message in case of expired msg (not associate_session)"
       (let [broker (assoc (make-test-broker)
-                     :authorization-check yes-authorization-check)
+                          :authorization-check yes-authorization-check)
             called-accept-message (atom false)
             msg (-> (message/make-message :sender "pcp://host_a/entity"
                                           :message_type "some_kinda_love"
@@ -496,7 +496,7 @@
             (is (nil? outcome))))))
     (testing "sends an error message and returns nil in case of authorization failure"
       (let [broker (assoc (make-test-broker)
-                     :authorization-check no-authorization-check)
+                          :authorization-check no-authorization-check)
             error-message-description (atom nil)
             msg (-> (message/make-message :sender "pcp://thegunclub/entity"
                                           :message_type "sexbeat"
@@ -516,7 +516,7 @@
             (is (nil? outcome))))))
     (testing "process an authorized message sent to broker"
       (let [broker (assoc (make-test-broker)
-                     :authorization-check yes-authorization-check)
+                          :authorization-check yes-authorization-check)
             processed-server-message (atom false)
             msg (-> (message/make-message :sender "pcp://thegunclub/entity"
                                           :message_type "jackonfire"
@@ -536,7 +536,7 @@
             (is (nil? outcome))))))
     (testing "sends an error message and returns nil in case of a multicast message"
       (let [broker (assoc (make-test-broker)
-                     :authorization-check yes-authorization-check)
+                          :authorization-check yes-authorization-check)
             error-message-description (atom nil)
             msg (-> (message/make-message :sender "pcp://thegunclub/entity"
                                           :message_type "ether"
@@ -556,7 +556,7 @@
             (is (nil? outcome))))))
     (testing "delivers an authorized message"
       (let [broker (assoc (make-test-broker)
-                     :authorization-check yes-authorization-check)
+                          :authorization-check yes-authorization-check)
             accepted-message-for-delivery (atom false)
             msg (-> (message/make-message :sender "pcp://gangoffour/entity"
                                           :message_type "ether"

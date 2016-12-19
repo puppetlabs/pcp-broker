@@ -60,9 +60,9 @@
         ws                  (http/websocket client (str "wss://127.0.0.1:8143/pcp/" version)
                                             :open  (fn [ws]
                                                      (http/send
-                                                       ws :byte
-                                                       (modify-association-encoding
-                                                         (message/encode association-request))))
+                                                      ws :byte
+                                                      (modify-association-encoding
+                                                       (message/encode association-request))))
                                             :byte  (fn [ws msg]
                                                      (put! message-chan (message/decode msg)))
                                             :close (fn [ws code reason]
