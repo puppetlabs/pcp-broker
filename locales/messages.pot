@@ -18,13 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid "Sending PCP message to '{uri}': '{rawmsg}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Delivering '{messageid}' for '{destination}' to '{commonname}' at "
-"'{remoteaddress}'"
+msgid "Delivering '{messageid}' to '{destination}' at '{remoteaddress}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -33,10 +35,6 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "not connected"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "''server'' type connections not accepted"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -50,25 +48,11 @@ msgid "Session already associated"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Replying to '{requester}' with associate_response: '{rawmsg}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
 msgid "Invalid associate_request ('{reason}'); closing '{uri}' WebSocket"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "association unsuccessful"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Node with URI '{uri}' already associated with connection '{commonname}' "
-"'{remoteaddress}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "superseded"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -93,11 +77,11 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{auth-message}'"
+"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Processing PCP message: '{rawmsg}'"
+msgid "Processing PCP message from '{uri}': '{rawmsg}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -146,7 +130,17 @@ msgid "No client certificate"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "client '{commonname}' connected from '{remoteaddress}'"
+msgid ""
+"Node with URI '{uri}' already associated with connection '{commonname}' "
+"'{remoteaddress}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "superseded"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "'{uri}' connected from '{remoteaddress}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -154,13 +148,11 @@ msgid "Websocket error '{commonname}' '{remoteaddress}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"client '{commonname}' disconnected from '{remoteaddress}' '{statuscode}' "
-"'{reason}'"
+msgid "'{uri}' disconnected from '{remoteaddress}' '{statuscode}' '{reason}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "vNext protocol endpoint not configured"
+msgid "v2 protocol endpoint not configured"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/service.clj

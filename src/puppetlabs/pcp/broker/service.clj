@@ -1,6 +1,5 @@
 (ns puppetlabs.pcp.broker.service
   (:require [puppetlabs.pcp.broker.core :as core]
-            [puppetlabs.pcp.broker.in-memory-inventory :refer [make-inventory record-client find-clients]]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
             [puppetlabs.trapperkeeper.services :refer [service-context get-service]]
@@ -16,10 +15,7 @@
    [:StatusService register-status]]
   (init [this context]
         (sl/maplog :info {:type :broker-init} (i18n/trs "Initializing broker service"))
-        (let [inventory          (make-inventory)
-              broker             (core/init {:add-websocket-handler (partial add-websocket-handler this)
-                                             :record-client         (partial record-client inventory)
-                                             :find-clients          (partial find-clients inventory)
+        (let [broker             (core/init {:add-websocket-handler (partial add-websocket-handler this)
                                              :authorization-check   authorization-check
                                              :get-metrics-registry  get-metrics-registry
                                              :get-route             (partial get-route this)})]
