@@ -5,9 +5,9 @@ limited support for PCP v1 clients:
 
 * Delayed message delivery is no longer supported; message expiration is ignored in v1 messages.
 * Multicast messaging is no longer supported; only messages with a single target will be allowed.
-* Session association is deprecated. Only the `agent` type is supported by default; alternative
-  types can be specified by appending them to the connection URI. If a type is appended to the URI,
-  it must also be used in any `session_association` requests.
+* Session association is deprecated. Client types may be specified by appending them to the
+  connection URI; when not supplied client type defaults to agent. The client type established
+  on connection must be used in any session_association requests.
 * Debug chunks are no longer created or retransmitted.
 
 ## Installing

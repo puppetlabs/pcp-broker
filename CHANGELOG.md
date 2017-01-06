@@ -1,3 +1,33 @@
+## 1.0.0
+
+This is a major breaking release with significant new features. It introduces
+PCP v2 while maintaining limited compatibility with PCP v1. See
+[pcp-specifications](https://github.com/puppetlabs/pcp-specifications)
+for details of changes in PCP v2. Note that in this release, pcp-broker ignores
+the `subscribe` property of inventory requests and does not send inventory
+updates.
+
+The major changes in behavior are
+
+* Delayed message delivery is no longer supported; message expiration is ignored
+  in v1 messages.
+* Multicast messaging is no longer supported; only messages with a single target
+  will be allowed.
+* Session association is deprecated. Client types may be specified by appending
+  them to the connection URI; when not supplied client type defaults to agent.
+  The client type established on connection must be used in any
+  session_association requests.
+* Debug chunks are no longer created or retransmitted.
+
+Specific changes included
+
+* [PCP-645](https://tickets.puppetlabs.com/browse/PCP-645) Implement PCP v2
+* [PCP-637](https://tickets.puppetlabs.com/browse/PCP-637) Remove message
+  persistence, multicast, and ActiveMQ
+* [PCP-597](https://tickets.puppetlabs.com/browse/PCP-597) Switch to using
+  clj-parent for dependency versioning and get the broker name from webserver
+  context.
+
 ## 0.8.5
 
 This is a maintenance release to bump clj-pcp-common to 0.5.5.
@@ -15,41 +45,41 @@ This is a maintenance release to publish to an internal clojars repository.
 This is a private security release, never published to clojars.
 
 * [PCP-655](https://tickets.puppetlabs.com/browse/PCP-655) PCP broker builds
-ring requests without enough validation
+  ring requests without enough validation
 
 ## 0.8.1
 
 This is a maintenance release
 
 * [PCP-523](https://tickets.puppetlabs.com/browse/PCP-523) Add new unit and
-integration tests for message processing functions
+  integration tests for message processing functions
 * Update to (clj-i18n/0.4.3) and (pcp-common/0.5.4) for a performance-related
-bug fix
+  bug fix
 
 ## 0.8.0
 
 This is an improvement and bugfix release
 
 * [PCP-525](https://tickets.puppetlabs.com/browse/PCP-525) Rely on
-pcp-common.message for validating Messages
+  pcp-common.message for validating Messages
 * [PCP-385](https://tickets.puppetlabs.com/browse/PCP-385) Add pcp-access logger
-and improve docs
+  and improve docs
 * [PCP-354](https://tickets.puppetlabs.com/browse/PCP-354) Add profile to use
-Puppet internal mirrors for deps
+  Puppet internal mirrors for deps
 * [PCP-538](https://tickets.puppetlabs.com/browse/PCP-538) Restore initial
-delivery of expired messages
+  delivery of expired messages
 * [PCP-531](https://tickets.puppetlabs.com/browse/PCP-531) Allow cert chains in
-broker certificate
+  broker certificate
 * [PCP-489](https://tickets.puppetlabs.com/browse/PCP-489) Improve onMessage
-handling
+  handling
 * [PCP-526](https://tickets.puppetlabs.com/browse/PCP-526) Don't do schema
-validation in tests by default
+  validation in tests by default
 * [PCP-528](https://tickets.puppetlabs.com/browse/PCP-528) Fix unit and
-integration lein profiles
+  integration lein profiles
 * [PCP-524](https://tickets.puppetlabs.com/browse/PCP-524) Add error_message
-data's id when available
+  data's id when available
 * [PCP-516](https://tickets.puppetlabs.com/browse/PCP-516) CapsuleLog's sender
-may not be a PCP URI
+  may not be a PCP URI
 
 ## 0.7.3
 
