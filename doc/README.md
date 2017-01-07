@@ -6,3 +6,4 @@ Suggested order of reading:
 * [Logging](logging.md)
 * [Authentication](authentication.md)
 * [Authorization](authorization.md)
+* [Resource Requirements](resources.md)
