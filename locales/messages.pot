@@ -18,26 +18,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Sending PCP message to '{uri}': '{rawmsg}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Delivering '{messageid}' to '{destination}' at '{remoteaddress}'"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Error in deliver-message"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "not connected"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Received session association for '{uri}' from '{commonname}' "
 "'{remoteaddress}'. Session was already associated as '{existinguri}'"
@@ -173,4 +153,28 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/service.clj
 msgid "Broker service <'{brokername}'> stopped"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "Sending PCP message to '{uri}': '{rawmsg}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "Delivering '{messageid}' to '{destination}' at '{remoteaddress}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "Error in deliver-message"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "not connected"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "client no longer connected"
 msgstr ""
