@@ -1,40 +1,22 @@
 (ns puppetlabs.pcp.broker.core-test
   (:require [clojure.test :refer :all]
             [metrics.core]
-            [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.testutils :refer [dotestseq]]
+            [puppetlabs.pcp.broker.shared :refer [Broker]]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.broker.websocket :refer [ws->uri]]
             [puppetlabs.pcp.broker.message :as message]
-            [puppetlabs.kitchensink.core :as ks]
+            [puppetlabs.pcp.broker.shared-test :refer [mock-uri mock-ws->uri make-test-broker dummy-connection-from]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]
             [schema.core :as s]
-            [schema.test :as st]
             [slingshot.test])
-  (:import [puppetlabs.pcp.broker.connection Connection]
-           [java.util.concurrent ConcurrentHashMap]))
-
-(s/defn make-test-broker :- Broker
-  "Return a minimal clean broker state"
-  []
-  (let [broker {:broker-name         nil
-                :authorization-check (constantly true)
-                :inventory           (ConcurrentHashMap.)
-                :metrics-registry    metrics.core/default-registry
-                :metrics             {}
-                :state               (atom :running)}
-        metrics (build-and-register-metrics broker)
-        broker (assoc broker :metrics metrics)]
-    broker))
+  (:import [puppetlabs.pcp.broker.connection Connection]))
 
 (s/def identity-codec :- Codec
   {:encode identity
    :decode identity})
-
-(def mock-uri "pcp://foo.com/agent")
-(defn mock-ws->uri [ws] mock-uri)
 
 (s/defn make-mock-ssl-context-factory :- org.eclipse.jetty.util.ssl.SslContextFactory
   "Return an instance of the SslContextFactory with only a minimal configuration
@@ -87,43 +69,17 @@
     (with-redefs [ws->uri mock-ws->uri]
       (let [broker (make-test-broker)]
         (add-connection! broker (connection/make-connection :dummy-ws identity-codec))
-        (is (s/validate Connection (get (:inventory broker) mock-uri)))))))
+        (is (s/validate Connection (get (:routing-map broker) mock-uri)))))))
 
 (deftest remove-connecton-test
   (testing "It should remove a connection from the inventory map"
     (with-redefs [ws->uri mock-ws->uri]
       (let [broker (make-test-broker)]
-        (.put (:inventory broker)
+        (.put (:routing-map broker)
               mock-uri (connection/make-connection :dummy-ws identity-codec))
-        (is (not= {} (:inventory broker)))
+        (is (not= {} (:routing-map broker)))
         (remove-connection! broker mock-uri)
-        (is (= {} (:inventory broker)))))))
-
-(deftest handle-delivery-failure-test
-  (let [broker (make-test-broker)
-        msg (message/make-message)
-        delivered (atom [])]
-    (with-redefs [puppetlabs.pcp.broker.core/send-error-message
-                  (fn [mg reason sender]
-                    (swap! delivered conj mg))]
-      (testing "redelivery always"
-        (handle-delivery-failure msg nil "Out of cheese")
-        (is (= 1 (count @delivered)))))))
-
-(deftest deliver-message-test
-  (let [broker (make-test-broker)
-        failure (atom nil)]
-    (testing "delivers messages"
-      (let [message (message/make-message
-                     {:target "pcp://example01.example.com/foo"})]
-        (with-redefs [puppetlabs.pcp.broker.core/handle-delivery-failure
-                      (fn [message sender err] (reset! failure err))]
-          (deliver-message broker message nil)
-          (is (= "not connected" @failure)))))
-    (testing "errors if multicast message"
-      (let [message (message/make-message)]
-        (with-redefs [puppetlabs.pcp.broker.message/multicast-message?  (fn [message] true)]
-          (is (thrown? java.lang.AssertionError (deliver-message broker message nil))))))))
+        (is (= {} (:routing-map broker)))))))
 
 (deftest make-ring-request-test
   (testing "it should return a ring request - one target"
@@ -184,8 +140,8 @@
   (let [closed (atom (promise))]
     (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
                   puppetlabs.experimental.websockets.client/send! (constantly false)
-                  puppetlabs.pcp.broker.websocket/ws->client-type (fn [ws] "controller")
-                  ws->uri (fn [ws] "pcp://localhost/controller")]
+                  puppetlabs.pcp.broker.websocket/ws->client-type (fn [_] "controller")
+                  ws->uri (fn [_] "pcp://localhost/controller")]
       (let [message (-> (message/make-message
                          {:sender "pcp://localhost/controller"
                           :message_type "http://puppetlabs.com/login_message"}))]
@@ -207,8 +163,8 @@
         connection (connection/make-connection :dummy-ws identity-codec)
         accepted (atom nil)]
     (with-redefs
-     [puppetlabs.pcp.broker.core/deliver-message (fn [broker message connection]
-                                                   (reset! accepted message))]
+     [puppetlabs.pcp.broker.shared/deliver-server-message (fn [_ message _]
+                                                            (reset! accepted message))]
       (let [outcome (process-inventory-request broker message connection)]
         (is (nil? outcome))
         (is (= [] (:uris (:data @accepted))))))))
@@ -221,16 +177,11 @@
           connection (connection/make-connection :dummy-ws identity-codec)
           associate-request (atom nil)]
       (with-redefs
-       [puppetlabs.pcp.broker.core/process-associate-request! (fn [broker message connection]
+       [puppetlabs.pcp.broker.core/process-associate-request! (fn [_ message connection]
                                                                 (reset! associate-request message)
                                                                 connection)]
         (process-server-message! broker message connection)
         (is (not= nil @associate-request))))))
-
-(s/defn dummy-connection-from :- Connection
-  [common-name]
-  (assoc (connection/make-connection :dummy-ws message/v2-codec)
-         :common-name common-name))
 
 (deftest authenticated?-test
   (with-redefs [ws->uri mock-ws->uri]
@@ -286,7 +237,7 @@
                     :message_type "http://puppetlabs.com/associate_request"})
               connection (dummy-connection-from "localcost")
               is-association-request true]
-          (with-redefs [puppetlabs.pcp.broker.message/multicast-message?  (fn [message] true)]
+          (with-redefs [puppetlabs.pcp.broker.message/multicast-message?  (fn [_] true)]
             (is (= :multicast-unsupported
                    (validate-message yes-broker msg connection is-association-request))))))
       (testing "marks expired messages as to be processed"
@@ -309,35 +260,6 @@
           (is (= :to-be-processed
                  (validate-message yes-broker msg connection is-association-request))))))))
 
-(deftest send-error-message-test
-  (with-redefs [ws->uri mock-ws->uri]
-    (let [error-msg (atom nil)
-          connection (dummy-connection-from "host_x")]
-      (with-redefs [puppetlabs.experimental.websockets.client/send!
-                    (fn [websocket raw-message]
-                      (reset! error-msg (message/v2-decode raw-message)))]
-        (testing "sends error_message correctly and returns nil if received msg is NOT given"
-          (let [received-msg nil
-                error-description "something wrong!"
-                outcome (send-error-message received-msg error-description connection)
-                msg-data (:data @error-msg)]
-            (is (nil? outcome))
-            (is (not (contains? @error-msg :in_reply_to)))
-            (is (= error-description msg-data))))
-        (testing "sends error_message correctly and returns nil if received msg is given"
-          (reset! error-msg nil)
-          (let [the-uuid (ks/uuid)
-                received-msg (message/make-message
-                              {:sender "pcp://test_example/pcp_client_alpha"
-                               :message_type "gossip"
-                               :target "pcp://test_broker/server"})
-                received-msg (assoc received-msg :id the-uuid)
-                error-description "something really wrong :o"
-                outcome (send-error-message received-msg error-description connection)
-                msg-data (:data @error-msg)]
-            (is (nil? outcome))
-            (is (= the-uuid (:in_reply_to @error-msg)))
-            (is (= error-description msg-data))))))))
 
 (deftest process-message-test
   (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
@@ -351,11 +273,11 @@
                       :message_type "some_kinda_love"
                       :target "pcp://host_b/entity"}))
             connection (dummy-connection-from "host_a")]
-        (.put (:inventory broker) "pcp://host_a/entity" connection)
-        (with-redefs [puppetlabs.pcp.broker.core/get-connection
-                      (fn [broker ws] connection)
-                      puppetlabs.pcp.broker.core/deliver-message
-                      (fn [broker message connection]
+        (.put (:routing-map broker) "pcp://host_a/entity" connection)
+        (with-redefs [puppetlabs.pcp.broker.shared/get-connection
+                      (fn [_ _] connection)
+                      puppetlabs.pcp.broker.shared/deliver-message
+                      (fn [_ _ _]
                         (reset! called-accept-message true) nil)
                       ws->uri mock-ws->uri]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
@@ -370,10 +292,10 @@
                       :target "pcp://gangoffour/entity"}))
             connection (dummy-connection-from "wire")]
         (with-redefs [ws->uri mock-ws->uri
-                      puppetlabs.pcp.broker.core/get-connection
-                      (fn [broker ws] connection)
-                      puppetlabs.pcp.broker.core/send-error-message
-                      (fn [msg description connection]
+                      puppetlabs.pcp.broker.shared/get-connection
+                      (fn [_ _] connection)
+                      puppetlabs.pcp.broker.shared/send-error-message
+                      (fn [_ description _]
                         (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is (= "Message not authenticated" @error-message-description))
@@ -388,10 +310,10 @@
                   :target "pcp://fourtet/entity"})
             connection (dummy-connection-from "thegunclub")]
         (with-redefs [ws->uri mock-ws->uri
-                      puppetlabs.pcp.broker.core/get-connection
-                      (fn [broker ws] connection)
-                      puppetlabs.pcp.broker.core/send-error-message
-                      (fn [msg description connection]
+                      puppetlabs.pcp.broker.shared/get-connection
+                      (fn [_ _] connection)
+                      puppetlabs.pcp.broker.shared/send-error-message
+                      (fn [_ description _]
                         (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is (= "Message not authorized" @error-message-description))
@@ -405,10 +327,10 @@
                   :message_type "jackonfire"
                   :target "pcp:///server"})
             connection (dummy-connection-from "thegunclub")]
-        (with-redefs [puppetlabs.pcp.broker.core/get-connection
-                      (fn [broker ws] connection)
+        (with-redefs [puppetlabs.pcp.broker.shared/get-connection
+                      (fn [_ _] connection)
                       puppetlabs.pcp.broker.core/process-server-message!
-                      (fn [broker message connection]
+                      (fn [_ _ _]
                         (reset! processed-server-message true) nil)
                       ws->uri mock-ws->uri]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
@@ -424,10 +346,10 @@
                   :target "pcp://wire/*"})
             connection (dummy-connection-from "thegunclub")]
         (with-redefs [ws->uri mock-ws->uri
-                      puppetlabs.pcp.broker.core/get-connection
-                      (fn [broker ws] connection)
-                      puppetlabs.pcp.broker.core/send-error-message
-                      (fn [msg description connection]
+                      puppetlabs.pcp.broker.shared/get-connection
+                      (fn [_ _] connection)
+                      puppetlabs.pcp.broker.shared/send-error-message
+                      (fn [_ description _]
                         (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is (= "Multiple recipients no longer supported" @error-message-description))
@@ -442,10 +364,10 @@
                   :target "pcp://wire/entity"})
             connection (dummy-connection-from "gangoffour")]
         (with-redefs [ws->uri mock-ws->uri
-                      puppetlabs.pcp.broker.core/get-connection
-                      (fn [broker ws] connection)
-                      puppetlabs.pcp.broker.core/deliver-message
-                      (fn [broker message connection]
+                      puppetlabs.pcp.broker.shared/get-connection
+                      (fn [_ _] connection)
+                      puppetlabs.pcp.broker.shared/deliver-message
+                      (fn [_ _ _]
                         (reset! accepted-message-for-delivery true) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is @accepted-message-for-delivery)
@@ -464,10 +386,10 @@
                             :common-name "gangoffour")]
       (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
                     ws->uri mock-ws->uri
-                    puppetlabs.pcp.broker.core/get-connection
-                    (fn [broker ws] connection)
+                    puppetlabs.pcp.broker.shared/get-connection
+                    (fn [_ _] connection)
                     puppetlabs.experimental.websockets.client/send!
-                    (fn [websocket message] (reset! sent-message message))]
+                    (fn [_ message] (reset! sent-message message))]
         (let [outcome (process-message! broker (message/v1-encode msg) :dummy-ws)]
           (is (= msg (message/v1-decode @sent-message)))
           (is (nil? outcome))))))
@@ -483,10 +405,10 @@
                             :common-name "gangoffour")]
       (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
                     ws->uri mock-ws->uri
-                    puppetlabs.pcp.broker.core/get-connection
-                    (fn [broker ws] connection)
+                    puppetlabs.pcp.broker.shared/get-connection
+                    (fn [_ _] connection)
                     puppetlabs.experimental.websockets.client/send!
-                    (fn [websocket message] (reset! sent-message message))]
+                    (fn [_ message] (reset! sent-message message))]
         (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
           (is (= msg (message/v2-decode @sent-message)))
           (is (nil? outcome)))))))
