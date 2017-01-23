@@ -179,7 +179,8 @@
           pattern-sets (inventory/build-pattern-sets (:query data))
           inventory (if (:subscribe data)
                       (inventory/subscribe-client broker requester-uri connection pattern-sets)
-                      (inventory/get-snapshot broker true))
+                      (do (inventory/unsubscribe-client broker requester-uri)
+                          (inventory/get-snapshot broker true)))
           data (inventory/build-inventory-data inventory pattern-sets)
           response (message/make-message
                     {:message_type "http://puppetlabs.com/inventory_response"

@@ -165,6 +165,17 @@
 ;;   subscriptions
 ;;   inventory
 ;;   updates
+(s/defn unsubscribe-client
+  "Unsubscribe the specified client form inventory updates."
+  [broker :- Broker client :- p/Uri]
+  (let [subscriptions (get-subscriptions broker)]
+    (locking subscriptions
+      (.remove subscriptions client))))
+
+;; N.B. locking order:
+;;   subscriptions
+;;   inventory
+;;   updates
 (s/defn ^:private get-subscribers :- [p/Uri]
   "Get a list of clients subscribed for inventory updates."
   [broker :- Broker]
