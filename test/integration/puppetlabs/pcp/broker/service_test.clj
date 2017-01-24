@@ -541,6 +541,7 @@
                (with-open [client01 (client/connect :certname "client01.example.com"
                                                     :version version)
                            client02 (client/connect :certname "client02.example.com"
+                                                    :force-association true
                                                     :version version)]
                  (testing "client01 -> client02 should work"
                    (let [message (client/make-message
@@ -568,6 +569,7 @@
                (with-open [sender   (client/connect :certname "client01.example.com"
                                                     :version sender-version)
                            receiver (client/connect :certname "client02.example.com"
+                                                    :force-association true
                                                     :version receiver-version)]
                  (let [message (client/make-message
                                 sender-version
