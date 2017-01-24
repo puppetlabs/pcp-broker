@@ -1,3 +1,10 @@
+## 1.0.1
+
+This is a maintenane release
+
+* Logs failure to deliver error messages and associate response to debug. These
+are normal behavior if the client disconnects after sending a message.
+
 ## 1.0.0
 
 This is a major breaking release with significant new features. It introduces
