@@ -38,7 +38,7 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-common "1.0.0"]
+                 [puppetlabs/pcp-common "1.1.0"]
 
                  [puppetlabs/i18n]]
 

@@ -1,6 +1,7 @@
 (ns puppetlabs.pcp.broker.core
-  (:require [metrics.gauges :as gauges]
-            [puppetlabs.experimental.websockets.client :as websockets-client]
+  (:require [puppetlabs.experimental.websockets.client :as websockets-client]
+            [puppetlabs.pcp.broker.shared :as shared :refer
+             [Broker get-connection summarize send-error-message send-message deliver-message deliver-server-message]]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.broker.websocket :refer [Websocket ws->uri ws->client-type]]
             [puppetlabs.pcp.broker.metrics :as metrics]
@@ -19,28 +20,10 @@
             [slingshot.slingshot :refer [throw+ try+]]
             [puppetlabs.i18n.core :as i18n])
   (:import [puppetlabs.pcp.broker.connection Connection]
-           [clojure.lang IFn Atom]
+           [clojure.lang IFn]
            [java.util.concurrent ConcurrentHashMap]
            [java.net InetAddress UnknownHostException]
            [java.security KeyStore]))
-
-(def Broker
-  {:broker-name         (s/maybe s/Str)
-   :authorization-check IFn
-   :inventory           ConcurrentHashMap ;; Mapping of Uri to Connection
-   :metrics-registry    Object
-   :metrics             {s/Keyword Object}
-   :state               Atom})
-
-(s/defn build-and-register-metrics :- {s/Keyword Object}
-  [broker :- Broker]
-  (let [registry (:metrics-registry broker)]
-    (gauges/gauge-fn registry ["puppetlabs.pcp.connections"]
-                     (fn [] (count (:inventory broker))))
-    {:on-connect       (.timer registry "puppetlabs.pcp.on-connect")
-     :on-close         (.timer registry "puppetlabs.pcp.on-close")
-     :on-message       (.timer registry "puppetlabs.pcp.on-message")
-     :on-send          (.timer registry "puppetlabs.pcp.on-send")}))
 
 (defn get-certificate-chain
   "Return the first non-empty certificate chain encountered while scanning the
@@ -84,97 +67,28 @@
 
 ;; connection map lifecycle
 (s/defn add-connection! :- Connection
-  "Add a Connection to the 'inventory' to track a websocket"
+  "Add a Connection to the 'routing-map' to track the websocket and register
+  the change to update 'inventory' when appropriate"
   [broker :- Broker
    connection :- Connection]
   (let [uri (ws->uri (:websocket connection))]
-    (.put (:inventory broker) uri connection)
+    (-> (shared/get-routing-map broker)
+        (.put uri connection))
+    (inventory/add-client broker uri)
     connection))
 
 (s/defn remove-connection!
-  "Remove tracking of a Connection from the broker by websocket"
+  "Remove a Connection from the 'routing-map' and register the change to
+  update 'inventory' when appropriate"
   [broker :- Broker
    uri :- p/Uri]
-  (.remove (:inventory broker) uri))
-
-(s/defn get-connection :- (s/maybe Connection)
-  [broker :- Broker
-   uri :- p/Uri]
-  (get (:inventory broker) uri))
+  (-> (shared/get-routing-map broker)
+      (.remove uri))
+  (inventory/remove-client broker uri))
 
 ;;
 ;; Message processing
 ;;
-
-(def MessageLog
-  "Schema for a loggable summary of a message"
-  {:messageid p/MessageId
-   :source s/Str
-   :messagetype s/Str
-   :destination p/Uri})
-
-(s/defn summarize :- MessageLog
-  [message :- Message]
-  {:messageid (:id message)
-   :messagetype (:message_type message)
-   :source (:sender message)
-   :destination (:target message)})
-
-;; message lifecycle
-
-(s/defn send-message
-  [connection :- Connection
-   message :- Message]
-  (sl/maplog :trace {:type :outgoing-message-trace
-                     :uri (ws->uri (:websocket connection))
-                     :rawmsg message}
-             (i18n/trs "Sending PCP message to '{uri}': '{rawmsg}'"))
-  (websockets-client/send! (:websocket connection)
-                           ((get-in connection [:codec :encode]) message))
-  nil)
-
-(s/defn send-error-message
-  [in-reply-to-message :- (s/maybe Message)
-   description :- s/Str
-   connection :- Connection]
-  (let [error-msg (cond-> (message/make-message
-                           {:message_type "http://puppetlabs.com/error_message"
-                            :sender "pcp:///server"
-                            :data description})
-                    in-reply-to-message (assoc :in_reply_to (:id in-reply-to-message)))]
-    (send-message connection error-msg)))
-
-(s/defn handle-delivery-failure
-  "Send an error message with the specified description."
-  [message :- Message sender :- (s/maybe Connection) reason :- s/Str]
-  (sl/maplog :trace (assoc (summarize message)
-                           :type :message-delivery-failure
-                           :reason reason)
-             (i18n/trs "Failed to deliver '{messageid}' for '{destination}': '{reason}'"))
-  (send-error-message message reason sender))
-
-(s/defn deliver-message
-  "Message consumer. Delivers a message to the websocket indicated by the :target field"
-  [broker :- Broker
-   message :- Message
-   sender :- (s/maybe Connection)]
-  (assert (not (multicast-message? message)))
-  (if-let [connection (get-connection broker (:target message))]
-    (try
-      (sl/maplog
-       :debug (merge (summarize message)
-                     (connection/summarize connection)
-                     {:type :message-delivery})
-       (i18n/trs "Delivering '{messageid}' to '{destination}' at '{remoteaddress}'"))
-      (locking (:websocket connection)
-        (time! (:on-send (:metrics broker))
-               (send-message connection message)))
-      (catch Exception e
-        (sl/maplog :error e
-                   {:type :message-delivery-error}
-                   (i18n/trs "Error in deliver-message"))
-        (handle-delivery-failure message sender (str e))))
-    (handle-delivery-failure message sender (i18n/trs "not connected"))))
 
 (s/defn session-association-request? :- s/Bool
   "Return true if message is a session association message"
@@ -186,7 +100,7 @@
 (s/defn reason-to-deny-association :- (s/maybe s/Str)
   "Returns an error message describing why the session should not be
   allowed, if it should be denied"
-  [broker :- Broker connection :- Connection as :- p/Uri]
+  [_ :- Broker connection :- Connection as :- p/Uri]
   (let [[_ type] (p/explode-uri as)]
     (when (not= type (ws->client-type (:websocket connection)))
       (let [{:keys [uri]} connection]
@@ -226,7 +140,7 @@
    (let [requester-uri (:sender message)
          reason-to-deny (reason-to-deny-association broker connection requester-uri)]
      (process-associate-request! broker message connection reason-to-deny)))
-  ([broker :- Broker
+  ([_ :- Broker
     request :- Message
     connection :- Connection
     reason-to-deny :- (s/maybe s/Str)]
@@ -252,11 +166,6 @@
          nil)
        (assoc connection :uri requester-uri)))))
 
-(s/defn make-inventory_response-data-content :- p/InventoryResponse
-  [broker query]
-  {:uris (doall (filter (partial get-connection broker)
-                        (inventory/find-clients broker query)))})
-
 (s/defn process-inventory-request
   "Process a request for inventory data.
    This function assumes that the requester client is associated.
@@ -267,14 +176,18 @@
   (let [data (:data message)]
     (s/validate p/InventoryRequest data)
     (let [requester-uri (:sender message)
-          response-data (make-inventory_response-data-content broker (:query data))
+          pattern-sets (inventory/build-pattern-sets (:query data))
+          inventory (if (:subscribe data)
+                      (inventory/subscribe-client broker requester-uri connection pattern-sets)
+                      (do (inventory/unsubscribe-client broker requester-uri)
+                          (inventory/get-snapshot broker true)))
+          data (inventory/build-inventory-data inventory pattern-sets)
           response (message/make-message
                     {:message_type "http://puppetlabs.com/inventory_response"
                      :target requester-uri
                      :in_reply_to (:id message)
-                     :sender "pcp:///server"
-                     :data response-data})]
-      (deliver-message broker response connection)))
+                     :data data})]
+      (deliver-server-message broker response connection)))
   nil)
 
 (s/defn process-server-message! :- (s/maybe Connection)
@@ -591,13 +504,14 @@
                 get-route
                 get-metrics-registry
                 ssl-cert]} options]
-    (let [broker             {:broker-name         broker-name
-                              :authorization-check authorization-check
-                              :metrics             {}
-                              :metrics-registry    (get-metrics-registry)
-                              :inventory           (ConcurrentHashMap.)
-                              :state               (atom :starting)}
-          metrics            (build-and-register-metrics broker)
+    (let [broker             (-> {:broker-name         broker-name
+                                  :authorization-check authorization-check
+                                  :metrics             {}
+                                  :metrics-registry    (get-metrics-registry)
+                                  :routing-map         (ConcurrentHashMap.)
+                                  :state               (atom :starting)}
+                                 inventory/init)
+          metrics            (shared/build-and-register-metrics broker)
           broker             (assoc broker :metrics metrics)]
       (add-websocket-handler (build-websocket-handlers broker message/v1-codec) {:route-id :v1})
       (try
@@ -610,13 +524,13 @@
 
 (s/defn start
   [broker :- Broker]
-  (let [{:keys [state]} broker]
-    (reset! state :running)))
+  (inventory/start-inventory-updates! broker)
+  (-> broker :state (reset! :running)))
 
 (s/defn stop
   [broker :- Broker]
-  (let [{:keys [state]} broker]
-    (reset! state :stopping)))
+  (-> broker :state (reset! :stopping))
+  (inventory/stop-inventory-updates! broker))
 
 (s/defn status :- status-core/StatusCallbackResponse
   [broker :- Broker level :- status-core/ServiceStatusDetailLevel]
