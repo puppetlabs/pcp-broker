@@ -15,7 +15,6 @@
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
             [schema.core :as s]
-            [io.aviso.toolchest.macros :refer [cond-let]]
             [slingshot.slingshot :refer [throw+ try+]]
             [puppetlabs.i18n.core :as i18n])
   (:import [puppetlabs.pcp.broker.connection Connection]
@@ -511,44 +510,42 @@
   [broker codec ws]
   (time!
    (:on-connect (:metrics broker))
-   (cond-let
-    (not= :running @(:state broker))
+   (if (not= :running @(:state broker))
     (websockets-client/close! ws 1011 (i18n/trs "Broker is not running"))
 
-    [connection (connection/make-connection ws codec)
-     {:keys [common-name]} connection]
-    (nil? common-name)
-    (do
-      (sl/maplog :debug (assoc (connection/summarize connection)
-                               :type :connection-no-peer-certificate)
-                 (i18n/trs "No client certificate, closing '{remoteaddress}'"))
-      (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
+    (let [connection (connection/make-connection ws codec)
+          {:keys [common-name]} connection]
+      (if (nil? common-name)
+        (do
+          (sl/maplog :debug (assoc (connection/summarize connection)
+                                   :type :connection-no-peer-certificate)
+                     (i18n/trs "No client certificate, closing '{remoteaddress}'"))
+          (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
 
-    [uri (ws->uri ws)
-     message (message/make-message
-              {:target "pcp:///server"
-               :sender uri
-               :message_type "http://puppetlabs.com/associate_request"})]
-    (not (authorized? broker message connection))
-    (let [message-data (merge (connection/summarize connection)
-                              (summarize message))]
-      (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
-      (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful")))
+        (let [uri (ws->uri ws)
+              message (message/make-message
+                        {:target "pcp:///server"
+                         :sender uri
+                         :message_type "http://puppetlabs.com/associate_request"})]
+          (if (not (authorized? broker message connection))
+            (let [message-data (merge (connection/summarize connection)
+                                      (summarize message))]
+              (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
+              (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful")))
 
-    :else
-    (do
-      (when-let [old-conn (get-connection broker uri)]
-        (sl/maplog :debug (assoc (connection/summarize old-conn)
-                                 :uri uri
-                                 :type :connection-association-failed)
-                   (i18n/trs "Node with URI '{uri}' already associated with connection '{commonname}' '{remoteaddress}'"))
-        (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "superseded")))
-      (websockets-client/idle-timeout! ws (* 1000 60 15))
-      (add-connection! broker connection)
-      (sl/maplog :debug (assoc (connection/summarize connection)
-                               :uri uri
-                               :type :connection-open)
-                 (i18n/trs "'{uri}' connected from '{remoteaddress}'"))))))
+            (do
+              (when-let [old-conn (get-connection broker uri)]
+                (sl/maplog :debug (assoc (connection/summarize old-conn)
+                                         :uri uri
+                                         :type :connection-association-failed)
+                           (i18n/trs "Node with URI '{uri}' already associated with connection '{commonname}' '{remoteaddress}'"))
+                (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "superseded")))
+              (websockets-client/idle-timeout! ws (* 1000 60 15))
+              (add-connection! broker connection)
+              (sl/maplog :debug (assoc (connection/summarize connection)
+                                       :uri uri
+                                       :type :connection-open)
+                         (i18n/trs "'{uri}' connected from '{remoteaddress}'"))))))))))
 
 (defn- on-error
   "OnError WebSocket event handler. Just log the event."

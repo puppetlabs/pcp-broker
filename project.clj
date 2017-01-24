@@ -31,7 +31,6 @@
                  [cheshire]
 
                  [com.taoensso/nippy "2.9.0"]
-                 [io.aviso/toolchest "0.1.5"]
 
                  [metrics-clojure "2.5.1"]
 
