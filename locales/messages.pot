@@ -22,6 +22,10 @@ msgid "Sending PCP message to '{uri}': '{rawmsg}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid "Error in send-error-message"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
 msgstr ""
 
@@ -45,6 +49,10 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Session already associated"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Error in process-associate-request!"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj

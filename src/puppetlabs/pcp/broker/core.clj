@@ -142,7 +142,12 @@
                             :sender "pcp:///server"
                             :data description})
                     in-reply-to-message (assoc :in_reply_to (:id in-reply-to-message)))]
-    (send-message connection error-msg)))
+    (try
+      (send-message connection error-msg)
+      (catch Exception e
+        (sl/maplog :debug e
+                   {:type :message-delivery-error}
+                   (i18n/trs "Error in send-error-message"))))))
 
 (s/defn handle-delivery-failure
   "Send an error message with the specified description."
@@ -240,7 +245,12 @@
                    :in_reply_to id
                    :sender "pcp:///server"
                    :data response-data})]
-     (send-message connection message)
+     (try
+       (send-message connection message)
+       (catch Exception e
+         (sl/maplog :debug e
+                    {:type :message-delivery-error}
+                    (i18n/trs "Error in process-associate-request!"))))
      (if reason-to-deny
        (do
          (sl/maplog
