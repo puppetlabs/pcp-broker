@@ -68,14 +68,14 @@
   (testing "It should add a connection to the connection map"
     (with-redefs [ws->uri mock-ws->uri]
       (let [broker (make-test-broker)]
-        (add-connection! broker (connection/make-connection :dummy-ws identity-codec))
+        (add-connection! broker (connection/make-connection :dummy-ws identity-codec mock-uri))
         (is (s/validate Connection (-> broker :database deref :inventory (get mock-uri))))))))
 
 (deftest remove-connecton-test
   (testing "It should remove a connection from the inventory map"
     (with-redefs [ws->uri mock-ws->uri]
       (let [broker (make-test-broker)
-            connection (connection/make-connection :dummy-ws identity-codec)]
+            connection (connection/make-connection :dummy-ws identity-codec mock-uri)]
         (swap! (:database broker) update :inventory assoc mock-uri connection)
         (is (not= {} (-> broker :database deref :inventory)))
         (remove-connection! broker mock-uri)
@@ -148,7 +148,7 @@
         (testing "It should return an associated Connection if there's no reason to deny association"
           (reset! closed (promise))
           (let [broker     (make-test-broker)
-                connection (connection/make-connection :dummy-ws identity-codec)
+                connection (connection/make-connection :dummy-ws identity-codec mock-uri)
                 _ (add-connection! broker connection)
                 connection-uri (:uri (process-associate-request! broker message connection))]
             (is (not (realized? @closed)))
@@ -160,7 +160,7 @@
         message (message/make-message
                  {:sender "pcp://test.example.com/test"
                   :data {:query ["pcp://*/*"]}})
-        connection (connection/make-connection :dummy-ws identity-codec)
+        connection (connection/make-connection :dummy-ws identity-codec mock-uri)
         accepted (atom nil)]
     (with-redefs
      [puppetlabs.pcp.broker.shared/deliver-server-message (fn [_ message _]
@@ -174,7 +174,7 @@
     (let [broker (make-test-broker)
           message (message/make-message
                    {:message_type "http://puppetlabs.com/associate_request"})
-          connection (connection/make-connection :dummy-ws identity-codec)
+          connection (connection/make-connection :dummy-ws identity-codec mock-uri)
           associate-request (atom nil)]
       (with-redefs
        [puppetlabs.pcp.broker.core/process-associate-request! (fn [_ message connection]
@@ -382,7 +382,7 @@
                {:sender "pcp://gangoffour/entity"
                 :message_type "ether"
                 :target "pcp://gangoffour/entity"})
-          connection (assoc (connection/make-connection :dummy-ws message/v1-codec)
+          connection (assoc (connection/make-connection :dummy-ws message/v1-codec mock-uri)
                             :common-name "gangoffour")]
       (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
                     ws->uri mock-ws->uri
@@ -401,7 +401,7 @@
                {:sender "pcp://gangoffour/entity"
                 :message_type "ether"
                 :target "pcp://gangoffour/entity"})
-          connection (assoc (connection/make-connection :dummy-ws message/v2-codec)
+          connection (assoc (connection/make-connection :dummy-ws message/v2-codec mock-uri)
                             :common-name "gangoffour")]
       (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
                     ws->uri mock-ws->uri

@@ -17,7 +17,7 @@
 
 (s/defn dummy-connection-from :- Connection
   [common-name]
-  (assoc (connection/make-connection :dummy-ws message/v2-codec)
+  (assoc (connection/make-connection :dummy-ws message/v2-codec mock-uri)
     :common-name common-name))
 
 (s/defn make-test-broker :- Broker

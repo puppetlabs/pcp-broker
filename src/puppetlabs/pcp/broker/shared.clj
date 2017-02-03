@@ -2,7 +2,7 @@
   (:require [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
-            [puppetlabs.pcp.broker.websocket :refer [Websocket ws->uri ws->client-type]]
+            [puppetlabs.pcp.broker.websocket :refer [Websocket ws->client-type]]
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
@@ -82,7 +82,7 @@
   [connection :- Connection
    message :- Message]
   (sl/maplog :trace {:type :outgoing-message-trace
-                     :uri (ws->uri (:websocket connection))
+                     :uri (:uri connection)
                      :rawmsg message}
              (i18n/trs "Sending PCP message to '{uri}': '{rawmsg}'"))
   (websockets-client/send! (:websocket connection)
