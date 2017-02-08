@@ -136,6 +136,14 @@ msgid "'{uri}' disconnected '{statuscode}' '{reason}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid "Received PCP message from '{uri}': '{rawmsg}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Connecting to '{pcpuri}' at '{uri}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "v2 protocol endpoint not configured"
 msgstr ""
 

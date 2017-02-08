@@ -1,13 +1,14 @@
 (ns puppetlabs.pcp.broker.core
   (:require [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.pcp.broker.shared :as shared :refer
-             [Broker get-connection summarize send-error-message send-message deliver-message deliver-server-message]]
+             [Broker get-connection get-controller summarize send-error-message send-message deliver-message deliver-server-message]]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.broker.websocket :refer [Websocket ws->uri ws->client-type ws->common-name ws->remote-address]]
             [puppetlabs.pcp.broker.metrics :as metrics]
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
             [puppetlabs.pcp.broker.inventory :as inventory]
             [puppetlabs.pcp.broker.util :refer [assoc-when]]
+            [puppetlabs.pcp.client :as pcp-client]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.ssl-utils.core :as ssl-utils]
@@ -19,8 +20,10 @@
             [slingshot.slingshot :refer [throw+ try+]]
             [puppetlabs.i18n.core :as i18n])
   (:import [puppetlabs.pcp.broker.connection Connection]
+           [puppetlabs.pcp.client Client]
            [clojure.lang IFn]
-           [java.net InetAddress UnknownHostException]
+           [java.net InetAddress UnknownHostException URI]
+           [javax.net.ssl SSLContext]
            [java.security KeyStore]))
 
 (defn get-certificate-chain
@@ -437,7 +440,9 @@
                       {:target "pcp:///server"
                        :sender uri
                        :message_type "http://puppetlabs.com/associate_request"})]
-        (if (not (authorized? broker message connection))
+        ;; Also prevent association as "server" type. Reserved for outgoing connections.
+        (if (or (not (authorized? broker message connection))
+                (= (ws->client-type ws) "server"))
           (let [message-data (merge (connection/summarize connection)
                                     (summarize message))]
             (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
@@ -488,6 +493,50 @@
    :on-bytes   (partial on-bytes! broker)})
 
 ;;
+;; Outgoing client lifecycle. All messages, authentication managed by the client.
+;;
+
+(s/defn default-message-handler
+  [broker :- Broker client :- Client message :- Message]
+  (let [uri (ws->uri client)
+        connection (get-controller broker uri)
+        message (assoc-when message :sender uri :target "pcp:///server")]
+    (time!
+     (:on-message (:metrics broker))
+      (sl/maplog :trace {:type :controller-message-trace
+                         :uri uri
+                         :rawmsg message}
+                 (i18n/trs "Received PCP message from '{uri}': '{rawmsg}'"))
+      ;; TODO: support a configurable whitelist of message types
+      (log-access :info (merge (connection/summarize connection)
+                               (summarize message)
+                               {:accessoutcome "AUTHORIZATION_SUCCESS"}))
+      (if (= (:target message) "pcp:///server")
+        (process-server-message! broker message connection)
+        (deliver-message broker message connection)))))
+
+(s/defn start-client
+  [broker :- Broker
+   ssl-context :- SSLContext
+   uri :- s/Str]
+  (let [client (pcp-client/connect {:server uri
+                                    :ssl-context ssl-context
+                                    :type "server"}
+                                    {:default (partial default-message-handler broker)})
+        pcp-uri (str "pcp://" (.getHost (URI. uri)) "/server")
+        identity-codec {:decode identity :encode identity}]
+    (sl/maplog :debug {:type :controller-connection :uri uri :pcpuri pcp-uri}
+               (i18n/trs "Connecting to '{pcpuri}' at '{uri}'"))
+    [pcp-uri (connection/make-connection client identity-codec pcp-uri)]))
+
+(s/defn initiate-controller-connections :- {p/Uri Connection}
+  "Create PCP Clients for each controller URI"
+  [broker :- Broker
+   ssl-context :- SSLContext
+   controller-uris :- [s/Str]]
+  (into {} (pmap (partial start-client broker ssl-context) controller-uris)))
+
+;;
 ;; Broker service lifecycle, status service
 ;;
 
@@ -508,6 +557,7 @@
         broker  {:broker-name         broker-name
                  :authorization-check authorization-check
                  :database            (atom (inventory/init-database))
+                 :controllers         (atom {})
                  :should-stop         (promise)
                  :metrics             {}
                  :metrics-registry    (get-metrics-registry)
@@ -531,7 +581,8 @@
 (s/defn stop
   [broker :- Broker]
   (-> broker :state (reset! :stopping))
-  (inventory/stop-inventory-updates! broker))
+  (inventory/stop-inventory-updates! broker)
+  (doseq [[_ client] @(:controllers broker)] (pcp-client/close (:websocket client))))
 
 (s/defn status :- status-core/StatusCallbackResponse
   [broker :- Broker level :- status-core/ServiceStatusDetailLevel]

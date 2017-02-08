@@ -2,8 +2,9 @@
   (:require [metrics.gauges :as gauges]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
-            [puppetlabs.pcp.broker.websocket :refer [Websocket ws->client-type]]
+            [puppetlabs.pcp.broker.websocket]
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
+            [puppetlabs.pcp.client :as pcp-client]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.structured-logging.core :as sl]
@@ -41,6 +42,7 @@
   {:broker-name         (s/maybe s/Str)
    :authorization-check IFn
    :database            (s/atom BrokerDatabase)
+   :controllers         (s/atom {p/Uri Connection})
    :should-stop         Object                              ;; Promise used to signal the inventory updates should stop
    :metrics-registry    Object
    :metrics             {s/Keyword Object}
@@ -49,6 +51,12 @@
 (s/defn get-connection :- (s/maybe Connection)
   [broker :- Broker uri :- p/Uri]
   (-> broker :database deref :inventory (get uri)))
+
+(s/defn get-controller :- (s/maybe Connection)
+  [broker :- Broker uri :- p/Uri]
+  (if-let [controller (get @(:controllers broker) uri)]
+    (if (pcp-client/connected? (:websocket controller))
+      controller)))
 
 (s/defn build-and-register-metrics :- {s/Keyword Object}
   [broker :- Broker]
@@ -75,8 +83,8 @@
   [message :- Message]
   {:messageid (:id message)
    :messagetype (:message_type message)
-   :source (:sender message)
-   :destination (:target message)})
+   :source (or (:sender message) "pcp:///server")
+   :destination (or (:target message) "pcp:///server")})
 
 (s/defn send-message
   [connection :- Connection
@@ -95,7 +103,6 @@
    connection :- Connection]
   (let [error-msg (cond-> (message/make-message
                             {:message_type "http://puppetlabs.com/error_message"
-                             :sender "pcp:///server"
                              :data description})
                           in-reply-to-message (assoc :in_reply_to (:id in-reply-to-message)))]
     (try
@@ -126,7 +133,8 @@
    message :- Message
    sender :- (s/maybe Connection)]
   (assert (not (multicast-message? message)))
-  (if-let [connection (get-connection broker (:target message))]
+  (if-let [connection (or (get-connection broker (:target message))
+                          (get-controller broker (:target message)))]
     (try
       (sl/maplog
         :debug (merge (summarize message)
@@ -150,8 +158,8 @@
    message :- Message
    client :- Connection]
   (assert (not (multicast-message? message)))
-  (let [connection (get-connection broker (:target message))
-        message (assoc message :sender "pcp:///server")]
+  (let [connection (or (get-connection broker (:target message))
+                       (get-controller broker (:target message)))]
     (if (identical? connection client)
       (try
         (sl/maplog

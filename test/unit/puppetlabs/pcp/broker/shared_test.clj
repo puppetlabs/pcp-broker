@@ -21,6 +21,7 @@
   (let [broker {:broker-name         nil
                 :authorization-check (constantly true)
                 :database            (atom (inventory/init-database))
+                :controllers         (atom {})
                 :should-stop         (promise)
                 :metrics             {}
                 :metrics-registry    metrics.core/default-registry
