@@ -5,7 +5,7 @@
             [puppetlabs.pcp.broker.shared :refer :all]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.broker.inventory :as inventory]
-            [puppetlabs.pcp.broker.websocket :refer [ws->uri]]
+            [puppetlabs.pcp.broker.websocket :refer [ws->uri ws->common-name]]
             [puppetlabs.pcp.broker.message :as message]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as s]
@@ -14,11 +14,6 @@
 
 (def mock-uri "pcp://foo.com/agent")
 (defn mock-ws->uri [_] mock-uri)
-
-(s/defn dummy-connection-from :- Connection
-  [common-name]
-  (assoc (connection/make-connection :dummy-ws message/v2-codec mock-uri)
-    :common-name common-name))
 
 (s/defn make-test-broker :- Broker
   "Return a minimal clean broker state"
@@ -63,8 +58,9 @@
 (deftest send-error-message-test
   (with-redefs [ws->uri mock-ws->uri]
     (let [error-msg (atom nil)
-          connection (dummy-connection-from "host_x")]
-      (with-redefs [puppetlabs.experimental.websockets.client/send!
+          connection (connection/make-connection :dummy-ws message/v2-codec mock-uri)]
+      (with-redefs [ws->common-name (fn [_] "host_x")
+                    puppetlabs.experimental.websockets.client/send!
                     (fn [_ raw-message]
                       (reset! error-msg (message/v2-decode raw-message)))]
         (testing "sends error_message correctly and returns nil if received msg is NOT given"

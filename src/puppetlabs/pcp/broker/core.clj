@@ -3,7 +3,7 @@
             [puppetlabs.pcp.broker.shared :as shared :refer
              [Broker get-connection summarize send-error-message send-message deliver-message deliver-server-message]]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
-            [puppetlabs.pcp.broker.websocket :refer [Websocket ws->uri ws->client-type]]
+            [puppetlabs.pcp.broker.websocket :refer [Websocket ws->uri ws->client-type ws->common-name ws->remote-address]]
             [puppetlabs.pcp.broker.metrics :as metrics]
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
             [puppetlabs.pcp.broker.inventory :as inventory]
@@ -249,8 +249,9 @@
                      :params         query-params}]
         ;; NB(ale): we may not have the Connection when running tests
         (if connection
-          (let [remote-addr (:remote-address connection)
-                ssl-client-cert (first (websockets-client/peer-certs (:websocket connection)))]
+          (let [websocket (:websocket connection)
+                remote-addr (ws->remote-address websocket)
+                ssl-client-cert (first (websockets-client/peer-certs websocket))]
             (assoc request :remote-addr remote-addr
                    :ssl-client-cert ssl-client-cert))
           request)))))
@@ -277,10 +278,9 @@
    the specified Message matches the cert name in the certificate of the
    given Connection"
   [message :- Message connection :- Connection]
-  (let [{:keys [common-name]} connection
-        sender (:sender message)
+  (let [sender (:sender message)
         [client] (p/explode-uri sender)]
-    (= client common-name)))
+    (= client (ws->common-name (:websocket connection)))))
 
 (def MessageValidationOutcome
   "Outcome of validate-message"
@@ -430,6 +430,7 @@
                    (i18n/trs "No client certificate, closing '{remoteaddress}'"))
         (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
 
+      ;; Generate an implicit association request and authorize association.
       (let [uri (ws->uri ws)
             connection (connection/make-connection ws codec uri)
             message (message/make-message
@@ -469,15 +470,13 @@
    broker's 'inventory' map."
   [broker ws status-code reason]
   (time! (:on-close (:metrics broker))
-         (let [uri (ws->uri ws)
-               connection (get-connection broker uri)]
+         (let [uri (ws->uri ws)]
            (sl/maplog
-            :debug (assoc (connection/summarize connection)
-                          :uri uri
-                          :type :connection-close
-                          :statuscode status-code
-                          :reason reason)
-            (i18n/trs "'{uri}' disconnected from '{remoteaddress}' '{statuscode}' '{reason}'"))
+            :debug {:uri uri
+                    :type :connection-close
+                    :statuscode status-code
+                    :reason reason}
+            (i18n/trs "'{uri}' disconnected '{statuscode}' '{reason}'"))
            (remove-connection! broker uri))))
 
 (s/defn build-websocket-handlers :- {s/Keyword IFn}

@@ -5,9 +5,9 @@
             [puppetlabs.pcp.broker.shared :refer [Broker]]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
-            [puppetlabs.pcp.broker.websocket :refer [ws->uri]]
+            [puppetlabs.pcp.broker.websocket :refer [ws->uri ws->common-name]]
             [puppetlabs.pcp.broker.message :as message]
-            [puppetlabs.pcp.broker.shared-test :refer [mock-uri mock-ws->uri make-test-broker dummy-connection-from]]
+            [puppetlabs.pcp.broker.shared-test :refer [mock-uri mock-ws->uri make-test-broker]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]
             [schema.core :as s]
@@ -17,6 +17,9 @@
 (s/def identity-codec :- Codec
   {:encode identity
    :decode identity})
+
+(def dummy-connection
+  (connection/make-connection :dummy-ws message/v2-codec mock-uri))
 
 (s/defn make-mock-ssl-context-factory :- org.eclipse.jetty.util.ssl.SslContextFactory
   "Return an instance of the SslContextFactory with only a minimal configuration
@@ -188,11 +191,14 @@
     (let [message (message/make-message
                    {:sender "pcp://lolcathost/agent"})]
       (testing "simple match"
-        (is (authenticated? message (dummy-connection-from "lolcathost"))))
+        (with-redefs [ws->common-name (fn [_] "lolcathost")]
+          (is (authenticated? message dummy-connection))))
       (testing "simple mismatch"
-        (is (not (authenticated? message (dummy-connection-from "remotecat")))))
+        (with-redefs [ws->common-name (fn [_] "remotecat")]
+          (is (not (authenticated? message dummy-connection)))))
       (testing "accidental regex collisions"
-        (is (not (authenticated? message (dummy-connection-from "lol.athost"))))))))
+        (with-redefs [ws->common-name (fn [_] "lol.athost")]
+          (is (not (authenticated? message dummy-connection))))))))
 
 (defn make-valid-ring-request
   [message _]
@@ -208,62 +214,59 @@
      :params         params}))
 
 (deftest validate-message-test
-  (with-redefs [ws->uri mock-ws->uri]
+  (with-redefs [ws->uri mock-ws->uri
+                ws->common-name (fn [_] "localpost")]
     (testing "correctly marks not authenticated messages"
-
       (let [broker (make-test-broker)
             msg (message/make-message
-                 {:sender "pcp://localpost/office"
+                 {:sender "pcp://groceryshop/office"
                   :message_type "http://puppetlabs.com/associate_request"})
-            connection (dummy-connection-from "groceryshop")
             is-association-request true]
         (is (= :not-authenticated
-               (validate-message broker msg connection is-association-request)))))
+               (validate-message broker msg dummy-connection is-association-request)))))
     (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request]
       (testing "correctly marks not authorized messages"
         (let [no-broker (assoc (make-test-broker) :authorization-check no-authorization-check)
               msg (message/make-message
-                   {:sender "pcp://greyhacker/exploit"
+                   {:sender "pcp://localpost/exploit"
                     :message_type "http://puppetlabs.com/associate_request"})
-              connection (dummy-connection-from "greyhacker")
               is-association-request true]
           (is (= :not-authorized
-                 (validate-message no-broker msg connection is-association-request)))))
+                 (validate-message no-broker msg dummy-connection is-association-request)))))
       (testing "marks multicast messages as unsupported"
         (let [yes-broker (assoc (make-test-broker)
                                 :authorization-check yes-authorization-check)
               msg (message/make-message
-                   {:sender "pcp://localcost/gbp"
+                   {:sender "pcp://localpost/gbp"
                     :message_type "http://puppetlabs.com/associate_request"})
-              connection (dummy-connection-from "localcost")
               is-association-request true]
           (with-redefs [puppetlabs.pcp.broker.message/multicast-message?  (fn [_] true)]
             (is (= :multicast-unsupported
-                   (validate-message yes-broker msg connection is-association-request))))))
+                   (validate-message yes-broker msg dummy-connection is-association-request))))))
       (testing "marks expired messages as to be processed"
         (let [yes-broker (assoc (make-test-broker)
                                 :authorization-check yes-authorization-check)
               msg (message/make-message
-                   {:sender "pcp://localcost/gbp"
+                   {:sender "pcp://localpost/gbp"
                     :message_type "http://puppetlabs.com/associate_request"})
-              connection (dummy-connection-from "localcost")
               is-association-request true]
           (is (= :to-be-processed
-                 (validate-message yes-broker msg connection is-association-request)))))
+                 (validate-message yes-broker msg dummy-connection is-association-request)))))
       (testing "correctly marks messages to be processed"
         (let [yes-broker (assoc (make-test-broker) :authorization-check yes-authorization-check)
               msg (message/make-message
-                   {:sender "pcp://localghost/opera"
+                   {:sender "pcp://localpost/opera"
                     :message_type "http://puppetlabs.com/associate_request"})
-              connection (dummy-connection-from "localghost")
               is-association-request true]
           (is (= :to-be-processed
-                 (validate-message yes-broker msg connection is-association-request))))))))
+                 (validate-message yes-broker msg dummy-connection is-association-request))))))))
 
 
 (deftest process-message-test
   (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
-                ws->uri mock-ws->uri]
+                puppetlabs.pcp.broker.shared/get-connection (fn [_ _] dummy-connection)
+                ws->uri mock-ws->uri
+                ws->common-name (fn [_] "host_a")]
     (testing "delivers message in case of expired msg (not associate_session)"
       (let [broker (assoc (make-test-broker)
                           :authorization-check yes-authorization-check)
@@ -271,15 +274,10 @@
             msg (-> (message/make-message
                      {:sender "pcp://host_a/entity"
                       :message_type "some_kinda_love"
-                      :target "pcp://host_b/entity"}))
-            connection (dummy-connection-from "host_a")]
-        (swap! (:database broker) update :inventory assoc "pcp://host_a/entity" connection)
-        (with-redefs [puppetlabs.pcp.broker.shared/get-connection
-                      (fn [_ _] connection)
-                      puppetlabs.pcp.broker.shared/deliver-message
-                      (fn [_ _ _]
-                        (reset! called-accept-message true) nil)
-                      ws->uri mock-ws->uri]
+                      :target "pcp://host_b/entity"}))]
+        (swap! (:database broker) update :inventory assoc "pcp://host_a/entity" dummy-connection)
+        (with-redefs [puppetlabs.pcp.broker.shared/deliver-message
+                      (fn [_ _ _] (reset! called-accept-message true) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is @called-accept-message)
             (is (nil? outcome))))))
@@ -289,14 +287,9 @@
             msg (-> (message/make-message
                      {:sender "pcp://popgroup/entity"
                       :message_type "some_kinda_hate"
-                      :target "pcp://gangoffour/entity"}))
-            connection (dummy-connection-from "wire")]
-        (with-redefs [ws->uri mock-ws->uri
-                      puppetlabs.pcp.broker.shared/get-connection
-                      (fn [_ _] connection)
-                      puppetlabs.pcp.broker.shared/send-error-message
-                      (fn [_ description _]
-                        (reset! error-message-description description) nil)]
+                      :target "pcp://gangoffour/entity"}))]
+        (with-redefs [puppetlabs.pcp.broker.shared/send-error-message
+                      (fn [_ description _] (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is (= "Message not authenticated" @error-message-description))
             (is (nil? outcome))))))
@@ -305,14 +298,10 @@
                           :authorization-check no-authorization-check)
             error-message-description (atom nil)
             msg (message/make-message
-                 {:sender "pcp://thegunclub/entity"
+                 {:sender "pcp://host_a/entity"
                   :message_type "sexbeat"
-                  :target "pcp://fourtet/entity"})
-            connection (dummy-connection-from "thegunclub")]
-        (with-redefs [ws->uri mock-ws->uri
-                      puppetlabs.pcp.broker.shared/get-connection
-                      (fn [_ _] connection)
-                      puppetlabs.pcp.broker.shared/send-error-message
+                  :target "pcp://fourtet/entity"})]
+        (with-redefs [puppetlabs.pcp.broker.shared/send-error-message
                       (fn [_ description _]
                         (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
@@ -323,16 +312,11 @@
                           :authorization-check yes-authorization-check)
             processed-server-message (atom false)
             msg (message/make-message
-                 {:sender "pcp://thegunclub/entity"
+                 {:sender "pcp://host_a/entity"
                   :message_type "jackonfire"
-                  :target "pcp:///server"})
-            connection (dummy-connection-from "thegunclub")]
-        (with-redefs [puppetlabs.pcp.broker.shared/get-connection
-                      (fn [_ _] connection)
-                      puppetlabs.pcp.broker.core/process-server-message!
-                      (fn [_ _ _]
-                        (reset! processed-server-message true) nil)
-                      ws->uri mock-ws->uri]
+                  :target "pcp:///server"})]
+        (with-redefs [puppetlabs.pcp.broker.core/process-server-message!
+                      (fn [_ _ _] (reset! processed-server-message true) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is @processed-server-message)
             (is (nil? outcome))))))
@@ -341,16 +325,11 @@
                           :authorization-check yes-authorization-check)
             error-message-description (atom nil)
             msg (message/make-message
-                 {:sender "pcp://thegunclub/entity"
+                 {:sender "pcp://host_a/entity"
                   :message_type "ether"
-                  :target "pcp://wire/*"})
-            connection (dummy-connection-from "thegunclub")]
-        (with-redefs [ws->uri mock-ws->uri
-                      puppetlabs.pcp.broker.shared/get-connection
-                      (fn [_ _] connection)
-                      puppetlabs.pcp.broker.shared/send-error-message
-                      (fn [_ description _]
-                        (reset! error-message-description description) nil)]
+                  :target "pcp://wire/*"})]
+        (with-redefs [puppetlabs.pcp.broker.shared/send-error-message
+                      (fn [_ description _] (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is (= "Multiple recipients no longer supported" @error-message-description))
             (is (nil? outcome))))))
@@ -359,56 +338,42 @@
                           :authorization-check yes-authorization-check)
             accepted-message-for-delivery (atom false)
             msg (message/make-message
-                 {:sender "pcp://gangoffour/entity"
+                 {:sender "pcp://host_a/entity"
                   :message_type "ether"
-                  :target "pcp://wire/entity"})
-            connection (dummy-connection-from "gangoffour")]
-        (with-redefs [ws->uri mock-ws->uri
-                      puppetlabs.pcp.broker.shared/get-connection
-                      (fn [_ _] connection)
-                      puppetlabs.pcp.broker.shared/deliver-message
-                      (fn [_ _ _]
-                        (reset! accepted-message-for-delivery true) nil)]
+                  :target "pcp://wire/entity"})]
+        (with-redefs [puppetlabs.pcp.broker.shared/deliver-message
+                      (fn [_ _ _] (reset! accepted-message-for-delivery true) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
             (is @accepted-message-for-delivery)
             (is (nil? outcome))))))))
 
 (deftest codec-roundtrip-test
-  (testing "v1-codec survives roundtrip"
+  (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
+                ws->uri mock-ws->uri
+                ws->common-name (fn [_] "gangoffour")]
     (let [broker (assoc (make-test-broker)
                         :authorization-check yes-authorization-check)
-          sent-message (atom nil)
           msg (message/make-message
-               {:sender "pcp://gangoffour/entity"
+                {:sender "pcp://gangoffour/entity"
                 :message_type "ether"
-                :target "pcp://gangoffour/entity"})
-          connection (assoc (connection/make-connection :dummy-ws message/v1-codec mock-uri)
-                            :common-name "gangoffour")]
-      (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
-                    ws->uri mock-ws->uri
-                    puppetlabs.pcp.broker.shared/get-connection
-                    (fn [_ _] connection)
-                    puppetlabs.experimental.websockets.client/send!
-                    (fn [_ message] (reset! sent-message message))]
-        (let [outcome (process-message! broker (message/v1-encode msg) :dummy-ws)]
-          (is (= msg (message/v1-decode @sent-message)))
-          (is (nil? outcome))))))
-  (testing "v2-codec survives roundtrip"
-    (let [broker (assoc (make-test-broker)
-                        :authorization-check yes-authorization-check)
-          sent-message (atom nil)
-          msg (message/make-message
-               {:sender "pcp://gangoffour/entity"
-                :message_type "ether"
-                :target "pcp://gangoffour/entity"})
-          connection (assoc (connection/make-connection :dummy-ws message/v2-codec mock-uri)
-                            :common-name "gangoffour")]
-      (with-redefs [puppetlabs.pcp.broker.core/make-ring-request make-valid-ring-request
-                    ws->uri mock-ws->uri
-                    puppetlabs.pcp.broker.shared/get-connection
-                    (fn [_ _] connection)
-                    puppetlabs.experimental.websockets.client/send!
-                    (fn [_ message] (reset! sent-message message))]
-        (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
-          (is (= msg (message/v2-decode @sent-message)))
-          (is (nil? outcome)))))))
+                :target "pcp://gangoffour/entity"})]
+      (testing "v1-codec survives roundtrip"
+        (let [sent-message (atom nil)
+              connection (connection/make-connection :dummy-ws message/v1-codec mock-uri)]
+          (with-redefs [puppetlabs.pcp.broker.shared/get-connection
+                        (fn [_ _] connection)
+                        puppetlabs.experimental.websockets.client/send!
+                        (fn [_ message] (reset! sent-message message))]
+            (let [outcome (process-message! broker (message/v1-encode msg) :dummy-ws)]
+              (is (= msg (message/v1-decode @sent-message)))
+              (is (nil? outcome))))))
+      (testing "v2-codec survives roundtrip"
+        (let [sent-message (atom nil)
+              connection (connection/make-connection :dummy-ws message/v2-codec mock-uri)]
+          (with-redefs [puppetlabs.pcp.broker.shared/get-connection
+                        (fn [_ _] connection)
+                        puppetlabs.experimental.websockets.client/send!
+                        (fn [_ message] (reset! sent-message message))]
+            (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
+              (is (= msg (message/v2-decode @sent-message)))
+              (is (nil? outcome)))))))))

@@ -3,24 +3,27 @@
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as s]
-            [slingshot.slingshot :refer [throw+ try+]]))
+            [slingshot.slingshot :refer [throw+ try+]])
+  (:import (java.net InetSocketAddress InetAddress)))
 
 (def Websocket
   "Schema for a websocket session"
   Object)
 
 (defn ws->remote-address
-  "Extract IP address and port out of the string representation
-  of the InetAddress instance ('hostname/socket' format), so that we
-  don't end up with a remote-address like '/0:0:0:0:0:0:0:1:56824'. See:
-  http://docs.oracle.com/javase/7/docs/api/java/net/InetAddress.html#getHostAddress%28%29
-  http://stackoverflow.com/questions/6932902/apache-mina-how-to-get-the-ip-from-a-connected-client"
+  "Get the IP address (or hostname if the IP address is not resolved) and port
+  out of the InetSocketAddress object."
   [ws]
-  (try+
-   (second
-    (str/split (.. (websockets-client/remote-addr ws) (toString)) #"/"))
-   (catch Exception _
-     "")))
+  (try
+    (let [^InetSocketAddress socket-address (websockets-client/remote-addr ws)
+          ^InetAddress inet-address (.getAddress socket-address)]
+      (str (if (nil? inet-address)
+             (.getHostName socket-address)
+             (.getHostAddress inet-address))
+           \:
+           (.getPort socket-address)))
+    (catch Exception _
+      "")))
 
 (defn ws->common-name
   [ws]

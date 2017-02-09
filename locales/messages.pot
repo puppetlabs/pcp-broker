@@ -132,7 +132,7 @@ msgid "Websocket error '{commonname}' '{remoteaddress}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "'{uri}' disconnected from '{remoteaddress}' '{statuscode}' '{reason}'"
+msgid "'{uri}' disconnected '{statuscode}' '{reason}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
