@@ -78,7 +78,7 @@
         association-request (modify-association (make-association-request uri version))
         client              (http-client-with-cert certname)
         message-chan        (chan)
-        ws                  (http/websocket client (str "wss://127.0.0.1:8143/pcp/" version
+        ws                  (http/websocket client (str "wss://127.0.0.1:58142/pcp/" version
                                                         (when (= version "v2.0") "/agent"))
                                             :open  (fn [ws]
                                                      (case version

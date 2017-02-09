@@ -22,7 +22,7 @@
             [schema.test :as st]))
 
 (def broker-config
-  "A broker with ssl and own spool"
+  "A broker with ssl"
   {:authorization {:version 1
                    :rules [{:name "allow all"
                             :match-request {:type "regex"
@@ -31,10 +31,10 @@
                             :sort-order 1}]}
 
    :webserver {:ssl-host "127.0.0.1"
-               ;; usual port is 8142.  Here we use 8143 so if we're developing
+               ;; usual port is 8142.  Here we use 58142 so if we're developing
                ;; we can run a long-running instance and this one for the
                ;; tests.
-               :ssl-port 8143
+               :ssl-port 58142
                :client-auth "want"
                :ssl-key "./test-resources/ssl/private_keys/broker.example.com.pem"
                :ssl-cert "./test-resources/ssl/certs/broker.example.com.pem"
@@ -62,7 +62,7 @@
     (let [connected (promise)]
       (with-open [client (client/http-client-with-cert "client01.example.com")
                   ws     (http/websocket client
-                                         "wss://127.0.0.1:8143/pcp/v2.0"
+                                         "wss://127.0.0.1:58142/pcp/v2.0"
                                          :open (fn [ws] (deliver connected true)))]
         (is (= true (deref connected (* 2 1000) false)) "Connected within 2 seconds")))))
 
@@ -71,7 +71,7 @@
     (let [closed (promise)]
       (with-open [client (http/create-client)
                   ws (http/websocket client
-                                     "wss://127.0.0.1:8143/pcp/v2.0"
+                                     "wss://127.0.0.1:58142/pcp/v2.0"
                                      :close (fn [ws code reason] (deliver closed code)))]
         ;; NOTE(richardc): This test should only check for close-code 4003, but it
         ;; is a little unreliable and so may sometimes yield the close-code 1006 due
@@ -95,7 +95,7 @@
     (try+
      (with-open [client (client/http-client-with-cert "client01.example.com")
                  ws (http/websocket client
-                                    "wss://127.0.0.1:8143/pcp/v2.0"
+                                    "wss://127.0.0.1:58142/pcp/v2.0"
                                     :open (fn [ws] (deliver connected true))
                                     :close (fn [ws code reason]
                                              (deliver connected false)
