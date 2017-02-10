@@ -377,3 +377,21 @@
             (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
               (is (= msg (message/v2-decode @sent-message)))
               (is (nil? outcome)))))))))
+
+(deftest initiate-controllers-test
+  (let [is-connecting (promise)]
+    (with-redefs [puppetlabs.pcp.client/connect (fn [params handlers] (deliver is-connecting true) :client)
+                  ws->uri mock-ws->uri]
+      (let [broker (assoc (make-test-broker)
+                          :authorization-check yes-authorization-check)
+            ssl-context-factory (make-mock-ssl-context-factory nil)
+            _ (.start ssl-context-factory)
+            ssl-context (.getSslContext ssl-context-factory)
+            _ (.stop ssl-context-factory)
+            clients (initiate-controller-connections broker ssl-context ["wss://foo.com/v1"])
+            client (get clients "pcp://foo.com/server")]
+        (is (= 1 (count clients)))
+        (is client)
+        (is (deref is-connecting 1000 nil)
+        (is (= :client (:websocket client))
+        (is (= "pcp://foo.com/server" (:uri client)))))))))
