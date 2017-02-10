@@ -27,6 +27,8 @@
   (start [this context]
          (sl/maplog :info {:type :broker-start} (i18n/trs "Starting broker service"))
          (let [controller-uris (get-in-config [:pcp-broker :controller-uris] [])
+               controller-whitelist (set (get-in-config [:pcp-broker :controller-whitelist]
+                                                        ["http://puppetlabs.com/inventory_request"]))
                broker (:broker context)
                server-context (some-> (get-service this :WebserverService)
                                       service-context
@@ -44,7 +46,8 @@
            (reset! (:controllers broker)
                    (core/initiate-controller-connections broker
                                                          ssl-context
-                                                         controller-uris))
+                                                         controller-uris
+                                                         controller-whitelist))
            (core/start broker)
            (sl/maplog :debug {:type :broker-started :brokername broker-name}
                       (i18n/trs "Broker service <'{brokername}'> started"))

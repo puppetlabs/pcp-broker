@@ -497,32 +497,41 @@
 ;;
 
 (s/defn default-message-handler
-  [broker :- Broker client :- Client message :- Message]
+  [broker :- Broker
+   whitelist :- #{s/Str}
+   client :- Client
+   message :- Message]
   (let [uri (ws->uri client)
         connection (get-controller broker uri)
-        message (assoc-when message :sender uri :target "pcp:///server")]
+        message (assoc-when message :sender uri :target "pcp:///server")
+        message-data (merge (connection/summarize connection) (summarize message))]
     (time!
      (:on-message (:metrics broker))
       (sl/maplog :trace {:type :controller-message-trace
                          :uri uri
                          :rawmsg message}
                  (i18n/trs "Received PCP message from '{uri}': '{rawmsg}'"))
-      ;; TODO: support a configurable whitelist of message types
-      (log-access :info (merge (connection/summarize connection)
-                               (summarize message)
-                               {:accessoutcome "AUTHORIZATION_SUCCESS"}))
-      (if (= (:target message) "pcp:///server")
-        (process-server-message! broker message connection)
-        (deliver-message broker message connection)))))
+      ;; deny messages unless in `whitelist`
+      (if (contains? whitelist (:message_type message))
+        (do
+          (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))
+          (if (= (:target message) "pcp:///server")
+            (process-server-message! broker message connection)
+            (deliver-message broker message connection)))
+        (do
+          (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
+          ;; TODO(ale): use 'unauthorized' in version 2
+          (send-error-message message (i18n/trs "Message not authorized") connection))))))
 
 (s/defn start-client
   [broker :- Broker
    ssl-context :- SSLContext
+   controller-whitelist :- #{s/Str}
    uri :- s/Str]
   (let [client (pcp-client/connect {:server uri
                                     :ssl-context ssl-context
                                     :type "server"}
-                                    {:default (partial default-message-handler broker)})
+                                    {:default (partial default-message-handler broker controller-whitelist)})
         pcp-uri (str "pcp://" (.getHost (URI. uri)) "/server")
         identity-codec {:decode identity :encode identity}]
     (sl/maplog :debug {:type :controller-connection :uri uri :pcpuri pcp-uri}
@@ -533,8 +542,9 @@
   "Create PCP Clients for each controller URI"
   [broker :- Broker
    ssl-context :- SSLContext
-   controller-uris :- [s/Str]]
-  (into {} (pmap (partial start-client broker ssl-context) controller-uris)))
+   controller-uris :- [s/Str]
+   controller-whitelist :- #{s/Str}]
+  (into {} (pmap (partial start-client broker ssl-context controller-whitelist) controller-uris)))
 
 ;;
 ;; Broker service lifecycle, status service

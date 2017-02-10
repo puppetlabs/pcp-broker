@@ -72,6 +72,7 @@ msgstr ""
 msgid "Message not authenticated"
 msgstr ""
 
+#. TODO(ale): use 'unauthorized' in version 2
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authorized"
 msgstr ""

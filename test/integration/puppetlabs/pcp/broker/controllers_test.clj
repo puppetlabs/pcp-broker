@@ -40,7 +40,9 @@
     :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"
     :puppetlabs.pcp.testutils.server/mock-server "/server"}
 
-   :pcp-broker {:controller-uris ["wss://localhost:58142/server"]}
+   :pcp-broker {:controller-uris ["wss://localhost:58142/server"]
+                :controller-whitelist ["http://puppetlabs.com/inventory_request"
+                                       "greeting"]}
 
    :metrics {:enabled true
              :server-id "localhost"}})
@@ -126,3 +128,17 @@
             (client/send! client (assoc agent-request :target sender :sender target))
             (is (deref agent-response 1000 nil))
             (is (= "greeting" (:message_type @agent-response)))))))))
+
+(def self-request (message/make-message
+                     {:message_type "loopy"
+                      :target "pcp://localhost/server"}))
+
+(deftest controller-whitelist-test
+  (let [response (promise)]
+    (with-redefs [server/on-connect (fn [ws] (websockets-client/send! ws (message/encode self-request)))
+                  server/on-text (fn [ws text] (deliver response (message/decode text)))]
+      (with-app-with-config app (conj broker-services server/mock-server) broker-config
+        (is (deref response 3000 nil))
+        (is (= "http://puppetlabs.com/error_message" (:message_type @response)))
+        (is (= (:id self-request) (:in_reply_to @response)))
+        (is (= "Message not authorized" (:data @response)))))))

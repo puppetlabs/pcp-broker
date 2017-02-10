@@ -79,3 +79,16 @@ web-router-service: {
     }
 }
 ```
+
+The broker can also be configured to make out-bound connections to other PCP servers. The
+connection is configured by providing a list of Websocket URIs, and optionally a whitelist
+of message types allowed to those connections. If the whitelist is not specified, only
+inventory requests are authorized.
+
+```
+pcp-broker: {
+    controller-uris: ["wss://broker.example.com:8143/server", "wss://broker2.example.com:8143/server"],
+    controller-whitelist: ["http://puppetlabs.com/inventory_request",
+                           "http://puppetlabs.com/rpc_blocking_request"]
+}
+```
