@@ -130,8 +130,8 @@
             (is (= "greeting" (:message_type @agent-response)))))))))
 
 (def self-request (message/make-message
-                     {:message_type "loopy"
-                      :target "pcp://localhost/server"}))
+                    {:message_type "loopy"
+                     :target "pcp://localhost/server"}))
 
 (deftest controller-whitelist-test
   (let [response (promise)]
@@ -142,3 +142,18 @@
         (is (= "http://puppetlabs.com/error_message" (:message_type @response)))
         (is (= (:id self-request) (:in_reply_to @response)))
         (is (= "Message not authorized" (:data @response)))))))
+
+(def spoof-sender-request (message/make-message
+                            {:message_type "greeting"
+                             :sender "pcp://other/server"
+                             :target "pcp://localhost/server"}))
+
+(deftest controller-prevent-spoofed-sender-test
+  (let [response (promise)]
+    (with-redefs [server/on-connect (fn [ws] (websockets-client/send! ws (message/encode spoof-sender-request)))
+                  server/on-text (fn [ws text] (deliver response (message/decode text)))]
+      (with-app-with-config app (conj broker-services server/mock-server) broker-config
+        (is (deref response 3000 nil))
+        (is (= "http://puppetlabs.com/error_message" (:message_type @response)))
+        (is (= (:id spoof-sender-request) (:in_reply_to @response)))
+        (is (= "Message not authenticated" (:data @response)))))))

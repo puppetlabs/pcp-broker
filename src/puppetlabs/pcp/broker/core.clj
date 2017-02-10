@@ -495,6 +495,15 @@
 ;;
 ;; Outgoing client lifecycle. All messages, authentication managed by the client.
 ;;
+;; The underlying client connection from Jetty is a different class than the incoming
+;; connections: WebSocketClient instead of WebSocketAdapter. Code around authenticating
+;; and authorizing messages from inbound connections relies on having access to the
+;; client's certificates; WebSocketClient doesn't provide access to the server certs
+;; for an outbound connection, so we instead rely on clj-pcp-client's setup of hostname
+;; verification to ensure the identity (authentication) of the outbound connection and
+;; use a whitelist of message types instead of trapperkeeper-authorization to authorize
+;; messages.
+;;
 
 (s/defn default-message-handler
   [broker :- Broker
@@ -511,17 +520,26 @@
                          :uri uri
                          :rawmsg message}
                  (i18n/trs "Received PCP message from '{uri}': '{rawmsg}'"))
-      ;; deny messages unless in `whitelist`
-      (if (contains? whitelist (:message_type message))
+      (cond
+        ;; only accept messages from the sender
+        (not (authenticated? message connection))
+        (do
+          (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
+          (send-error-message message (i18n/trs "Message not authenticated") connection))
+
+        ;; deny messages unless in `whitelist`
+        (not (contains? whitelist (:message_type message)))
+        (do
+          (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
+          ;; TODO(ale): use 'unauthorized' in version 2
+          (send-error-message message (i18n/trs "Message not authorized") connection))
+
+        :else
         (do
           (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))
           (if (= (:target message) "pcp:///server")
             (process-server-message! broker message connection)
-            (deliver-message broker message connection)))
-        (do
-          (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
-          ;; TODO(ale): use 'unauthorized' in version 2
-          (send-error-message message (i18n/trs "Message not authorized") connection))))))
+            (deliver-message broker message connection)))))))
 
 (s/defn start-client
   [broker :- Broker
