@@ -39,7 +39,8 @@
 
   Client
   (ws->common-name [c]
-    (-> c :websocket-client (.getOpenSessions) first (.getRequestURI) (.getHost))))
+    (let [uri (-> c :websocket-client (.getOpenSessions) first (.getRequestURI))]
+      (.getAuthority uri))))
 
 (defn ws->remote-address
   "Get the IP address (or hostname if the IP address is not resolved) and port

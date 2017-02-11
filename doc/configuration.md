@@ -83,7 +83,8 @@ web-router-service: {
 The broker can also be configured to make out-bound connections to other PCP servers. The
 connection is configured by providing a list of Websocket URIs, and optionally a whitelist
 of message types allowed to those connections. If the whitelist is not specified, only
-inventory requests are authorized.
+inventory requests are authorized. Note that all URIs must use a distinct hostname/port
+combination (the path is not taken into account when generating PCP identifiers).
 
 ```
 pcp-broker: {

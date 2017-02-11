@@ -550,7 +550,8 @@
                                     :ssl-context ssl-context
                                     :type "server"}
                                     {:default (partial default-message-handler broker controller-whitelist)})
-        pcp-uri (str "pcp://" (.getHost (URI. uri)) "/server")
+        ;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
+        pcp-uri (str "pcp://" (.getAuthority (URI. uri)) "/server")
         identity-codec {:decode identity :encode identity}]
     (sl/maplog :debug {:type :controller-connection :uri uri :pcpuri pcp-uri}
                (i18n/trs "Connecting to '{pcpuri}' at '{uri}'"))
