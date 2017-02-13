@@ -2,33 +2,60 @@
   (:require [clojure.string :as str]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.kitchensink.core :as ks]
-            [schema.core :as s]
-            [slingshot.slingshot :refer [throw+ try+]]))
+            [puppetlabs.pcp.client :as pcp-client]
+            [schema.core :as s])
+  (:import (puppetlabs.pcp.client Client)
+           (java.net InetSocketAddress InetAddress)
+           (org.eclipse.jetty.websocket.api WebSocketAdapter)))
 
 (def Websocket
   "Schema for a websocket session"
   Object)
 
-(defn ws->remote-address
-  "Extract IP address and port out of the string representation
-  of the InetAddress instance ('hostname/socket' format), so that we
-  don't end up with a remote-address like '/0:0:0:0:0:0:0:1:56824'. See:
-  http://docs.oracle.com/javase/7/docs/api/java/net/InetAddress.html#getHostAddress%28%29
-  http://stackoverflow.com/questions/6932902/apache-mina-how-to-get-the-ip-from-a-connected-client"
-  [ws]
-  (try+
-   (second
-    (str/split (.. (websockets-client/remote-addr ws) (toString)) #"/"))
-   (catch Exception _
-     "")))
+(extend-protocol websockets-client/WebSocketProtocol
+  Client
+  (send!         [c msg]      (pcp-client/send! c msg))
+  (close!        [c code msg] (pcp-client/close c))
+  (remote-addr   [c]          (-> c :websocket-client (.getOpenSessions) first (.getRemoteAddress)))
+  (ssl?          [c]          true)
+  (peer-certs    [c]          nil)
+  (request-path  [c]          "/server")
+  (idle-timeout! [c timeout]  nil)
+  (connected?    [c]          (pcp-client/connected? c)))
 
-(defn ws->common-name
+(defprotocol WebsocketInterface
+  "Operations on an underlying Websocket connection"
+  (ws->common-name [ws]
+    "Returns the common name of an endpoint using SSL"))
+
+(extend-protocol WebsocketInterface
+  WebSocketAdapter
+  (ws->common-name [ws]
+    (try
+      (when-let [cert (first (websockets-client/peer-certs ws))]
+        (ks/cn-for-cert cert))
+      (catch Exception _
+        nil)))
+
+  Client
+  (ws->common-name [c]
+    (let [uri (-> c :websocket-client (.getOpenSessions) first (.getRequestURI))]
+      (.getAuthority uri))))
+
+(defn ws->remote-address
+  "Get the IP address (or hostname if the IP address is not resolved) and port
+  out of the InetSocketAddress object."
   [ws]
-  (try+
-   (when-let [cert (first (websockets-client/peer-certs ws))]
-     (ks/cn-for-cert cert))
-   (catch Exception _
-     nil)))
+  (try
+    (let [^InetSocketAddress socket-address (websockets-client/remote-addr ws)
+          ^InetAddress inet-address (.getAddress socket-address)]
+      (str (if (nil? inet-address)
+             (.getHostName socket-address)
+             (.getHostAddress inet-address))
+           \:
+           (.getPort socket-address)))
+    (catch Exception _
+      "")))
 
 (defn ws->client-path
   [ws]

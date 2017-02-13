@@ -1,6 +1,6 @@
 (ns puppetlabs.pcp.broker.inventory
   (:require [puppetlabs.pcp.protocol :as p]
-            [puppetlabs.pcp.broker.shared :refer [Broker get-connection deliver-server-message] :as shared]
+            [puppetlabs.pcp.broker.shared :refer [Broker deliver-server-message] :as shared]
             [puppetlabs.pcp.broker.message :as message]
             [clojure.set :refer [intersection union]]
             [schema.core :as s])

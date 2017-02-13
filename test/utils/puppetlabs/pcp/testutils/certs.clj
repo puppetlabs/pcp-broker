@@ -23,7 +23,10 @@
   (let [cacert (ssl-simple/gen-self-signed-cert "ca" (swap! cert-serial-num inc))]
     (save-pems ssl-dir cacert)
     (doseq [name names]
-      (let [cert (ssl-simple/gen-cert name cacert (swap! cert-serial-num inc))]
+      (let [extensions [{:oid      "2.5.29.17"
+                         :value    {:dns-name [name "localhost"]}
+                         :critical false}]
+            cert (ssl-simple/gen-cert name cacert (swap! cert-serial-num inc) {:extensions extensions})]
         (save-pems ssl-dir cert)))
     (let [crl (ssl-simple/gen-crl cacert)]
       (fs/mkdirs (fs/file ssl-dir "ca"))

@@ -1,8 +1,11 @@
 # Message authorization
 
-Messages can be allowed or denied using the trapperkeeper-authorization subsystem.
+Messages from clients can be allowed or denied using the trapperkeeper-authorization subsystem.
 
 https://github.com/puppetlabs/trapperkeeper-authorization/blob/master/doc/authorization-config.md
+
+Messages from controller out-bound connections are authorized via a `controller-whitelist`
+configuration option. See [configuration](configuration.md) for details.
 
 ## Message mapping
 

@@ -72,6 +72,7 @@ msgstr ""
 msgid "Message not authenticated"
 msgstr ""
 
+#. TODO(ale): use 'unauthorized' in version 2
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authorized"
 msgstr ""
@@ -132,7 +133,15 @@ msgid "Websocket error '{commonname}' '{remoteaddress}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "'{uri}' disconnected from '{remoteaddress}' '{statuscode}' '{reason}'"
+msgid "'{uri}' disconnected '{statuscode}' '{reason}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Received PCP message from '{uri}': '{rawmsg}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Connecting to '{pcpuri}' at '{uri}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj

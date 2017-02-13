@@ -21,10 +21,8 @@
 
 (s/defrecord Connection
              [websocket :- Websocket
-              remote-address :- s/Str
               codec :- Codec
-              common-name :- (s/maybe s/Str)
-              uri :- (s/maybe p/Uri)]
+              uri :- p/Uri]
   ConnectionInterface
   (summarize [c] (-summarize c)))
 
@@ -36,16 +34,16 @@
 (s/defn make-connection :- Connection
   "Return the initial state for a websocket"
   [websocket :- Websocket
-   codec :- Codec]
+   codec :- Codec
+   uri :- p/Uri]
   ;; NOTE(ale): the 'map->...' constructor comes from schema.core's defrecord
   (map->Connection
    {:websocket      websocket
     :codec          codec
-    :remote-address (ws->remote-address websocket)
-    :common-name    (ws->common-name websocket)}))
+    :uri            uri}))
 
 (s/defn -summarize :- ConnectionLog
   [connection :- Connection]
-  (let [{:keys [common-name remote-address]} connection]
-    {:commonname common-name
-     :remoteaddress remote-address}))
+  (let [websocket (:websocket connection)]
+    {:commonname    (ws->common-name websocket)
+     :remoteaddress (ws->remote-address websocket)}))

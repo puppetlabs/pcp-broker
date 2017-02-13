@@ -26,15 +26,28 @@
           (assoc context :broker broker)))
   (start [this context]
          (sl/maplog :info {:type :broker-start} (i18n/trs "Starting broker service"))
-         (let [broker (:broker context)
+         (let [controller-uris (get-in-config [:pcp-broker :controller-uris] [])
+               controller-whitelist (set (get-in-config [:pcp-broker :controller-whitelist]
+                                                        ["http://puppetlabs.com/inventory_request"]))
+               broker (:broker context)
+               server-context (some-> (get-service this :WebserverService)
+                                      service-context
+                                      (jetty9-core/get-server-context (keyword (get-server this :v1))))
                broker-name (or (:broker-name broker)
-                               (some-> (get-service this :WebserverService)
-                                       service-context
-                                       (jetty9-core/get-server-context (keyword (get-server this :v1)))
-                                       core/get-webserver-cn)
+                               (core/get-webserver-cn server-context)
                                (core/get-localhost-hostname))
+               ssl-context (-> server-context
+                               :state
+                               deref
+                               :ssl-context-factory
+                               .getSslContext)
                broker (assoc broker :broker-name broker-name)
                context (assoc context :broker broker)]
+           (reset! (:controllers broker)
+                   (core/initiate-controller-connections broker
+                                                         ssl-context
+                                                         controller-uris
+                                                         controller-whitelist))
            (core/start broker)
            (sl/maplog :debug {:type :broker-started :brokername broker-name}
                       (i18n/trs "Broker service <'{brokername}'> started"))
