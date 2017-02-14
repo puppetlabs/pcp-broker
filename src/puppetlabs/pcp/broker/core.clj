@@ -8,7 +8,7 @@
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
             [puppetlabs.pcp.broker.inventory :as inventory]
             [puppetlabs.pcp.broker.util :refer [assoc-when]]
-            [puppetlabs.pcp.client :as pcp-client]
+            [puppetlabs.pcp.broker.client :as pcp-client]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.ssl-utils.core :as ssl-utils]
@@ -20,7 +20,7 @@
             [slingshot.slingshot :refer [throw+ try+]]
             [puppetlabs.i18n.core :as i18n])
   (:import [puppetlabs.pcp.broker.connection Connection]
-           [puppetlabs.pcp.client Client]
+           [puppetlabs.pcp.broker.client Client]
            [clojure.lang IFn]
            [java.net InetAddress UnknownHostException URI]
            [javax.net.ssl SSLContext]
@@ -547,9 +547,8 @@
    controller-whitelist :- #{s/Str}
    uri :- s/Str]
   (let [client (pcp-client/connect {:server uri
-                                    :ssl-context ssl-context
-                                    :type "server"}
-                                    {:default (partial default-message-handler broker controller-whitelist)})
+                                    :ssl-context ssl-context}
+                                   {:default (partial default-message-handler broker controller-whitelist)})
         ;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
         pcp-uri (str "pcp://" (.getAuthority (URI. uri)) "/server")
         identity-codec {:decode identity :encode identity}]

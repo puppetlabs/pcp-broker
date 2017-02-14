@@ -2,9 +2,9 @@
   (:require [clojure.string :as str]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.kitchensink.core :as ks]
-            [puppetlabs.pcp.client :as pcp-client]
+            [puppetlabs.pcp.broker.client :as pcp-client]
             [schema.core :as s])
-  (:import (puppetlabs.pcp.client Client)
+  (:import (puppetlabs.pcp.broker.client Client)
            (java.net InetSocketAddress InetAddress)
            (org.eclipse.jetty.websocket.api WebSocketAdapter)))
 

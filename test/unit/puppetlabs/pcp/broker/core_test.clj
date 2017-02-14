@@ -380,7 +380,7 @@
 
 (deftest initiate-controllers-test
   (let [is-connecting (promise)]
-    (with-redefs [puppetlabs.pcp.client/connect (fn [params handlers] (deliver is-connecting true) :client)
+    (with-redefs [puppetlabs.pcp.broker.client/connect (fn [params handlers] (deliver is-connecting true) :client)
                   ws->uri mock-ws->uri]
       (let [broker (assoc (make-test-broker)
                           :authorization-check yes-authorization-check)

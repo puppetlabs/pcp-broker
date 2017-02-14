@@ -4,7 +4,7 @@
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.broker.websocket]
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
-            [puppetlabs.pcp.client :as pcp-client]
+            [puppetlabs.pcp.broker.client :as pcp-client]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
             [puppetlabs.structured-logging.core :as sl]

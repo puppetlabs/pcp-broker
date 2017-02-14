@@ -37,8 +37,12 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "1.0.0"]
-                 [puppetlabs/pcp-common "1.1.0"]
+                 [puppetlabs/pcp-common "1.1.1"]
+
+                 ;; Transitive dependencies on jetty for stylefuits/gniazdo
+                 ;; to use a stable jetty release (gniazdo specifies 9.3.0M1)
+                 [org.eclipse.jetty.websocket/websocket-client "9.2.10.v20150310"]
+                 [stylefruits/gniazdo "0.4.0" :exclusions [org.eclipse.jetty.websocket/websocket-client]]
 
                  [puppetlabs/i18n]]
 

@@ -17,6 +17,84 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "exception while establishing a connection; not connected"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "No handler for {0}"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "Sending WebSocket ping"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "WebSocket heartbeat task is about to finish"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "Making connection to {0}"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "WebSocket connected, heartbeat task starting"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "WebSocket error"
+msgstr ""
+
+#. Format error code as a string rather than a localized number, i.e. 1,234.
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "WebSocket closed {0} {1}"
+msgstr ""
+
+#. Ensure disconnect state is immediately registered as connecting.
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "Sleeping for up to {0} ms to retry"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "Received text message"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "TLS Handshake failed. Sleeping for up to {0} ms to retry"
+msgstr ""
+
+#. The following will produce "Didn't get connected. ..."
+#. The apostrophe needs to be duplicated (even in the translations).
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "Didn''t get connected. Sleeping for up to {0} ms to retry"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid ""
+"Connection closed while establishing connection. Sleeping for up to {0} ms "
+"to reconnect"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "Unexpected error"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "refusing to send message on unconnected session"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "exception on the connection while attempting to send a message"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "Closing"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/client.clj
+msgid "exception while closing the connection; connection already closed"
+msgstr ""
+
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Received session association for '{uri}' from '{commonname}' "
