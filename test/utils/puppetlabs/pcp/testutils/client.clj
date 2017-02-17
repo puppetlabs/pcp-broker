@@ -1,11 +1,8 @@
 (ns puppetlabs.pcp.testutils.client
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.broker.message :as message]
-            [puppetlabs.pcp.broker.connection :as connection]
-            [clojure.set :refer [rename-keys]]
             [clojure.core.async :as async :refer [timeout alts!! chan >!! <!! put!]]
             [http.async.client :as http]
-            [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.pcp.message-v1 :as m1]
             [puppetlabs.pcp.message-v2 :as m2]
             [puppetlabs.ssl-utils.core :as ssl-utils]))
