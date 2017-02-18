@@ -159,6 +159,8 @@
            (-> database-snapshot :subscriptions keys))
          (remove-processed-updates broker))))
 
+(def batch-update-interval-ms 1000)
+
 (s/defn start-inventory-updates!
   "Start periodic sending of the inventory updates."
   [broker :- Broker]
@@ -166,7 +168,7 @@
     (let [should-stop (:should-stop broker)]
       (loop []
         (send-updates broker)
-        (if (nil? (deref should-stop 1000 nil))
+        (if (nil? (deref should-stop batch-update-interval-ms nil))
           (recur))))))
 
 (s/defn stop-inventory-updates!

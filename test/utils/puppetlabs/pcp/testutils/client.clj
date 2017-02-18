@@ -43,17 +43,19 @@
     (http/create-client :ssl-context ssl-context)))
 
 (defn make-message
-  [version options]
-  (let [msg (m2/make-message options)]
-    (if (= version "v1.0")
-      (message/v2->v1 msg)
-      msg)))
+  ([options] (make-message "v2.0" options))
+  ([version options]
+   (let [msg (m2/make-message options)]
+     (if (= version "v1.0")
+       (message/v2->v1 msg)
+       msg))))
 
 (defn get-data
-  [message version]
-  (if (= version "v1.0")
-    (m1/get-json-data message)
-    (m2/get-data message)))
+  ([message] (get-data message "v2.0"))
+  ([message version]
+   (if (= version "v1.0")
+     (m1/get-json-data message)
+     (m2/get-data message))))
 
 (defn make-association-request
   [uri version]
@@ -65,18 +67,19 @@
 
 (defn connect
   "Makes a client for testing"
-  [& {:keys [certname uri version modify-association check-association force-association modify-association-encoding]
+  [& {:keys [certname type uri version modify-association check-association force-association modify-association-encoding]
       :or {modify-association identity
            modify-association-encoding identity
            check-association true
            force-association false
+           type "agent"
            version "v2.0"}}]
-  (let [uri                 (or uri (str "pcp://" certname "/agent"))
+  (let [uri                 (or uri (str "pcp://" certname "/" type))
         association-request (modify-association (make-association-request uri version))
         client              (http-client-with-cert certname)
         message-chan        (chan)
-        ws                  (http/websocket client (str "wss://127.0.0.1:58142/pcp/" version
-                                                        (when (= version "v2.0") "/agent"))
+        ws                  (http/websocket client (str "wss://127.0.0.1:58142/pcp/" version "/"
+                                                        (when (= version "v2.0") type))
                                             :open  (fn [ws]
                                                      (case version
                                                        "v1.0" (http/send
