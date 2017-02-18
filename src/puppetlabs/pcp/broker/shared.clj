@@ -20,7 +20,9 @@
   {:explicit #{p/Uri} :wildcard #{p/ExplodedUri}})
 
 (def Subscription
-  {:connection        Connection
+  {;; Promise that resolves to the Connection after inventory response has been
+   ;; sent. This ensures no updates are sent before the initial response.
+   :connection        Object
    :pattern-sets      PatternSets
    ;; the index of the next update to process (note that to get the offset
    ;; of the corresponding InventoryChange record in the :updates vector, you

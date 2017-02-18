@@ -187,8 +187,9 @@
     (s/validate p/InventoryRequest data)
     (let [requester-uri (:sender message)
           pattern-sets (inventory/build-pattern-sets (:query data))
+          connection-promise (promise)
           database (if (:subscribe data)
-                     (inventory/subscribe-client! broker requester-uri connection pattern-sets)
+                     (inventory/subscribe-client! broker requester-uri connection-promise pattern-sets)
                      (inventory/unsubscribe-client! broker requester-uri))
           data (-> database :inventory (inventory/build-inventory-data pattern-sets))
           response (message/make-message
@@ -196,7 +197,10 @@
                       :target requester-uri
                       :in_reply_to (:id message)
                       :data data})]
-      (deliver-server-message broker response connection)))
+      (try
+        (deliver-server-message broker response connection)
+        (finally
+          (deliver connection-promise connection)))))
   nil)
 
 (s/defn process-server-message! :- (s/maybe Connection)

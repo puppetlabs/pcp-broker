@@ -3,6 +3,7 @@
             [puppetlabs.pcp.testutils :refer [dotestseq]]
             [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services]]
             [puppetlabs.pcp.testutils.client :as client]
+            [puppetlabs.trapperkeeper.app :as tka]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]))
 
 (deftest inventory-node-recieves-updates-when-inventory-changes-when-subscribed-to-updates
@@ -98,6 +99,75 @@
                        data (client/get-data response version)]
                    (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
                    (is (= [{:client "pcp://client04.example.com/agent" :change -1}] (:changes data))))))))
+
+(defn get-broker
+  [app]
+  (-> @(tka/app-context app)
+      :service-contexts
+      :BrokerService
+      :broker))
+
+(def inventory-subscribe-agents
+  (client/make-message
+    {:message_type "http://puppetlabs.com/inventory_request"
+     :data {:query ["pcp://*/agent"] :subscribe true}}))
+
+(deftest inventory-update-before-response
+  (let [subscribe-client! puppetlabs.pcp.broker.inventory/subscribe-client!
+        subscription-finished (promise)
+        finish-subscription (promise)]
+  (with-redefs [puppetlabs.pcp.broker.inventory/start-inventory-updates! (fn [_] nil)
+                puppetlabs.pcp.broker.inventory/subscribe-client!
+                (fn [broker client connection pattern-sets]
+                  (let [result (subscribe-client! broker client connection pattern-sets)]
+                    (deliver subscription-finished true)
+                    (deref finish-subscription)
+                    result))]
+    (with-app-with-config app broker-services broker-config
+      (with-open [controller (client/connect :certname "controller01.example.com")]
+        ;; subscribe to updates, but ensure message isn't delivered before sending updates
+        (client/send! controller inventory-subscribe-agents)
+        (deref subscription-finished)
+        (with-open [client (client/connect :certname "client01.example.com" :force-association true)]
+          (#'puppetlabs.pcp.broker.inventory/send-updates (get-broker app))
+          (deliver finish-subscription true)
+          (let [response (client/recv! controller)]
+            (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
+            (is (= ["pcp://controller01.example.com/agent"] (get-in response [:data :uris]))))
+          (#'puppetlabs.pcp.broker.inventory/send-updates (get-broker app))
+          (let [response (client/recv! controller)]
+            (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
+            (is (= [{:client "pcp://client01.example.com/agent" :change 1}] (get-in response [:data :changes]))))))))))
+
+(deftest inventory-update-after-reconnect
+  (let [subscribe-client! puppetlabs.pcp.broker.inventory/subscribe-client!
+        subscription-finished (atom (promise))
+        finish-subscription (promise)]
+  (with-redefs [puppetlabs.pcp.broker.inventory/batch-update-interval-ms 10
+                puppetlabs.pcp.broker.inventory/subscribe-client!
+                (fn [broker client connection pattern-sets]
+                  (let [result (subscribe-client! broker client connection pattern-sets)]
+                    (deliver @subscription-finished true)
+                    (deref finish-subscription)
+                    result))]
+    (with-app-with-config app broker-services broker-config
+      ;; Connect, subscribe, wait for subscription to be registered and disconnect
+      (with-open [controller (client/connect :certname "controller01.example.com")]
+        (client/send! controller inventory-subscribe-agents)
+        (deref @subscription-finished))
+      (reset! subscription-finished (promise))
+      ;; Reconnect, attempt to subscribe and expect updates
+      (with-open [controller (client/connect :certname "controller01.example.com")]
+        (client/send! controller inventory-subscribe-agents)
+        (deref @subscription-finished)
+        (with-open [client (client/connect :certname "client01.example.com" :force-association true)]
+          (deliver finish-subscription true)
+          (let [response (client/recv! controller)]
+            (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
+            (is (= ["pcp://controller01.example.com/agent"] (get-in response [:data :uris]))))
+          (let [response (client/recv! controller)]
+            (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
+            (is (= [{:client "pcp://client01.example.com/agent" :change 1}] (get-in response [:data :changes]))))))))))
 
 (def inventory-subscribe
   (client/make-message
