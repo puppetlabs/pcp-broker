@@ -196,3 +196,39 @@
         (let [update (deref @inventory-update 3000 nil)]
           (is update)
           (is (= [{:client agent-uri :change -1}] (:changes (client/get-data update)))))))))
+
+(deftest controllers-unsubscribe
+  (let [server-message-sent (atom 0)
+        forget-controller-subscription puppetlabs.pcp.broker.core/forget-controller-subscription
+        removed-subscription (promise)
+        deliver-server-message puppetlabs.pcp.broker.shared/deliver-server-message
+        inventory-response (promise)]
+    (with-redefs [puppetlabs.pcp.broker.inventory/start-inventory-updates! (fn [_] nil)
+                  puppetlabs.pcp.broker.core/forget-controller-subscription
+                  (fn [b u c]
+                    (forget-controller-subscription b u c)
+                    (deliver removed-subscription true))
+                  puppetlabs.pcp.broker.shared/deliver-server-message
+                  (fn [b m c]
+                    (swap! server-message-sent inc)
+                    (deliver-server-message b m c))
+                  server/on-connect
+                  (fn [_ ws]
+                    ;; Only send subscribe the first time we connect
+                    (when (zero? @server-message-sent)
+                      (websockets-client/send! ws (message/encode inventory-subscribe))))
+                  server/on-text (fn [_ ws text] (deliver inventory-response (message/decode text)))]
+      (with-app-with-config app (conj broker-services server/mock-server) broker-config
+        (is (deref inventory-response 3000 nil))
+        (is (= (:id inventory-subscribe) (:in_reply_to @inventory-response)))
+        (is (= [] (get-in @inventory-response [:data :uris])))
+
+        ;; Disconnect the mock server
+        (doseq [ws @(:inventory (get-context app :MockServer))]
+          (websockets-client/close! ws))
+        (is (deref removed-subscription 3000 nil))
+
+        (with-open [client (client/connect :certname agent-cert :force-association true)]
+          (let [server-messages-sent @server-message-sent]
+            (#'puppetlabs.pcp.broker.inventory/send-updates (get-broker app))
+            (is (= server-messages-sent @server-message-sent))))))))

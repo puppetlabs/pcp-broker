@@ -545,17 +545,22 @@
             (process-server-message! broker message connection)
             (deliver-message broker message connection)))))))
 
+(s/defn forget-controller-subscription
+  [broker :- Broker uri :- s/Str client :- Client]
+  (swap! (:database broker) update :subscriptions dissoc uri))
+
 (s/defn start-client
   [broker :- Broker
    ssl-context :- SSLContext
    controller-whitelist :- #{s/Str}
    uri :- s/Str]
-  (let [client (pcp-client/connect {:server uri
-                                    :ssl-context ssl-context
-                                    :type "server"}
-                                    {:default (partial default-message-handler broker controller-whitelist)})
-        ;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
+  (let [;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
         pcp-uri (str "pcp://" (.getAuthority (URI. uri)) "/server")
+        client (pcp-client/connect {:server uri
+                                    :ssl-context ssl-context
+                                    :type "server"
+                                    :on-close-cb (partial forget-controller-subscription broker pcp-uri)}
+                                    {:default (partial default-message-handler broker controller-whitelist)})
         identity-codec {:decode identity :encode identity}]
     (sl/maplog :debug {:type :controller-connection :uri uri :pcpuri pcp-uri}
                (i18n/trs "Connecting to '{pcpuri}' at '{uri}'"))
