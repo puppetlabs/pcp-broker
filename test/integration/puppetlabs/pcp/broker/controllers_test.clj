@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.broker.controllers-test
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.testutils :refer [dotestseq]]
-            [puppetlabs.pcp.testutils.service :refer [protocol-versions broker-services]]
+            [puppetlabs.pcp.testutils.service :refer [protocol-versions broker-services get-broker get-context]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.testutils.server :as server]
             [puppetlabs.pcp.message-v2 :as message]
@@ -165,3 +165,34 @@
             (is (= "http://puppetlabs.com/error_message" (:message_type @response2)))
             (is (= (:id agent-request) (:in_reply_to @response2)))
             (is (= "not connected" (:data @response2)))))))))
+
+(def inventory-subscribe
+  (client/make-message
+    {:message_type "http://puppetlabs.com/inventory_request"
+     :data {:query ["pcp://*/agent"]
+            :subscribe true}}))
+
+(deftest controllers-subscribe
+  (let [inventory-response (promise)
+        inventory-update (atom (promise))]
+    (with-redefs [puppetlabs.pcp.broker.inventory/batch-update-interval-ms 10
+                  server/on-connect (fn [_ ws] (websockets-client/send! ws (message/encode inventory-subscribe)))
+                  server/on-text (fn [_ ws text]
+                    (let [msg (message/decode text)]
+                      (case (:message_type msg)
+                        "http://puppetlabs.com/inventory_response" (deliver inventory-response msg)
+                        "http://puppetlabs.com/inventory_update" (deliver @inventory-update msg))))]
+      (with-app-with-config app (conj broker-services server/mock-server) broker-config
+        (is (deref inventory-response 3000 nil))
+        (is (= (:id inventory-subscribe) (:in_reply_to @inventory-response)))
+        (is (= [] (get-in @inventory-response [:data :uris])))
+
+        (with-open [client (client/connect :certname agent-cert)]
+          (let [update (deref @inventory-update 3000 nil)]
+            (is update)
+            (reset! inventory-update (promise))
+            (is (= [{:client agent-uri :change 1}] (:changes (client/get-data update))))))
+
+        (let [update (deref @inventory-update 3000 nil)]
+          (is update)
+          (is (= [{:client agent-uri :change -1}] (:changes (client/get-data update)))))))))
