@@ -1,9 +1,8 @@
 (ns puppetlabs.pcp.broker.subscription-test
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.testutils :refer [dotestseq]]
-            [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services]]
+            [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services get-broker]]
             [puppetlabs.pcp.testutils.client :as client]
-            [puppetlabs.trapperkeeper.app :as tka]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]))
 
 (deftest inventory-node-recieves-updates-when-inventory-changes-when-subscribed-to-updates
@@ -99,13 +98,6 @@
                        data (client/get-data response version)]
                    (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
                    (is (= [{:client "pcp://client04.example.com/agent" :change -1}] (:changes data))))))))
-
-(defn get-broker
-  [app]
-  (-> @(tka/app-context app)
-      :service-contexts
-      :BrokerService
-      :broker))
 
 (def inventory-subscribe-agents
   (client/make-message
