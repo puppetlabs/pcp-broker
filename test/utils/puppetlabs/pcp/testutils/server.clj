@@ -1,6 +1,5 @@
 (ns puppetlabs.pcp.testutils.server
-  (:require [clojure.test :refer :all]
-            [puppetlabs.experimental.websockets.client :as websockets-client]
+  (:require [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
             [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]

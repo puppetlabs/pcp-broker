@@ -1,61 +1,13 @@
 (ns puppetlabs.pcp.broker.service-test
   (:require [clojure.test :refer :all]
-            [clojure.tools.logging :as log]
             [http.async.client :as http]
-            [me.raynes.fs :as fs]
             [puppetlabs.pcp.testutils :refer [dotestseq]]
-            [puppetlabs.pcp.broker.service :refer [broker-service]]
+            [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.message-v1 :as m1]
-            [puppetlabs.pcp.message-v2 :as m2]
             [puppetlabs.kitchensink.core :as ks]
-            [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
-            [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
-            [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
-            [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
-            [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
-            [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
-            [puppetlabs.trapperkeeper.testutils.logging
-             :refer [with-test-logging with-log-level]]
-            [slingshot.slingshot :refer [throw+ try+]]
-            [schema.test :as st]))
-
-(def broker-config
-  "A broker with ssl"
-  {:authorization {:version 1
-                   :rules [{:name "allow all"
-                            :match-request {:type "regex"
-                                            :path "^/.*$"}
-                            :allow-unauthenticated true
-                            :sort-order 1}]}
-
-   :webserver {:ssl-host "127.0.0.1"
-               ;; usual port is 8142.  Here we use 58142 so if we're developing
-               ;; we can run a long-running instance and this one for the
-               ;; tests.
-               :ssl-port 58142
-               :client-auth "want"
-               :ssl-key "./test-resources/ssl/private_keys/broker.example.com.pem"
-               :ssl-cert "./test-resources/ssl/certs/broker.example.com.pem"
-               :ssl-ca-cert "./test-resources/ssl/ca/ca_crt.pem"
-               :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
-
-   :web-router-service
-   {:puppetlabs.pcp.broker.service/broker-service {:v1 "/pcp/v1.0"
-                                                   :v2 "/pcp/v2.0"}
-    :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
-
-   :metrics {:enabled true
-             :server-id "localhost"}})
-
-(def protocol-versions
-  "The short names of versioned endpoints"
-  ["v1.0" "v2.0"])
-
-(def broker-services
-  "The trapperkeeper services the broker needs"
-  [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service scheduler-service])
+            [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]))
 
 (deftest it-talks-websockets-test
   (with-app-with-config app broker-services broker-config
@@ -92,7 +44,7 @@
   [delay]
   (let [close-code (promise)
         connected (promise)]
-    (try+
+    (try
      (with-open [client (client/http-client-with-cert "client01.example.com")
                  ws (http/websocket client
                                     "wss://127.0.0.1:58142/pcp/v2.0"
@@ -104,7 +56,7 @@
        ;; We were connected, sleep a while to see if the broker
        ;; disconnects the client.
        (deref close-code delay nil))
-     (catch Object _
+     (catch Exception _
        (deliver close-code :refused)))
     @close-code))
 
@@ -148,43 +100,44 @@
   ;; NOTE(richardc): This test is racy.  What we do is we start
   ;; and stop a broker in a future so we can try to connect to it
   ;; while the trapperkeeper services are still starting up.
-  (let [should-stop (promise)]
+  (let [should-stop (promise)
+        close-codes (atom [:refused])
+        broker (future (with-app-with-config app broker-services broker-config
+                         ;; Keep the broker alive until the test is done with it.
+                         (deref should-stop)))
+        start (System/currentTimeMillis)]
     (try
-      (let [broker (future (with-app-with-config app broker-services broker-config
-                                                 ;; Keep the broker alive until the test is done with it.
-                             (deref should-stop)))
-            close-codes (atom [:refused])
-            start (System/currentTimeMillis)]
-        (while (and (not (future-done? broker)) (< (- (System/currentTimeMillis) start) (* 120 1000)))
-          (let [code (connect-and-close (* 20 1000))]
-            (when-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
-              (swap! close-codes conj-unique code))
-            (if (= 1000 code)
-              ;; we were _probably_ able to connect to the broker (or the broker was
-              ;; soooo slow to close the connection even though it was not running
-              ;; that the 20 seconds timeout expired) so let's tear it down
-              (deliver should-stop true))))
-        (swap! close-codes conj-unique :refused)
-        ;; We expect the following sequence for close codes:
-        ;;    :refused (connection refused)
-        ;;    1011     (broker not started)
-        ;;    1000     (closed because client initated it)
-        ;;    1011     (broker stopping)
-        ;;    :refused (connection refused)
-        ;; though as some of these states may be missed due to timing we test for
-        ;; membership of the set of valid sequences.  If we have more
-        ;; tests like this it might be worth using ztellman/automat to
-        ;; match with a FSM rather than hand-generation of cases.
-        (is (contains? #{[:refused 1011 1000 1011 :refused]
-                         [:refused 1000 1011 :refused]
-                         [:refused 1011 1000 :refused]
-                         [:refused 1000 :refused]
-                         [:refused 1011 :refused]
-                         [:refused]}
-                       @close-codes)))
+      (while (and (not (future-done? broker)) (< (- (System/currentTimeMillis) start) (* 120 1000)))
+        (let [code (connect-and-close (* 20 1000))]
+          (when-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
+            (swap! close-codes conj-unique code))
+          (if (= 1000 code)
+            ;; we were _probably_ able to connect to the broker (or the broker was
+            ;; soooo slow to close the connection even though it was not running
+            ;; that the 20 seconds timeout expired) so let's tear it down
+            (deliver should-stop true))))
+      (swap! close-codes conj-unique :refused)
+      ;; We expect the following sequence for close codes:
+      ;;    :refused (connection refused)
+      ;;    1011     (broker not started)
+      ;;    1000     (closed because client initated it)
+      ;;    1011     (broker stopping)
+      ;;    :refused (connection refused)
+      ;; though as some of these states may be missed due to timing we test for
+      ;; membership of the set of valid sequences.  If we have more
+      ;; tests like this it might be worth using ztellman/automat to
+      ;; match with a FSM rather than hand-generation of cases.
+      (is (contains? #{[:refused 1011 1000 1011 :refused]
+                        [:refused 1000 1011 :refused]
+                        [:refused 1011 1000 :refused]
+                        [:refused 1000 :refused]
+                        [:refused 1011 :refused]
+                        [:refused]}
+                      @close-codes))
       (finally
-        ; security measure to ensure the broker is stopped
-        (deliver should-stop true)))))
+        ; security measure to ensure the broker is stopped and wait for it to shutdown
+        (deliver should-stop true)
+        (deref broker)))))
 
 (deftest poorly-encoded-message-test
   (testing "a 0-length byte array cannot be decoded by the v1.0 API"
@@ -369,100 +322,6 @@
                        data (client/get-data response version)]
                    (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
                    (is (= [] (:uris data))))))))
-
-(deftest inventory-node-recieves-updates-when-inventory-changes-when-subscribed-to-updates
-  (with-app-with-config app broker-services broker-config
-    (dotestseq [version protocol-versions]
-               (with-open [client (client/connect :certname "client01.example.com"
-                                                  :version version)]
-                 (let [request (client/make-message
-                                 version
-                                 {:message_type "http://puppetlabs.com/inventory_request"
-                                  :target "pcp:///server"
-                                  :sender "pcp://client01.example.com/agent"
-                                  :data {:query ["pcp://client02.example.com/agent"]
-                                         :subscribe true}})]
-                   (client/send! client request))
-                 (let [response (client/recv! client)
-                       data (client/get-data response version)]
-                   (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
-                   (is (= [] (:uris data))))
-                 (with-open [client2 (client/connect :certname "client02.example.com"
-                                                    :version version)]
-                   (let [response (client/recv! client)
-                         data (client/get-data response version)]
-                     (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
-                     (is (= [{:client "pcp://client02.example.com/agent" :change 1}] (:changes data)))))
-                 (let [response (client/recv! client)
-                       data (client/get-data response version)]
-                   (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
-                   (is (= [{:client "pcp://client02.example.com/agent" :change -1}] (:changes data))))))))
-
-(deftest inventory-updates-are-properly-filtered
-  (with-app-with-config app broker-services broker-config
-    (dotestseq [version protocol-versions]
-               (with-open [client1 (client/connect :certname "client01.example.com"
-                                                   :version version)
-                           client2 (client/connect :certname "client02.example.com"
-                                                   :version version)]
-                 ;; subscribe client1 for updates with a specific filter
-                 (let [request (client/make-message
-                                 version
-                                 {:message_type "http://puppetlabs.com/inventory_request"
-                                  :target "pcp:///server"
-                                  :sender "pcp://client01.example.com/agent"
-                                  :data {:query ["pcp://client04.example.com/*"]
-                                         :subscribe true}})]
-                   (client/send! client1 request))
-                 (let [response (client/recv! client1)
-                       data (client/get-data response version)]
-                   (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
-                   (is (= [] (:uris data))))
-
-                 ;; subscribe client2 for updates with a match all filter
-                 (let [request (client/make-message
-                                 version
-                                 {:message_type "http://puppetlabs.com/inventory_request"
-                                  :target "pcp:///server"
-                                  :sender "pcp://client02.example.com/agent"
-                                  :data {:query ["pcp://*/agent"]
-                                         :subscribe true}})]
-                   (client/send! client2 request))
-                 (let [response (client/recv! client2)
-                       data (client/get-data response version)]
-                   (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
-                   (is (= ["pcp://client01.example.com/agent" "pcp://client02.example.com/agent"] (:uris data))))
-
-                 ;; now connect a client matching only the filter client2 used for subscribing
-                 (with-open [client3 (client/connect :certname "client03.example.com"
-                                                     :version version)]
-                   (let [response (client/recv! client2)
-                         data (client/get-data response version)]
-                     (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
-                     (is (= [{:client "pcp://client03.example.com/agent" :change 1}] (:changes data))))
-                   ;; client1 doesn't receive an update at all, becuase the change doesn't match its filter
-                   (let [response (client/recv! client1 3000)]
-                     (is (nil? response)))
-                   (with-open [client4 (client/connect :certname "client04.example.com"
-                                                       :version version)]
-                     (let [response (client/recv! client2)
-                           data (client/get-data response version)]
-                       (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
-                       (is (= [{:client "pcp://client04.example.com/agent" :change 1}] (:changes data))))
-                     (let [response (client/recv! client1)
-                           data (client/get-data response version)]
-                       (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
-                       (is (= [{:client "pcp://client04.example.com/agent" :change 1}] (:changes data))))))
-                 ;; client4 & client3 have disconnected (in that order)
-                 (let [response (client/recv! client2)
-                       data (client/get-data response version)]
-                   (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
-                   (is (= [{:client "pcp://client04.example.com/agent" :change -1}
-                           {:client "pcp://client03.example.com/agent" :change -1}] (:changes data))))
-                 (let [response (client/recv! client1)
-                       data (client/get-data response version)]
-                   (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
-                   (is (= [{:client "pcp://client04.example.com/agent" :change -1}] (:changes data))))))))
 
 (def no-inventory-broker-config
   "A broker that allows connections but no inventory requests"

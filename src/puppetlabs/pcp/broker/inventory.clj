@@ -85,9 +85,10 @@
           {:changes filtered})))
 
 (s/defn subscribe-client! :- shared/BrokerDatabase
-  "Subscribe the specified client for inventory updates. Return the broker database snapshot
-  at the time of subscribing."
-  [broker :- Broker client :- p/Uri connection :- Connection pattern-sets :- shared/PatternSets]
+  "Subscribe the specified client for inventory updates. Expects a promise of a connection, to be
+  fulfilled when the initial inventory response has been sent; that prevents messages appearing out
+  of order. Return the broker database snapshot at the time of subscribing."
+  [broker :- Broker client :- p/Uri connection :- Object pattern-sets :- shared/PatternSets]
   (let [database (:database broker)]
     (swap! database
            #(update % :subscriptions assoc client {:connection        connection
@@ -133,13 +134,14 @@
                               (if (nil? @processed-count-atom) ;; have we not sent the update to this subscriber yet?
                                 (let [data (-> (subvec updates next-update-offset) ;; skip updates which have already been sent to this subscriber
                                                (build-update-data (:pattern-sets subscription)))]
-                                  (if (or (nil? data) ;; there are no updates for this subscriber
-                                          (deliver-server-message broker
-                                                                  (message/make-message
-                                                                    {:message_type "http://puppetlabs.com/inventory_update"
-                                                                     :target subscriber
-                                                                     :data data})
-                                                                  (:connection subscription)))
+                                  (if (and (realized? (:connection subscription)) ;; prevent update before inventory response
+                                           (or (nil? data) ;; there are no updates for this subscriber
+                                               (deliver-server-message broker
+                                                                       (message/make-message
+                                                                         {:message_type "http://puppetlabs.com/inventory_update"
+                                                                          :target subscriber
+                                                                          :data data})
+                                                                       @(:connection subscription))))
                                     (reset! processed-count-atom updates-count)
                                     (reset! processed-count-atom next-update-offset))))
                               (let [processed-count @processed-count-atom]
@@ -159,6 +161,8 @@
            (-> database-snapshot :subscriptions keys))
          (remove-processed-updates broker))))
 
+(def batch-update-interval-ms 1000)
+
 (s/defn start-inventory-updates!
   "Start periodic sending of the inventory updates."
   [broker :- Broker]
@@ -166,7 +170,7 @@
     (let [should-stop (:should-stop broker)]
       (loop []
         (send-updates broker)
-        (if (nil? (deref should-stop 1000 nil))
+        (if (nil? (deref should-stop batch-update-interval-ms nil))
           (recur))))))
 
 (s/defn stop-inventory-updates!

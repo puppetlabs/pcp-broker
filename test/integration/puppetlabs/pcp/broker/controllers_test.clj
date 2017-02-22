@@ -1,69 +1,34 @@
 (ns puppetlabs.pcp.broker.controllers-test
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.testutils :refer [dotestseq]]
-            [puppetlabs.pcp.broker.service :refer [broker-service]]
+            [puppetlabs.pcp.testutils.service :refer [protocol-versions broker-services]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.testutils.server :as server]
             [puppetlabs.pcp.message-v2 :as message]
             [puppetlabs.experimental.websockets.client :as websockets-client]
-            [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
-            [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
-            [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
-            [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
-            [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
-            [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
-            [puppetlabs.trapperkeeper.testutils.logging :refer [with-log-level]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]))
 
-(def default-webserver
-  {:ssl-host "127.0.0.1"
-   ;; usual port is 8142.  Here we use 58142 so if we're developing
-   ;; we can run a long-running instance and this one for the
-   ;; tests.
-   :ssl-port 58142
-   :client-auth "want"
-   :ssl-key "./test-resources/ssl/private_keys/broker.example.com.pem"
-   :ssl-cert "./test-resources/ssl/certs/broker.example.com.pem"
-   :ssl-ca-cert "./test-resources/ssl/ca/ca_crt.pem"
-   :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"})
+(def default-webserver (:webserver puppetlabs.pcp.testutils.service/broker-config))
 
 (def broker-config
-  "A broker with ssl"
-  {:authorization {:version 1
-                   :rules [{:name "allow all"
-                            :match-request {:type "regex"
-                                            :path "^/.*$"}
-                            :allow-unauthenticated true
-                            :sort-order 1}]}
-
-   :webserver {
-     :pcp-broker (assoc default-webserver :default-server true)
-     :mock-server-1 (assoc default-webserver :ssl-port 58143)
-     :mock-server-2 (assoc default-webserver :ssl-port 58144
-                                             :ssl-key "./test-resources/ssl/private_keys/controller01.example.com.pem"
-                                             :ssl-cert "./test-resources/ssl/certs/controller01.example.com.pem")
-     :mock-server-3 (assoc default-webserver :ssl-port 58145
-                                             :ssl-key "./test-resources/ssl/private_keys/controller02.example.com.pem"
-                                             :ssl-cert "./test-resources/ssl/certs/controller02.example.com.pem")}
-
-   :web-router-service
-   {:puppetlabs.pcp.broker.service/broker-service {:v1 "/pcp/v1.0"
-                                                   :v2 "/pcp/v2.0"}
-    :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"
-    :puppetlabs.pcp.testutils.server/mock-server {:mock-server-1 "/server"
-                                                  :mock-server-2 "/server"
-                                                  :mock-server-3 "/server"}}
-
-   :pcp-broker {:controller-uris ["wss://localhost:58143/server"]
-                :controller-whitelist ["http://puppetlabs.com/inventory_request"
-                                       "greeting"]}
-
-   :metrics {:enabled true
-             :server-id "localhost"}})
-
-(def broker-services
-  "The trapperkeeper services the broker needs"
-  [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service scheduler-service])
+  (-> puppetlabs.pcp.testutils.service/broker-config
+      (assoc
+        :webserver {
+          :pcp-broker (assoc default-webserver :default-server true)
+          :mock-server-1 (assoc default-webserver :ssl-port 58143)
+          :mock-server-2 (assoc default-webserver :ssl-port 58144
+                                                  :ssl-key "./test-resources/ssl/private_keys/controller01.example.com.pem"
+                                                  :ssl-cert "./test-resources/ssl/certs/controller01.example.com.pem")
+          :mock-server-3 (assoc default-webserver :ssl-port 58145
+                                                  :ssl-key "./test-resources/ssl/private_keys/controller02.example.com.pem"
+                                                  :ssl-cert "./test-resources/ssl/certs/controller02.example.com.pem")}
+       :pcp-broker {:controller-uris ["wss://localhost:58143/server"]
+                    :controller-whitelist ["http://puppetlabs.com/inventory_request"
+                                           "greeting"]})
+      (assoc-in [:web-router-service :puppetlabs.pcp.testutils.server/mock-server]
+        {:mock-server-1 "/server"
+         :mock-server-2 "/server"
+         :mock-server-3 "/server"})))
 
 (deftest controller-connection-test
   (let [connected (promise)]

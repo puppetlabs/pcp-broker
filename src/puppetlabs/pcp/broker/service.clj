@@ -7,7 +7,10 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
             [puppetlabs.i18n.core :as i18n]))
 
+(defprotocol BrokerService)
+
 (trapperkeeper/defservice broker-service
+  BrokerService
   [[:AuthorizationService authorization-check]
    [:ConfigService get-in-config]
    [:WebroutingService add-websocket-handler get-server get-route]
