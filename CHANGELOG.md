@@ -1,6 +1,19 @@
+## 1.1.0
+
+This is a feature release.
+
+The major updates are:
+* [PCP-600](https://tickets.puppetlabs.com/browse/PCP-600) Add support for
+  inventory updates, which were introduced in the [PCP v2
+  specifications](https://github.com/puppetlabs/pcp-specifications/blob/master/pcp/versions/2.0/inventory.md#inventory-messages)
+* [PCP-681](https://tickets.puppetlabs.com/browse/PCP-681) Add the
+  `controller-uris`  and `controller-whitelist` configuration options. These
+  are, respectively, a list of controllers to which the broker may connect, and
+  a list of message types the broker may send to controllers.
+
 ## 1.0.1
 
-This is a maintenane release
+This is a maintenance release
 
 * Logs failure to deliver error messages and associate response to debug. These
 are normal behavior if the client disconnects after sending a message.
