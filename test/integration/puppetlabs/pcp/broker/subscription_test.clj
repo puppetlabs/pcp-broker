@@ -1,9 +1,8 @@
 (ns puppetlabs.pcp.broker.subscription-test
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.testutils :refer [dotestseq]]
-            [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services]]
+            [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services get-broker]]
             [puppetlabs.pcp.testutils.client :as client]
-            [puppetlabs.trapperkeeper.app :as tka]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]))
 
 (deftest inventory-node-recieves-updates-when-inventory-changes-when-subscribed-to-updates
@@ -100,13 +99,6 @@
                    (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
                    (is (= [{:client "pcp://client04.example.com/agent" :change -1}] (:changes data))))))))
 
-(defn get-broker
-  [app]
-  (-> @(tka/app-context app)
-      :service-contexts
-      :BrokerService
-      :broker))
-
 (def inventory-subscribe-agents
   (client/make-message
     {:message_type "http://puppetlabs.com/inventory_request"
@@ -137,7 +129,10 @@
           (#'puppetlabs.pcp.broker.inventory/send-updates (get-broker app))
           (let [response (client/recv! controller)]
             (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
-            (is (= [{:client "pcp://client01.example.com/agent" :change 1}] (get-in response [:data :changes]))))))))))
+            (is (= [{:client "pcp://client01.example.com/agent" :change 1}] (get-in response [:data :changes]))))))
+      ;; ensure send updates doesn't error after subscriber has disconnected
+      (with-open [client (client/connect :certname "client01.example.com" :force-association true)]
+        (#'puppetlabs.pcp.broker.inventory/send-updates (get-broker app)))))))
 
 (deftest inventory-update-after-reconnect
   (let [subscribe-client! puppetlabs.pcp.broker.inventory/subscribe-client!

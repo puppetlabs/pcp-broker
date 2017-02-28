@@ -134,8 +134,8 @@
                               (if (nil? @processed-count-atom) ;; have we not sent the update to this subscriber yet?
                                 (let [data (-> (subvec updates next-update-offset) ;; skip updates which have already been sent to this subscriber
                                                (build-update-data (:pattern-sets subscription)))]
-                                  (if (and (realized? (:connection subscription)) ;; prevent update before inventory response
-                                           (or (nil? data) ;; there are no updates for this subscriber
+                                  (if (or (nil? data) ;; there are no updates for this subscriber
+                                          (and (realized? (:connection subscription)) ;; prevent update before inventory response
                                                (deliver-server-message broker
                                                                        (message/make-message
                                                                          {:message_type "http://puppetlabs.com/inventory_update"

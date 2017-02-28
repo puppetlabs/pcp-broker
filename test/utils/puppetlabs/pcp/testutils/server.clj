@@ -13,7 +13,10 @@
 (defn on-text [server ws text])
 (defn on-bytes [server ws bytes offset len])
 
+(defprotocol MockServer)
+
 (trapperkeeper/defservice mock-server
+  MockServer
   [[:WebroutingService add-websocket-handler]]
   (init [this context]
         (let [inventory (atom [])]

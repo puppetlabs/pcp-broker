@@ -1,5 +1,6 @@
 (ns puppetlabs.pcp.testutils.service
   (:require [puppetlabs.trapperkeeper.core :as trapperkeeper]
+            [puppetlabs.trapperkeeper.app :as tka]
             [puppetlabs.pcp.broker.service :refer [broker-service]]
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
@@ -43,3 +44,15 @@
 (def broker-services
   "The trapperkeeper services the broker needs"
   [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service scheduler-service])
+
+(defn get-context
+  [app svc]
+  (-> @(tka/app-context app)
+      :service-contexts
+      (get svc)))
+
+(defn get-broker
+  [app]
+  (-> app
+      (get-context :BrokerService)
+      :broker))
