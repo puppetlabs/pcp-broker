@@ -243,7 +243,10 @@
                                                   :check-association false)]
                  (testing "cannot associate - closes connection"
                    (let [response (client/recv! client)]
-                     (is (= [4002 "association unsuccessful"] response))))
+                     (is (or (= [4002 "association unsuccessful"] response)
+                             ;; the response can also be 1006; this may happen because we close the connection during the on-connect callback
+                             ;; since this isn't an issue when things are set up correctly, just accept the 1006
+                             (= [1006 "Connection was closed abnormally (that is, with no close frame being sent)."] response)))))
                  (testing "cannot request inventory"
                    (let [request (client/make-message
                                   version
