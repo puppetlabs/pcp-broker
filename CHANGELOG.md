@@ -1,3 +1,10 @@
+## 1.1.1
+
+This is a maintenance release
+
+* Remove authorization.conf file to avoid conflicts when packaged alongside
+  other services
+
 ## 1.1.0
 
 This is a feature release.
