@@ -4,31 +4,38 @@
             [puppetlabs.pcp.testutils.service :refer [protocol-versions broker-services get-broker get-context]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.testutils.server :as server]
+            [puppetlabs.pcp.broker.core :as core]
+            [puppetlabs.pcp.broker.inventory :as inventory]
             [puppetlabs.pcp.message-v2 :as message]
             [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]))
 
 (def default-webserver (:webserver puppetlabs.pcp.testutils.service/broker-config))
 
-(def broker-config
+(def mock-server-config
+  {:webserver {:mock-server-1 (assoc default-webserver :ssl-port 58143)
+               :mock-server-2 (assoc default-webserver :ssl-port 58144
+                                     :ssl-key "./test-resources/ssl/private_keys/controller01.example.com.pem"
+                                     :ssl-cert "./test-resources/ssl/certs/controller01.example.com.pem")
+               :mock-server-3 (assoc default-webserver :ssl-port 58145
+                                     :ssl-key "./test-resources/ssl/private_keys/controller02.example.com.pem"
+                                     :ssl-cert "./test-resources/ssl/certs/controller02.example.com.pem")}
+   :web-router-service
+   {:puppetlabs.pcp.testutils.server/mock-server {:mock-server-1 "/server"
+                                                  :mock-server-2 "/server"
+                                                  :mock-server-3 "/server"}}})
+
+(def only-broker-config
   (-> puppetlabs.pcp.testutils.service/broker-config
       (assoc
-        :webserver {
-          :pcp-broker (assoc default-webserver :default-server true)
-          :mock-server-1 (assoc default-webserver :ssl-port 58143)
-          :mock-server-2 (assoc default-webserver :ssl-port 58144
-                                                  :ssl-key "./test-resources/ssl/private_keys/controller01.example.com.pem"
-                                                  :ssl-cert "./test-resources/ssl/certs/controller01.example.com.pem")
-          :mock-server-3 (assoc default-webserver :ssl-port 58145
-                                                  :ssl-key "./test-resources/ssl/private_keys/controller02.example.com.pem"
-                                                  :ssl-cert "./test-resources/ssl/certs/controller02.example.com.pem")}
-       :pcp-broker {:controller-uris ["wss://localhost:58143/server"]
-                    :controller-whitelist ["http://puppetlabs.com/inventory_request"
-                                           "greeting"]})
-      (assoc-in [:web-router-service :puppetlabs.pcp.testutils.server/mock-server]
-        {:mock-server-1 "/server"
-         :mock-server-2 "/server"
-         :mock-server-3 "/server"})))
+        :webserver {:pcp-broker (assoc default-webserver :default-server true)}
+        :pcp-broker {:controller-uris ["wss://localhost:58143/server"]
+                     :controller-whitelist ["http://puppetlabs.com/inventory_request"
+                                            "greeting"]
+                     :controller-disconnection-graceperiod 100})))
+
+(def broker-config
+  (merge-with merge mock-server-config only-broker-config))
 
 (deftest controller-connection-test
   (let [connected (promise)]
@@ -41,6 +48,7 @@
                           :data {:query ["pcp://*/*"]}}))
 
 (def agent-cert "client01.example.com")
+(def agent2-cert "client02.example.com")
 (def agent-uri (str "pcp://" agent-cert "/agent"))
 
 (def agent-request (message/make-message
@@ -199,36 +207,105 @@
 
 (deftest controllers-unsubscribe
   (let [server-message-sent (atom 0)
-        forget-controller-subscription puppetlabs.pcp.broker.core/forget-controller-subscription
+        server-messages-at-unsubscribe (promise)
+        clients-purged? (promise)
+        controller-timeout? (promise)
+        forget-controller-subscription core/forget-controller-subscription
         removed-subscription (promise)
         deliver-server-message puppetlabs.pcp.broker.shared/deliver-server-message
+        maybe-purge-clients! core/maybe-purge-clients!
+        send-updates inventory/send-updates
+        first-update-sent? (promise)
         inventory-response (promise)]
-    (with-redefs [puppetlabs.pcp.broker.inventory/start-inventory-updates! (fn [_] nil)
-                  puppetlabs.pcp.broker.core/forget-controller-subscription
-                  (fn [b u c]
-                    (forget-controller-subscription b u c)
-                    (deliver removed-subscription true))
-                  puppetlabs.pcp.broker.shared/deliver-server-message
-                  (fn [b m c]
-                    (swap! server-message-sent inc)
-                    (deliver-server-message b m c))
-                  server/on-connect
-                  (fn [_ ws]
-                    ;; Only send subscribe the first time we connect
-                    (when (zero? @server-message-sent)
-                      (websockets-client/send! ws (message/encode inventory-subscribe))))
-                  server/on-text (fn [_ ws text] (deliver inventory-response (message/decode text)))]
+    (with-redefs
+      [core/maybe-purge-clients! (fn [b t]
+                                   @controller-timeout?
+                                   (maybe-purge-clients! b t)
+                                   (deliver clients-purged? true))
+       inventory/send-updates (fn [broker]
+                                (when (or (not (empty? (:inventory @(:database broker))))
+                                          (realized? first-update-sent?))
+                                  (send-updates broker)
+                                  (deliver first-update-sent? true)))
+       core/forget-controller-subscription (fn [b u p c]
+                                             (forget-controller-subscription b u p c)
+                                             (deliver removed-subscription true)
+                                             (deliver server-messages-at-unsubscribe
+                                                      @server-message-sent))
+       puppetlabs.pcp.broker.shared/deliver-server-message (fn [b m c]
+                                                             (swap! server-message-sent inc)
+                                                             (deliver-server-message b m c))
+       server/on-connect (fn [_ ws]
+                           ;; Only send subscribe the first time we connect
+                           (when (zero? @server-message-sent)
+                             (websockets-client/send! ws (message/encode
+                                                           inventory-subscribe))))
+       server/on-text (fn [_ ws text] (deliver inventory-response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
-        (is (deref inventory-response 3000 nil))
-        (is (= (:id inventory-subscribe) (:in_reply_to @inventory-response)))
-        (is (= [] (get-in @inventory-response [:data :uris])))
+        (let [broker (:broker (get-context app :BrokerService))]
+          (with-open [client (client/connect :certname agent-cert)]
+            (while (empty? (:inventory @(:database broker)))
+              (Thread/sleep 100))
+            (is (deref inventory-response 3000 nil))
+            @first-update-sent?
+            (is (= (:id inventory-subscribe) (:in_reply_to @inventory-response)))
+            ;; Disconnect the mock server
+            (doseq [ws @(:inventory (get-context app :MockServer))]
+              (websockets-client/close! ws))
+            (is (deref removed-subscription 3000 nil))
+            (deliver controller-timeout? true)
+            (testing "updates for disconnected controllers are discarded, not sent"
+              (is @clients-purged?)
+              (is (not (empty? (:updates @(:database broker)))))
+              (inventory/send-updates (get-broker app))
+              (is (empty? (:updates @(:database broker))))
+              (is (= @server-messages-at-unsubscribe @server-message-sent)))))))))
 
-        ;; Disconnect the mock server
-        (doseq [ws @(:inventory (get-context app :MockServer))]
-          (websockets-client/close! ws))
-        (is (deref removed-subscription 3000 nil))
+(deftest controller-disconnection
+    (let [timed-out? (promise)]
+      (with-redefs [core/schedule-client-purge! (fn [b t p u]
+                                                  @timed-out?
+                                                  (core/maybe-purge-clients! b t))
+                    puppetlabs.pcp.broker.inventory/start-inventory-updates! (fn [_] nil)]
+        (with-app-with-config app broker-services only-broker-config
+          (let [{:keys [broker]} (get-context app :BrokerService)
+                database (:database broker)]
+            (testing "controller disconnection"
+              (with-app-with-config mock-server server/mock-server-services mock-server-config
+                (server/wait-for-inbound-connection (get-context mock-server :MockServer))
+                (with-open [client (client/connect :certname agent-cert)]
+                  (while (empty? (:inventory @database))
+                    (Thread/sleep 100))
+                  (let [controller-inventory (:inventory (get-context mock-server :MockServer))
+                        controller-ws (first @controller-inventory)
+                        [_ client-connection] (first (:inventory @database))]
+                    (is (= 0 (count (:warning-bin @database))))
+                    (testing "closing a controller connection puts a controller in the warning bin"
+                      (websockets-client/close! controller-ws)
+                      (Thread/sleep 100)
+                      (is (= 1 (count (:warning-bin @database)))))
+                    (testing "clients connected until timeout is reached"
+                      (is (websockets-client/connected? (:websocket client-connection)))
+                      (testing "new connections are rejected while controllers in the bin"
+                        (with-open [client' (client/connect :certname agent2-cert)]
+                          (let [[status message] (client/recv! client')]
+                            ;; We sometimes see a 1006/abnormal close here.
+                            ;; This can be removed when PCP-714 is addressed.
+                            (is (or (=  1006 status)
+                                    (and (= 1011 status)
+                                         (= "All controllers disconnected" message)))))))
+                      (deliver timed-out? true)
+                      (is (= [1011 "All controllers disconnected"]
+                             (client/recv! client)))
+                      (is (not (websockets-client/connected? (:websocket client-connection)))))
+                    (testing "warning bin contains one element"
+                      (is (= 1 (count (:warning-bin @database)))))))))
 
-        (with-open [client (client/connect :certname agent-cert :force-association true)]
-          (let [server-messages-sent @server-message-sent]
-            (#'puppetlabs.pcp.broker.inventory/send-updates (get-broker app))
-            (is (= server-messages-sent @server-message-sent))))))))
+          (testing "controller reconnection"
+            (with-app-with-config mock-server server/mock-server-services mock-server-config
+              (server/wait-for-inbound-connection (get-context mock-server :MockServer))
+              (with-open [client (client/connect :certname agent-cert)]
+                (testing "client connections now successful"
+                  (while (empty? (:inventory @database))
+                    (Thread/sleep 100))
+                  (is (not (empty? (:inventory @database)))))))))))))

@@ -10,6 +10,7 @@
 (s/defn init-database :- shared/BrokerDatabase
   []
   {:inventory          {}
+   :warning-bin        {}
    :updates            []
    :first-update-index 0
    :subscriptions      {}})
@@ -113,7 +114,7 @@
                          (update :updates (fn [updates] (vec (subvec updates processed-updates-count))))
                          (update :first-update-index unchecked+ processed-updates-count)))))
 
-(s/defn ^:private send-updates
+(s/defn send-updates
   [broker :- Broker]
   "Send inventory update messages to subscribed clients. Subsequently remove the processed inventory
   change records from the :updates vector."

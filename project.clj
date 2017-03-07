@@ -18,7 +18,6 @@
 
   :dependencies [[org.clojure/clojure]
                  [org.clojure/tools.logging]
-
                  [puppetlabs/kitchensink]
                  [puppetlabs/trapperkeeper]
                  [puppetlabs/trapperkeeper-authorization]
@@ -37,7 +36,7 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "1.1.0"]
+                 [puppetlabs/pcp-client "1.1.1"]
                  [puppetlabs/pcp-common "1.1.1"]
 
                  [puppetlabs/i18n]]

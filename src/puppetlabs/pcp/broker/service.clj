@@ -30,6 +30,9 @@
   (start [this context]
          (sl/maplog :info {:type :broker-start} (i18n/trs "Starting broker service"))
          (let [controller-uris (get-in-config [:pcp-broker :controller-uris] [])
+               controller-disconnection-graceperiod (get-in-config [:pcp-broker
+                                                                    :controller-disconnection-graceperiod]
+                                                                   45000)
                controller-whitelist (set (get-in-config [:pcp-broker :controller-whitelist]
                                                         ["http://puppetlabs.com/inventory_request"]))
                broker (:broker context)
@@ -50,7 +53,8 @@
                    (core/initiate-controller-connections broker
                                                          ssl-context
                                                          controller-uris
-                                                         controller-whitelist))
+                                                         controller-whitelist
+                                                         controller-disconnection-graceperiod))
            (core/start broker)
            (sl/maplog :debug {:type :broker-started :brokername broker-name}
                       (i18n/trs "Broker service <'{brokername}'> started"))

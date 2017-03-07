@@ -115,6 +115,10 @@ msgid "No client certificate"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid "All controllers disconnected"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Node with URI '{uri}' already associated with connection '{commonname}' "
 "'{remoteaddress}'"

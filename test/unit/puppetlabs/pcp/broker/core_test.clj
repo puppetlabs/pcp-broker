@@ -388,7 +388,7 @@
             _ (.start ssl-context-factory)
             ssl-context (.getSslContext ssl-context-factory)
             _ (.stop ssl-context-factory)
-            clients (initiate-controller-connections broker ssl-context ["wss://foo.com/v1"] #{})
+            clients (initiate-controller-connections broker ssl-context ["wss://foo.com/v1"] #{} 100)
             client (get clients "pcp://foo.com/server")]
         (is (= 1 (count clients)))
         (is client)

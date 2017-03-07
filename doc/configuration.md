@@ -86,10 +86,17 @@ of message types allowed to those connections. If the whitelist is not specified
 inventory requests are authorized. Note that all URIs must use a distinct hostname/port
 combination (the path is not taken into account when generating PCP identifiers).
 
+Users may also supply a controller disconnection graceperiod, which represents
+the amount of time to wait after all controllers become disconnected before
+evicting all client connections (to allow them to redistribute to other
+brokers). If unspecified, this defaults to 45 seconds. The parameter is
+supplied in milliseconds.
+
 ```
 pcp-broker: {
     controller-uris: ["wss://broker.example.com:8143/server", "wss://broker2.example.com:8143/server"],
     controller-whitelist: ["http://puppetlabs.com/inventory_request",
-                           "http://puppetlabs.com/rpc_blocking_request"]
+                           "http://puppetlabs.com/rpc_blocking_request"],
+    controller-disconnection-graceperiod: 45000
 }
 ```
