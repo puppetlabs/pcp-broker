@@ -269,7 +269,7 @@
   [response expected]
   (let [[status message] response]
     (or (= 1006 status)
-        (= response expected)))
+        (= response expected))))
 
 (deftest controller-disconnection
     (let [timed-out? (promise)]
@@ -283,9 +283,13 @@
             (testing "client connections disallowed when no controller is connected"
               (with-open [client (client/connect :certname agent-cert)]
                 (is (received? (client/recv! client) [1011 "All controllers disconnected"]))))
+            (testing "broker state is error on start (no controllers connected)"
+              (is (= :error (:state (core/status broker :info)))))
             (testing "controller disconnection"
               (with-app-with-config mock-server server/mock-server-services mock-server-config
                 (server/wait-for-inbound-connection (get-context mock-server :MockServer))
+                (testing "broker in running state"
+                  (= :running (:state (core/status broker :info))))
                 (with-open [client (client/connect :certname agent-cert)]
                   (while (empty? (:inventory @database))
                     (Thread/sleep 100))
@@ -310,6 +314,10 @@
                     (testing "warning bin contains one element"
                       (is (= 1 (count (:warning-bin @database)))))))))
 
+
+            (testing "returns error state when brokers are disconnected"
+              (= :error (:state (core/status broker :info))))
+
             (testing "controller reconnection"
               (with-app-with-config mock-server server/mock-server-services mock-server-config
                 (server/wait-for-inbound-connection (get-context mock-server :MockServer))
@@ -317,4 +325,6 @@
                   (testing "client connections now successful"
                     (while (empty? (:inventory @database))
                       (Thread/sleep 100))
-                    (is (not (empty? (:inventory @database))))))))))))))
+                    (testing "returns running state when brokers are disconnected"
+                      (= :running (:state (core/status broker :info))))
+                    (is (not (empty? (:inventory @database)))))))))))))
