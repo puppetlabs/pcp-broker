@@ -11,6 +11,7 @@
             [puppetlabs.pcp.client :as pcp-client]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
+            [clj-time.core :refer [millis now plus equal?]]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
@@ -415,6 +416,12 @@
   [broker ws bytes offset len]
   (on-message! broker ws bytes))
 
+(defn all-controllers-disconnected?
+  [broker]
+  (and (not (empty? @(:controllers broker)))
+       (= (set (keys @(:controllers broker)))
+          (set (keys (:warning-bin @(:database broker)))))))
+
 ;;
 ;; Other WebSocket event handlers
 ;;
@@ -427,44 +434,49 @@
   [broker codec ws]
   (time!
    (:on-connect (:metrics broker))
-   (if (not= :running @(:state broker))
-    (websockets-client/close! ws 1011 (i18n/trs "Broker is not running"))
+   (cond
+     (not= :running @(:state broker))
+     (websockets-client/close! ws 1011 (i18n/trs "Broker is not running"))
 
-    (if (nil? (ws->common-name ws))
-      (do
-        (sl/maplog :debug {:remoteaddress (ws->remote-address ws)
-                           :type :connection-no-peer-certificate}
-                   (i18n/trs "No client certificate, closing '{remoteaddress}'"))
-        (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
+     (nil? (ws->common-name ws))
+     (do (sl/maplog :debug {:remoteaddress (ws->remote-address ws)
+                            :type :connection-no-peer-certificate}
+                    (i18n/trs "No client certificate, closing '{remoteaddress}'"))
+         (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
 
+
+     (all-controllers-disconnected? broker)
+     (websockets-client/close! ws 1011 (i18n/trs "All controllers disconnected"))
+
+     :else
       ;; Generate an implicit association request and authorize association.
-      (let [uri (ws->uri ws)
-            connection (connection/make-connection ws codec uri)
-            message (message/make-message
-                      {:target "pcp:///server"
-                       :sender uri
-                       :message_type "http://puppetlabs.com/associate_request"})]
-        ;; Also prevent association as "server" type. Reserved for outgoing connections.
-        (if (or (not (authorized? broker message connection))
-                (= (ws->client-type ws) "server"))
-          (let [message-data (merge (connection/summarize connection)
-                                    (summarize message))]
-            (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
-            (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful")))
+     (let [uri (ws->uri ws)
+           connection (connection/make-connection ws codec uri)
+           message (message/make-message
+                     {:target "pcp:///server"
+                      :sender uri
+                      :message_type "http://puppetlabs.com/associate_request"})]
+       ;; Also prevent association as "server" type. Reserved for outgoing connections.
+       (if (or (not (authorized? broker message connection))
+               (= (ws->client-type ws) "server"))
+         (let [message-data (merge (connection/summarize connection)
+                                   (summarize message))]
+           (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
+           (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful")))
 
-          (do
-            (when-let [old-conn (get-connection broker uri)]
-              (sl/maplog :debug (assoc (connection/summarize old-conn)
-                                       :uri uri
-                                       :type :connection-association-failed)
-                         (i18n/trs "Node with URI '{uri}' already associated with connection '{commonname}' '{remoteaddress}'"))
-              (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "superseded")))
-            (websockets-client/idle-timeout! ws (* 1000 60 15))
-            (add-connection! broker connection)
-            (sl/maplog :debug (assoc (connection/summarize connection)
-                                     :uri uri
-                                     :type :connection-open)
-                       (i18n/trs "'{uri}' connected from '{remoteaddress}'")))))))))
+         (do
+           (when-let [old-conn (get-connection broker uri)]
+             (sl/maplog :debug (assoc (connection/summarize old-conn)
+                                      :uri uri
+                                      :type :connection-association-failed)
+                        (i18n/trs "Node with URI '{uri}' already associated with connection '{commonname}' '{remoteaddress}'"))
+             (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "superseded")))
+           (websockets-client/idle-timeout! ws (* 1000 60 15))
+           (add-connection! broker connection)
+           (sl/maplog :debug (assoc (connection/summarize connection)
+                                    :uri uri
+                                    :type :connection-open)
+                      (i18n/trs "'{uri}' connected from '{remoteaddress}'"))))))))
 
 (defn- on-error
   "OnError WebSocket event handler. Just log the event."
@@ -545,21 +557,53 @@
             (process-server-message! broker message connection)
             (deliver-message broker message connection)))))))
 
+(defn maybe-purge-clients!
+  "After having slept for the grace period, if all controllers are still
+   disconnected and the latest disconnection timestamp matches that expected,
+   purge all clients."
+  [broker target-timestamp]
+  (when (and (all-controllers-disconnected? broker)
+             (equal? target-timestamp
+                     (last (sort (vals (:warning-bin @(:database broker)))))))
+    (doseq [[_ client-connection] (:inventory @(:database broker))]
+      (websockets-client/close!
+        (:websocket client-connection)
+        1011 (i18n/trs "All controllers disconnected")))))
+
+(defn remove-controller-from-warning-bin!
+  [broker controller-uri ws]
+  (swap! (:database broker) update :warning-bin dissoc controller-uri))
+
+(defn schedule-client-purge!
+  [broker timestamp controller-disconnection-graceperiod uri]
+  (future (do (Thread/sleep controller-disconnection-graceperiod)
+              (maybe-purge-clients! broker timestamp))))
+
 (s/defn forget-controller-subscription
-  [broker :- Broker uri :- s/Str client :- Client]
-  (swap! (:database broker) update :subscriptions dissoc uri))
+  [broker :- Broker
+   uri :- s/Str
+   controller-disconnection-graceperiod :- s/Int
+   client :- Client]
+  (let [timestamp (now)]
+    (swap! (:database broker) update :subscriptions dissoc uri)
+    (swap! (:database broker) update :warning-bin assoc uri timestamp)
+    (when (all-controllers-disconnected? broker)
+      (schedule-client-purge! broker timestamp controller-disconnection-graceperiod uri))))
 
 (s/defn start-client
   [broker :- Broker
    ssl-context :- SSLContext
    controller-whitelist :- #{s/Str}
+   controller-disconnection-graceperiod :- s/Int
    uri :- s/Str]
   (let [;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
         pcp-uri (str "pcp://" (.getAuthority (URI. uri)) "/server")
         client (pcp-client/connect {:server uri
                                     :ssl-context ssl-context
                                     :type "server"
-                                    :on-close-cb (partial forget-controller-subscription broker pcp-uri)}
+                                    :on-connect-cb (partial remove-controller-from-warning-bin! broker pcp-uri)
+                                    :on-close-cb (partial forget-controller-subscription broker pcp-uri
+                                                          controller-disconnection-graceperiod)}
                                     {:default (partial default-message-handler broker controller-whitelist)})
         identity-codec {:decode identity :encode identity}]
     (sl/maplog :debug {:type :controller-connection :uri uri :pcpuri pcp-uri}
@@ -571,8 +615,11 @@
   [broker :- Broker
    ssl-context :- SSLContext
    controller-uris :- [s/Str]
-   controller-whitelist :- #{s/Str}]
-  (into {} (pmap (partial start-client broker ssl-context controller-whitelist) controller-uris)))
+   controller-whitelist :- #{s/Str}
+   controller-disconnection-graceperiod :- s/Int]
+  (into {} (pmap (partial start-client broker ssl-context
+                          controller-whitelist controller-disconnection-graceperiod)
+                 controller-uris)))
 
 ;;
 ;; Broker service lifecycle, status service

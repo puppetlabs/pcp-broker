@@ -11,6 +11,7 @@
             [schema.core :as s]
             [puppetlabs.i18n.core :as i18n])
   (:import [puppetlabs.pcp.broker.connection Connection]
+           [org.joda.time DateTime]
            [clojure.lang IFn]))
 
 (def BrokerState
@@ -37,6 +38,7 @@
    ;; the index of the first InventoryChange record in the :updates vector
    ;; (note that this index can overflow)
    :first-update-index s/Int
+   :warning-bin        {p/Uri DateTime}
    :updates            [p/InventoryChange]
    :subscriptions      {p/Uri Subscription}})
 

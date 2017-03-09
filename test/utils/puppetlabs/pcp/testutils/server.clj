@@ -1,6 +1,7 @@
 (ns puppetlabs.pcp.testutils.server
   (:require [puppetlabs.experimental.websockets.client :as websockets-client]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
+            [puppetlabs.trapperkeeper.services :refer [service-context]]
             [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
@@ -25,8 +26,8 @@
                           :mock-server-3]]
             (add-websocket-handler this
               {:on-connect (fn [ws]
-                (swap! inventory conj ws)
-                (on-connect server ws))
+                             (swap! inventory conj ws)
+                             (on-connect server ws))
                :on-error   (partial on-error server)
                :on-close   (partial on-close server)
                :on-text    (partial on-text server)
@@ -39,5 +40,17 @@
           (try
             ;; Close may encounter a null pointer if the underlying session has already closed.
             (websockets-client/close! ws)
-          (catch NullPointerException _)))
+            (catch NullPointerException _)))
+        ;; TODO: this pause is necessary to allow a successful reconnection
+        ;; from the broker. We need to understand why and eliminate the
+        ;; problem. This is covered in PCP-720.
+        (Thread/sleep 200)
         (dissoc context :inventory)))
+
+(def mock-server-services
+  [mock-server webrouting-service jetty9-service])
+
+(defn wait-for-inbound-connection
+  [svc-context]
+  (while (empty? @(:inventory svc-context))
+    (Thread/sleep 100)))
