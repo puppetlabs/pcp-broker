@@ -6,6 +6,6 @@ jdk:
   - openjdk7
 script:
   - lein test
-  - lein with-profile test-schema-validation test
+  - lein test-no-schema
 notifications:
   email: false

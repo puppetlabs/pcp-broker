@@ -75,6 +75,10 @@
                                        [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                        [puppetlabs/kitchensink :classifier "test" :scope "test"]]
                          :test-paths ^:replace ["test/unit" "test/integration"]}
+             :test-no-schema-validation [:test-base
+                                         {:injections [(do
+                                                         (require 'schema.core)
+                                                         (schema.core/set-fn-validation! false))]}]
              :test-schema-validation [:test-base
                                       {:injections [(do
                                                      (require 'schema.core)
@@ -109,6 +113,7 @@
             ;; run with 'check' then 'fix' with args (refer to the project docs)
             "cljfmt" ["with-profile" "+cljfmt" "cljfmt"]
             "coverage" ["cloverage" "-e" "puppetlabs.puppetdb.*" "-e" "user"]
-            "test-all" ["with-profile" "test-base:test-schema-validation" "test"]}
+            "test-no-schema" ["with-profile" "test-no-schema-validation" "test"]
+            "test" ["with-profile" "test-schema-validation" "test"]}
 
   :main puppetlabs.trapperkeeper.main)
