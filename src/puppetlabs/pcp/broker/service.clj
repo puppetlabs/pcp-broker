@@ -1,6 +1,8 @@
 (ns puppetlabs.pcp.broker.service
   (:require [puppetlabs.pcp.broker.core :as core]
             [puppetlabs.structured-logging.core :as sl]
+            [clj-time.core :as t]
+            [clojure.string :as str]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
             [puppetlabs.trapperkeeper.services :refer [service-context get-service]]
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
@@ -48,7 +50,11 @@
                                :ssl-context-factory
                                .getSslContext)
                broker (assoc broker :broker-name broker-name)
-               context (assoc context :broker broker)]
+               context (assoc context :broker broker)
+               timestamp (t/now)
+               controller-pcp-uris (map #(str/replace % #"wss" "pcp") controller-uris)]
+           (swap! (:database broker) assoc :warning-bin
+                  (zipmap controller-pcp-uris (repeat timestamp)))
            (reset! (:controllers broker)
                    (core/initiate-controller-connections broker
                                                          ssl-context

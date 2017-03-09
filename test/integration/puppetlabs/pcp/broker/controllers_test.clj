@@ -94,6 +94,7 @@
                             (websockets-client/send! ws (message/encode agent-request))))
                         (deliver agent-response msg))))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
+        (server/wait-for-inbound-connection (get-context app :MockServer))
         (with-open [client (client/connect :certname agent-cert)]
           ;; Verify we get an inventory including the client
           (is (deref inventory-response 3000 nil))
@@ -243,6 +244,7 @@
        server/on-text (fn [_ ws text] (deliver inventory-response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (let [broker (:broker (get-context app :BrokerService))]
+          (server/wait-for-inbound-connection (get-context app :MockServer))
           (with-open [client (client/connect :certname agent-cert)]
             (while (empty? (:inventory @(:database broker)))
               (Thread/sleep 100))
@@ -261,6 +263,14 @@
               (is (empty? (:updates @(:database broker))))
               (is (= @server-messages-at-unsubscribe @server-message-sent)))))))))
 
+(defn received?
+  "We sometimes see a 1006/abnormal close.
+   This can be removed when PCP-714 is addressed."
+  [response expected]
+  (let [[status message] response]
+    (or (= 1006 status)
+        (= response expected)))
+
 (deftest controller-disconnection
     (let [timed-out? (promise)]
       (with-redefs [core/schedule-client-purge! (fn [b t p u]
@@ -270,6 +280,9 @@
         (with-app-with-config app broker-services only-broker-config
           (let [{:keys [broker]} (get-context app :BrokerService)
                 database (:database broker)]
+            (testing "client connections disallowed when no controller is connected"
+              (with-open [client (client/connect :certname agent-cert)]
+                (is (received? (client/recv! client) [1011 "All controllers disconnected"]))))
             (testing "controller disconnection"
               (with-app-with-config mock-server server/mock-server-services mock-server-config
                 (server/wait-for-inbound-connection (get-context mock-server :MockServer))
@@ -288,24 +301,20 @@
                       (is (websockets-client/connected? (:websocket client-connection)))
                       (testing "new connections are rejected while controllers in the bin"
                         (with-open [client' (client/connect :certname agent2-cert)]
-                          (let [[status message] (client/recv! client')]
-                            ;; We sometimes see a 1006/abnormal close here.
-                            ;; This can be removed when PCP-714 is addressed.
-                            (is (or (=  1006 status)
-                                    (and (= 1011 status)
-                                         (= "All controllers disconnected" message)))))))
+                          (is (received? (client/recv! client')
+                                         [1011 "All controllers disconnected"]))))
                       (deliver timed-out? true)
-                      (is (= [1011 "All controllers disconnected"]
-                             (client/recv! client)))
+                      (is (received? (client/recv! client)
+                                     [1011 "All controllers disconnected"]))
                       (is (not (websockets-client/connected? (:websocket client-connection)))))
                     (testing "warning bin contains one element"
                       (is (= 1 (count (:warning-bin @database)))))))))
 
-          (testing "controller reconnection"
-            (with-app-with-config mock-server server/mock-server-services mock-server-config
-              (server/wait-for-inbound-connection (get-context mock-server :MockServer))
-              (with-open [client (client/connect :certname agent-cert)]
-                (testing "client connections now successful"
-                  (while (empty? (:inventory @database))
-                    (Thread/sleep 100))
-                  (is (not (empty? (:inventory @database)))))))))))))
+            (testing "controller reconnection"
+              (with-app-with-config mock-server server/mock-server-services mock-server-config
+                (server/wait-for-inbound-connection (get-context mock-server :MockServer))
+                (with-open [client (client/connect :certname agent-cert)]
+                  (testing "client connections now successful"
+                    (while (empty? (:inventory @database))
+                      (Thread/sleep 100))
+                    (is (not (empty? (:inventory @database))))))))))))))
