@@ -328,3 +328,20 @@
                     (testing "returns running state when brokers are disconnected"
                       (= :running (:state (core/status broker :info))))
                     (is (not (empty? (:inventory @database)))))))))))))
+
+(deftest status-with-controller
+  (let [start-fn core/start
+        stop-fn core/stop]
+    (with-redefs [core/start (fn [b]
+                               (is (= :starting (:state (core/status b :info))))
+                               (start-fn b))
+                  core/stop (fn [b]
+                              (let [r (stop-fn b)]
+                                (is (= :stopping (:state (core/status b :info))))
+                                r))]
+      (with-app-with-config app broker-services only-broker-config
+        (let [{:keys [broker]} (get-context app :BrokerService)]
+          (is (= :error (:state (core/status broker :info))))
+          (with-app-with-config mock-server server/mock-server-services mock-server-config
+            (server/wait-for-inbound-connection (get-context mock-server :MockServer))
+            (is (= :running (:state (core/status broker :info))))))))))

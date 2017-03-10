@@ -672,10 +672,11 @@
 (s/defn status :- status-core/StatusCallbackResponse
   [broker :- Broker level :- status-core/ServiceStatusDetailLevel]
   (let [{:keys [state metrics-registry]} broker
-        level>= (partial status-core/compare-levels >= level)]
-    {:state (if (all-controllers-disconnected? broker)
+        level>= (partial status-core/compare-levels >= level)
+        state-now @state]
+    {:state (if (and (= state-now :running) (all-controllers-disconnected? broker))
               :error
-              @state)
+              state-now)
      :status (cond-> {}
                (level>= :info) (assoc :metrics (metrics/get-pcp-metrics metrics-registry))
                (level>= :debug) (assoc :threads (metrics/get-thread-metrics)
