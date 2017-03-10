@@ -587,7 +587,7 @@
   (let [timestamp (now)]
     (swap! (:database broker) update :subscriptions dissoc uri)
     (swap! (:database broker) update :warning-bin assoc uri timestamp)
-    (when (all-controllers-disconnected? broker)
+    (when (and (= :running @(:state broker)) (all-controllers-disconnected? broker))
       (schedule-client-purge! broker timestamp controller-disconnection-graceperiod uri))))
 
 (s/defn start-client
