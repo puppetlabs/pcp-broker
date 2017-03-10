@@ -110,7 +110,8 @@
                              :data description})
                           in-reply-to-message (assoc :in_reply_to (:id in-reply-to-message)))]
     (try
-      (send-message connection error-msg)
+      (locking (:websocket connection)
+        (send-message connection error-msg))
       (catch Exception e
         (sl/maplog :debug e
                    {:type :message-delivery-error}
