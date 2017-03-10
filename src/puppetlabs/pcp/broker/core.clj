@@ -161,7 +161,8 @@
                    :sender "pcp:///server"
                    :data response-data})]
      (try
-       (send-message connection message)
+       (locking (:websocket connection)
+         (send-message connection message))
        (catch Exception e
          (sl/maplog :debug e
                     {:type :message-delivery-error}
