@@ -273,7 +273,7 @@
 
 (deftest controller-disconnection
     (let [timed-out? (promise)]
-      (with-redefs [core/schedule-client-purge! (fn [b t p u]
+      (with-redefs [core/schedule-client-purge! (fn [b t p]
                                                   @timed-out?
                                                   (core/maybe-purge-clients! b t))
                     puppetlabs.pcp.broker.inventory/start-inventory-updates! (fn [_] nil)]

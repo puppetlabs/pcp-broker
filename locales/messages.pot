@@ -145,6 +145,22 @@ msgid "Received PCP message from '{uri}': '{rawmsg}'"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid "Established connection with controller '{uri}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Scheduled full client eviction in '{timeout}' ms"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Lost connection to controller: '{uri}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Removing inventory update subscription for '{uri}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Connecting to '{pcpuri}' at '{uri}'"
 msgstr ""
 

@@ -571,14 +571,20 @@
         (:websocket client-connection)
         1011 (i18n/trs "All controllers disconnected")))))
 
-(defn remove-controller-from-warning-bin!
+(defn on-controller-connect!
   [broker controller-uri ws]
-  (swap! (:database broker) update :warning-bin dissoc controller-uri))
+  (swap! (:database broker) update :warning-bin dissoc controller-uri)
+  (sl/maplog
+    :debug {:uri controller-uri}
+    (i18n/trs "Established connection with controller '{uri}'")))
 
 (defn schedule-client-purge!
-  [broker timestamp controller-disconnection-graceperiod uri]
+  [broker timestamp controller-disconnection-graceperiod]
   (future (do (Thread/sleep controller-disconnection-graceperiod)
-              (maybe-purge-clients! broker timestamp))))
+              (maybe-purge-clients! broker timestamp)))
+  (sl/maplog
+    :debug {:timeout controller-disconnection-graceperiod}
+    (i18n/trs "Scheduled full client eviction in '{timeout}' ms")))
 
 (s/defn forget-controller-subscription
   [broker :- Broker
@@ -586,10 +592,16 @@
    controller-disconnection-graceperiod :- s/Int
    client :- Client]
   (let [timestamp (now)]
+    (sl/maplog
+      :debug {:uri uri}
+      (i18n/trs "Lost connection to controller: '{uri}'"))
+    (sl/maplog
+      :debug {:uri uri}
+      (i18n/trs "Removing inventory update subscription for '{uri}'"))
     (swap! (:database broker) update :subscriptions dissoc uri)
     (swap! (:database broker) update :warning-bin assoc uri timestamp)
     (when (and (= :running @(:state broker)) (all-controllers-disconnected? broker))
-      (schedule-client-purge! broker timestamp controller-disconnection-graceperiod uri))))
+      (schedule-client-purge! broker timestamp controller-disconnection-graceperiod))))
 
 (s/defn start-client
   [broker :- Broker
@@ -602,7 +614,7 @@
         client (pcp-client/connect {:server uri
                                     :ssl-context ssl-context
                                     :type "server"
-                                    :on-connect-cb (partial remove-controller-from-warning-bin! broker pcp-uri)
+                                    :on-connect-cb (partial on-controller-connect! broker pcp-uri)
                                     :on-close-cb (partial forget-controller-subscription broker pcp-uri
                                                           controller-disconnection-graceperiod)}
                                     {:default (partial default-message-handler broker controller-whitelist)})
