@@ -165,6 +165,22 @@ msgid "Received PCP message from '{uri}': '{rawmsg}'"
 msgstr "[Ƥřǿƈḗşşīƞɠ ƤƇƤ ḿḗşşȧɠḗ ƒřǿḿ '{uri}': '{rawmsg}' ς衋ΰΐſϐΐϖǋǋ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid "Established connection with controller '{uri}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Scheduled full client eviction in '{timeout}' ms"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Lost connection to controller: '{uri}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Removing inventory update subscription for '{uri}'"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Connecting to '{pcpuri}' at '{uri}'"
 msgstr ""
 
@@ -222,6 +238,10 @@ msgstr "[ƞǿŧ ƈǿƞƞḗƈŧḗḓ ǅϕ靐 鶱衋ǋϰſǅǈ]"
 #, fuzzy
 msgid "client no longer connected"
 msgstr "[Ḿŭŀŧīƥŀḗ řḗƈīƥīḗƞŧş ƞǿ ŀǿƞɠḗř şŭƥƥǿřŧḗḓ ΰſςϑϵςΐϕ ϰ]"
+
+#, fuzzy
+#~ msgid "Closing connection to {0}: controllers disconnected"
+#~ msgstr "[ƞǿŧ ƈǿƞƞḗƈŧḗḓ ǅϕ靐 鶱衋ǋϰſǅǈ]"
 
 #, fuzzy
 #~ msgid "Stale controller connection"
