@@ -12,3 +12,11 @@
                                      '~case-versions
                                      (list ~@case-versions))))
            ~@body)))))
+
+(defn received?
+  "We sometimes see a 1006/abnormal close.
+   This can be removed when PCP-714 is addressed."
+  [response expected]
+  (let [[status message] response]
+    (or (= 1006 status)
+        (= response expected))))

@@ -14,7 +14,8 @@
   (sendbytes! [_ bytes])
   (send! [_ message])
   (recv! [_] [_ timeout]
-    "Returns nil on timeout, [code reason] on close, message/Message on message"))
+    "Returns nil on timeout, [code reason] on close, message/Message on message")
+  (connected? [_]))
 
 (defrecord ChanClient [http-client ws-client message-channel]
   WsClient
@@ -32,7 +33,9 @@
   (recv! [this] (recv! this (* 10 5 1000)))
   (recv! [_ timeout-ms]
     (let [[message channel] (alts!! [message-channel (timeout timeout-ms)])]
-      message)))
+      message))
+  (connected? [_]
+    (.isOpen ws-client)))
 
 (defn http-client-with-cert
   [certname]
