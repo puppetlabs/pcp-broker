@@ -1,3 +1,15 @@
+## 1.2.0
+
+This is a feature release.
+
+The major updates are:
+* [PCP-701](https://tickets.puppetlabs.com/browse/PCP-701) Reject client
+  connections if outgoing connections are configured but not connected. This
+  will also cause status to report an "error" state if the broker is running
+  and outgoing connections are not connected.
+* [PCP-727](https://tickets.puppetlabs.com/browse/PCP-727) Add connection
+  limit to pcp-broker so total connections can be capped.
+
 ## 1.1.1
 
 This is a maintenance release
