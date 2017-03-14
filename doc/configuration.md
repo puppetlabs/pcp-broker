@@ -80,17 +80,19 @@ web-router-service: {
 }
 ```
 
-The broker can also be configured to make out-bound connections to other PCP servers. The
-connection is configured by providing a list of Websocket URIs, and optionally a whitelist
-of message types allowed to those connections. If the whitelist is not specified, only
-inventory requests are authorized. Note that all URIs must use a distinct hostname/port
-combination (the path is not taken into account when generating PCP identifiers).
+The broker exposes several configuration options around controller and client
+connections in the `pcp-broker` section. These options are:
 
-Users may also supply a controller disconnection graceperiod, which represents
-the amount of time to wait after all controllers become disconnected before
-evicting all client connections (to allow them to redistribute to other
-brokers). If unspecified, this defaults to 45 seconds. The parameter is
-supplied in milliseconds.
+* controller-uris: An array of Websocket URIs to which the broker will attempt
+  to establish outbound connections.
+* controller-whitelist: An array of message types the broker will accept from
+  connected controllers. Defaults to accepting only inventory requests.
+* controller-disconnection-graceperiod: The number of milliseconds after losing
+  connectivity to all configured controllers that the broker will wait before
+  dropping all connected clients (to allow them to redistribute to other
+  brokers).
+* max-connections: The maximum number of clients that can connect to the
+  broker. Defaults to 0, which is interpreted as unlimited.
 
 ```
 pcp-broker: {
@@ -98,5 +100,6 @@ pcp-broker: {
     controller-whitelist: ["http://puppetlabs.com/inventory_request",
                            "http://puppetlabs.com/rpc_blocking_request"],
     controller-disconnection-graceperiod: 45000
+    max-connections: 10000
 }
 ```

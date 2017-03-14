@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.broker.service-test
   (:require [clojure.test :refer :all]
             [http.async.client :as http]
-            [puppetlabs.pcp.testutils :refer [dotestseq]]
+            [puppetlabs.pcp.testutils :refer [dotestseq received?]]
             [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.message-v1 :as m1]
@@ -517,6 +517,23 @@
                      (client/send! client02 message)
                      (let [received (client/recv! client01 1000)]
                        (is (= nil received)))))))))
+
+(deftest max-connections-is-respected
+  (with-app-with-config app broker-services broker-config
+    (testing "defaults to 0, understood as unlimited"
+      (with-open [client1 (client/connect :certname "client01.example.com")
+                  client2 (client/connect :certname "client02.example.com")]
+        (is (client/connected? client1))
+        (is (client/connected? client2)))))
+  (with-app-with-config app broker-services (-> broker-config
+                                                (assoc-in [:pcp-broker :max-connections] 1))
+    (testing "positive limit is enforced"
+      (with-open [client1 (client/connect :certname "client01.example.com")
+                  client2 (client/connect :certname "client02.example.com")]
+        (is (client/connected? client1))
+        (is (received? (client/recv! client2)
+                       [1011 "Connection limit exceeded"]))
+        (is (not (client/connected? client2)))))))
 
 (deftest interversion-send-test
   (with-app-with-config app broker-services broker-config

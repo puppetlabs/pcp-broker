@@ -432,7 +432,7 @@
    Broker service is not running or if the client common name is not obtainable
    from its cert. Otherwise set the idle timeout of the WebSocket connection
    to 15 min."
-  [broker codec ws]
+  [{:keys [max-connections] :as broker} codec ws]
   (time!
    (:on-connect (:metrics broker))
    (cond
@@ -448,6 +448,9 @@
 
      (all-controllers-disconnected? broker)
      (websockets-client/close! ws 1011 (i18n/trs "All controllers disconnected"))
+
+     (and (pos? max-connections) (>= (count (:inventory @(:database broker))) max-connections))
+     (websockets-client/close!  ws 1011 (i18n/trs "Connection limit exceeded"))
 
      :else
       ;; Generate an implicit association request and authorize association.
@@ -643,6 +646,7 @@
    :authorization-check IFn
    :get-route IFn
    :get-metrics-registry IFn
+   :max-connections s/Int
    (s/optional-key :broker-name) s/Str})
 
 (s/defn init :- Broker
@@ -651,8 +655,10 @@
                 add-websocket-handler
                 authorization-check
                 get-route
-                get-metrics-registry]} options
+                get-metrics-registry
+                max-connections]} options
         broker  {:broker-name         broker-name
+                 :max-connections     max-connections
                  :authorization-check authorization-check
                  :database            (atom (inventory/init-database))
                  :controllers         (atom {})

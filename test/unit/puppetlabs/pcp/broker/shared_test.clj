@@ -22,6 +22,7 @@
                 :authorization-check (constantly true)
                 :database            (atom (inventory/init-database))
                 :controllers         (atom {})
+                :max-connections     0
                 :should-stop         (promise)
                 :metrics             {}
                 :metrics-registry    metrics.core/default-registry

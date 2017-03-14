@@ -1,6 +1,6 @@
 (ns puppetlabs.pcp.broker.controllers-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.pcp.testutils :refer [dotestseq]]
+            [puppetlabs.pcp.testutils :refer [dotestseq received?]]
             [puppetlabs.pcp.testutils.service :refer [protocol-versions broker-services get-broker get-context]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.testutils.server :as server]
@@ -262,14 +262,6 @@
               (inventory/send-updates (get-broker app))
               (is (empty? (:updates @(:database broker))))
               (is (= @server-messages-at-unsubscribe @server-message-sent)))))))))
-
-(defn received?
-  "We sometimes see a 1006/abnormal close.
-   This can be removed when PCP-714 is addressed."
-  [response expected]
-  (let [[status message] response]
-    (or (= 1006 status)
-        (= response expected))))
 
 (deftest controller-disconnection
     (let [timed-out? (promise)]

@@ -119,6 +119,10 @@ msgid "All controllers disconnected"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+msgid "Connection limit exceeded"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Node with URI '{uri}' already associated with connection '{commonname}' "
 "'{remoteaddress}'"
