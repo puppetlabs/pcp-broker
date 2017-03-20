@@ -16,3 +16,4 @@ pom.xml.asc
 /resources/locales.clj
 /eng-resources
 
+/dev-resources/i18n/bin
