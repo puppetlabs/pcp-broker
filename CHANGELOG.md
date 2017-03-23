@@ -1,3 +1,10 @@
+## 1.3.0
+
+This is a feature release.
+
+The major update is a move to trapperkeeper-metrics 1.0.0. Also includes bumps
+to clj-parent 0.6.1 - which brings i18n 0.8.0 - and clj-pcp-client 1.1.4.
+
 ## 1.2.1
 
 This is a maintenance release
