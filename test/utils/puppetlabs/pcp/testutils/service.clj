@@ -34,7 +34,8 @@
                                                    :v2 "/pcp/v2.0"}
     :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
-   :metrics {:server-id "localhost"}})
+   :metrics {:enabled true
+             :server-id "localhost"}})
 
 (def protocol-versions
   "The short names of versioned endpoints"
