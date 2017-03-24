@@ -36,7 +36,7 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "1.1.3"]
+                 [puppetlabs/pcp-client "1.1.4"]
 
                  [puppetlabs/i18n]]
 
