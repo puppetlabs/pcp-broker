@@ -2,7 +2,7 @@
 # Copyright (C) YEAR Puppet <docs@puppet.com>
 # This file is distributed under the same license as the puppetlabs.pcp_broker package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
+# 
 #, fuzzy
 msgid ""
 msgstr ""
@@ -12,10 +12,10 @@ msgstr ""
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Language: \n"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
@@ -23,26 +23,26 @@ msgid ""
 "'{remoteaddress}'. Session was already associated as '{existinguri}'"
 msgstr ""
 "[Řḗƈḗīṽḗḓ şḗşşīǿƞ ȧşşǿƈīȧŧīǿƞ ƒǿř '{uri}' ƒřǿḿ '{commonname}' "
-"'{remoteaddress}'. Şḗşşīǿƞ ẇȧş ȧŀřḗȧḓẏ ȧşşǿƈīȧŧḗḓ ȧş '{existinguri}' 衋ǈǈϕϵẛϵ"
-"鶱 ϐǅϐ鶱衋ǈ衋 ϖ衋ςςϰ]"
+"'{remoteaddress}'. Şḗşşīǿƞ ẇȧş ȧŀřḗȧḓẏ ȧşşǿƈīȧŧḗḓ ȧş '{existinguri}' "
+"ϕ鶱鶱ǋǲϑϰϖ 鶱ϰϖϵϕΐΐ ẛ鶱ϖẛΐ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Session already associated"
-msgstr "[Şḗşşīǿƞ ȧŀřḗȧḓẏ ȧşşǿƈīȧŧḗḓ ϖϵϖ鶱ςϵϐ ϖϵǋ]"
+msgstr "[Şḗşşīǿƞ ȧŀřḗȧḓẏ ȧşşǿƈīȧŧḗḓ ϰıϱϐςϕΰ ϑǲϑ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Error in process-associate-request!"
-msgstr "[Ḗřřǿř īƞ ƥřǿƈḗşş-ȧşşǿƈīȧŧḗ-řḗɋŭḗşŧ! ΐǅϰςẛ ǲϖ ϰ鶱]"
+msgstr "[Ḗřřǿř īƞ ƥřǿƈḗşş-ȧşşǿƈīȧŧḗ-řḗɋŭḗşŧ! ǅϑǋǲſ ςſ 靐ı]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Invalid associate_request ('{reason}'); closing '{uri}' WebSocket"
 msgstr ""
-"[Īƞṽȧŀīḓ ȧşşǿƈīȧŧḗ_řḗɋŭḗşŧ ('{reason}'); ƈŀǿşīƞɠ '{uri}' ẆḗƀŞǿƈķḗŧ ϕςǅ衋ǲıϰ "
-"衋ϖ]"
+"[Īƞṽȧŀīḓ ȧşşǿƈīȧŧḗ_řḗɋŭḗşŧ ('{reason}'); ƈŀǿşīƞɠ '{uri}' ẆḗƀŞǿƈķḗŧ ϑϖǲϵſıǲ "
+"ıς]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "association unsuccessful"
-msgstr "[ȧşşǿƈīȧŧīǿƞ ŭƞşŭƈƈḗşşƒŭŀ ϑ鶱ΐϕϑ衋ǲϕǅϵ]"
+msgstr "[ȧşşǿƈīȧŧīǿƞ ŭƞşŭƈƈḗşşƒŭŀ ϕſϵΐ衋ǅıẛϐ鶱]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
@@ -50,15 +50,15 @@ msgid ""
 "'{remoteaddr}'"
 msgstr ""
 "[Ŭƞħȧƞḓŀḗḓ ḿḗşşȧɠḗ ŧẏƥḗ '{messagetype}' řḗƈḗīṽḗḓ ƒřǿḿ '{commonname}' "
-"'{remoteaddr}' ΐǅϖ靐ǈǅϑǅǲ ẛ鶱ϐ]"
+"'{remoteaddr}' ςǅϖ靐ςϰϖϑẛ ϰẛ靐]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Illegal message type: ''{0}''"
-msgstr "[Īŀŀḗɠȧŀ ḿḗşşȧɠḗ ŧẏƥḗ: ''{0}'' ẛǅǅϕıǅΐ ǲẛ靐]"
+msgstr "[Īŀŀḗɠȧŀ ḿḗşşȧɠḗ ŧẏƥḗ: ''{0}'' ΰǋǋΰϵẛΰ 衋靐ẛ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Illegal message target: ''{0}''"
-msgstr "[Īŀŀḗɠȧŀ ḿḗşşȧɠḗ ŧȧřɠḗŧ: ''{0}'' ǅϖǅϐǈϐϑ 靐ΰſ]"
+msgstr "[Īŀŀḗɠȧŀ ḿḗşşȧɠḗ ŧȧřɠḗŧ: ''{0}'' ϰǲςϵϕϱſ ϑΰΰ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
@@ -66,36 +66,36 @@ msgid ""
 "validation: '{message}'"
 msgstr ""
 "[Ḿḗşşȧɠḗ '{messageid}' ƒǿř '{destination}' ḓīḓƞ''ŧ ƥȧşş ƥřḗ-ȧŭŧħǿřīzȧŧīǿƞ "
-"ṽȧŀīḓȧŧīǿƞ: '{message}' ǋǈςǅǲǅǈ ıΰ靐ǅ靐ſǲϰ]"
+"ṽȧŀīḓȧŧīǿƞ: '{message}' ϖϑϱϵ靐衋ϱ 衋ϵϐǅϑǈϑſ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
 msgstr ""
 "[Ȧŭŧħǿřīzīƞɠ '{messageid}' ƒǿř '{destination}' - '{allowed}': '{message}' "
-"ΰıſſϕǅΐſϱΐ衋]"
+"鶱ϵϰıſǋϱıǅıı]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Processing PCP message from '{uri}': '{rawmsg}'"
-msgstr "[Ƥřǿƈḗşşīƞɠ ƤƇƤ ḿḗşşȧɠḗ ƒřǿḿ '{uri}': '{rawmsg}' ςΰẛΐǈϱϐǲς鶱]"
+msgstr "[Ƥřǿƈḗşşīƞɠ ƤƇƤ ḿḗşşȧɠḗ ƒřǿḿ '{uri}': '{rawmsg}' ΐϰǲϰΐǲ鶱ϱΐϐ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authenticated"
-msgstr "[Ḿḗşşȧɠḗ ƞǿŧ ȧŭŧħḗƞŧīƈȧŧḗḓ 鶱ϰẛϱẛΐϰ 靐ΰϕ]"
+msgstr "[Ḿḗşşȧɠḗ ƞǿŧ ȧŭŧħḗƞŧīƈȧŧḗḓ ſ鶱鶱ϵςϵẛ ǋſϖ]"
 
 #. TODO(ale): use 'unauthorized' in version 2
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authorized"
-msgstr "[Ḿḗşşȧɠḗ ƞǿŧ ȧŭŧħǿřīzḗḓ ſςϐ鶱ς鶱ı 鶱ϵǲ]"
+msgstr "[Ḿḗşşȧɠḗ ƞǿŧ ȧŭŧħǿřīzḗḓ ϐϕϵϕϰıΐ ǲΰϱ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Multiple recipients no longer supported"
-msgstr "[Ḿŭŀŧīƥŀḗ řḗƈīƥīḗƞŧş ƞǿ ŀǿƞɠḗř şŭƥƥǿřŧḗḓ 鶱ϰΰΰϑϱǲϖ ǋ]"
+msgstr "[Ḿŭŀŧīƥŀḗ řḗƈīƥīḗƞŧş ƞǿ ŀǿƞɠḗř şŭƥƥǿřŧḗḓ ϑΐ衋ıǋϕϐ衋 ǲ]"
 
 #. default case
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "unexpected message validation outcome"
-msgstr "[ŭƞḗẋƥḗƈŧḗḓ ḿḗşşȧɠḗ ṽȧŀīḓȧŧīǿƞ ǿŭŧƈǿḿḗ ẛ鶱ǲ靐ΐϐǲϕϕǅ]"
+msgstr "[ŭƞḗẋƥḗƈŧḗḓ ḿḗşşȧɠḗ ṽȧŀīḓȧŧīǿƞ ǿŭŧƈǿḿḗ ǅſςıǋ靐ǲςǋϰ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
@@ -103,38 +103,37 @@ msgid ""
 "'{remoteaddress}': '{errortype}'"
 msgstr ""
 "[Ƒȧīŀḗḓ ŧǿ ƥřǿƈḗşş '{messagetype}' '{messageid}' ƒřǿḿ '{commonname}' "
-"'{remoteaddress}': '{errortype}' ıΐıϱΰϐ ẛı ſ衋ϵẛΐϑϱ]"
+"'{remoteaddress}': '{errortype}' ΰϰǲ鶱ǲϖ ΰΐ ΰΰǅ鶱ϑϖϖ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Error {0} handling message: {1}"
-msgstr "[Ḗřřǿř {0} ħȧƞḓŀīƞɠ ḿḗşşȧɠḗ: {1} ϖıϑǋϵ ǋſ靐 衋]"
+msgstr "[Ḗřřǿř {0} ħȧƞḓŀīƞɠ ḿḗşşȧɠḗ: {1} ϐς鶱ǲ靐 ıϰǈ 衋]"
 
 #. TODO(richardc): this could use a different message_type to
 #. indicate an encoding error rather than a processing error
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Could not decode message"
-msgstr "[Ƈǿŭŀḓ ƞǿŧ ḓḗƈǿḓḗ ḿḗşşȧɠḗ ǅſϖǅǲ ϕǲϕ]"
+msgstr "[Ƈǿŭŀḓ ƞǿŧ ḓḗƈǿḓḗ ḿḗşşȧɠḗ ςΐϐςǲ ϖϵϵ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Broker is not running"
-msgstr "[Ɓřǿķḗř īş ƞǿŧ řŭƞƞīƞɠ 衋ǅǲϵ靐ǅ ϖǅ]"
+msgstr "[Ɓřǿķḗř īş ƞǿŧ řŭƞƞīƞɠ ΰϵϐ靐ϑϖ ı衋]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "No client certificate, closing '{remoteaddress}'"
-msgstr "[Ƞǿ ƈŀīḗƞŧ ƈḗřŧīƒīƈȧŧḗ, ƈŀǿşīƞɠ '{remoteaddress}' ϵϖ ϐϖϰǲϱǅ]"
+msgstr "[Ƞǿ ƈŀīḗƞŧ ƈḗřŧīƒīƈȧŧḗ, ƈŀǿşīƞɠ '{remoteaddress}' ϕǅ ſǈϵΰı鶱]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "No client certificate"
-msgstr "[Ƞǿ ƈŀīḗƞŧ ƈḗřŧīƒīƈȧŧḗ ǋǈ ςǲ靐ıſ衋]"
+msgstr "[Ƞǿ ƈŀīḗƞŧ ƈḗřŧīƒīƈȧŧḗ ǋϰ ǈǈϵẛΰſ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
-#, fuzzy
 msgid "All controllers disconnected"
-msgstr "[ƈŀīḗƞŧ ƞǿ ŀǿƞɠḗř ƈǿƞƞḗƈŧḗḓ ϕ靐靐鶱ſΰ ϖϖ ϱ]"
+msgstr "[Ȧŀŀ ƈǿƞŧřǿŀŀḗřş ḓīşƈǿƞƞḗƈŧḗḓ ſǅϕ ıϰǋǈıϰΐ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Connection limit exceeded"
-msgstr ""
+msgstr "[Ƈǿƞƞḗƈŧīǿƞ ŀīḿīŧ ḗẋƈḗḗḓḗḓ ΰΰϕǈϖıǈςǅΐ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
@@ -142,99 +141,98 @@ msgid ""
 "'{remoteaddress}'"
 msgstr ""
 "[Ƞǿḓḗ ẇīŧħ ŬŘĪ '{uri}' ȧŀřḗȧḓẏ ȧşşǿƈīȧŧḗḓ ẇīŧħ ƈǿƞƞḗƈŧīǿƞ '{commonname}' "
-"'{remoteaddress}' ϵıΐſ ſϑẛſ ϕΐǅ]"
+"'{remoteaddress}' ǲǅϐϰ ϑſ衋ǈ ǋıı]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "superseded"
-msgstr "[şŭƥḗřşḗḓḗḓ ϖΐǲΐϕ衋ϑϑΐς]"
+msgstr "[şŭƥḗřşḗḓḗḓ ΰϕϐǋı衋ΰẛſı]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "'{uri}' connected from '{remoteaddress}'"
-msgstr "['{uri}' ƈǿƞƞḗƈŧḗḓ ƒřǿḿ '{remoteaddress}' ϰϐıΐϕ衋ΰ ı靐]"
+msgstr "['{uri}' ƈǿƞƞḗƈŧḗḓ ƒřǿḿ '{remoteaddress}' ϰǋΐϕϰǅẛ ǲǲ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Websocket error '{commonname}' '{remoteaddress}'"
-msgstr "[Ẇḗƀşǿƈķḗŧ ḗřřǿř '{commonname}' '{remoteaddress}' ΐǋϰǈςẛǅı靐]"
+msgstr "[Ẇḗƀşǿƈķḗŧ ḗřřǿř '{commonname}' '{remoteaddress}' ǋϐϰϰ靐靐ΐςς]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "'{uri}' disconnected '{statuscode}' '{reason}'"
-msgstr "['{uri}' ḓīşƈǿƞƞḗƈŧḗḓ '{statuscode}' '{reason}' ϖſ鶱ϑǅϰϰ ϱǋ]"
+msgstr "['{uri}' ḓīşƈǿƞƞḗƈŧḗḓ '{statuscode}' '{reason}' ςϵϰϖϵΰı ſΐ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Received PCP message from '{uri}': '{rawmsg}'"
-msgstr "[Řḗƈḗīṽḗḓ ƤƇƤ ḿḗşşȧɠḗ ƒřǿḿ '{uri}': '{rawmsg}' ϕǲϵΰǲϰϕϱ ϖ]"
+msgstr "[Řḗƈḗīṽḗḓ ƤƇƤ ḿḗşşȧɠḗ ƒřǿḿ '{uri}': '{rawmsg}' ǈ衋ϵϖΰẛΐϰ ϰ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Established connection with controller '{uri}'"
-msgstr ""
+msgstr "[Ḗşŧȧƀŀīşħḗḓ ƈǿƞƞḗƈŧīǿƞ ẇīŧħ ƈǿƞŧřǿŀŀḗř '{uri}' 鶱ϱǲΐΰϖ靐ΰǋ鶱]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Scheduled full client eviction in '{timeout}' ms"
-msgstr ""
+msgstr "[Şƈħḗḓŭŀḗḓ ƒŭŀŀ ƈŀīḗƞŧ ḗṽīƈŧīǿƞ īƞ '{timeout}' ḿş ΰǋǅϰ鶱ϖϖ靐ϕ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
-#, fuzzy
 msgid "Lost connection to controller: '{uri}'"
-msgstr "[Ƈǿƞƞḗƈŧīƞɠ ŧǿ '{pcpuri}' ȧŧ '{uri}' ǈΐϱẛ衋ſϕǲıı]"
+msgstr "[Ŀǿşŧ ƈǿƞƞḗƈŧīǿƞ ŧǿ ƈǿƞŧřǿŀŀḗř: '{uri}' 衋ΐϱı ϱϱẛϕϖǅ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Removing inventory update subscription for '{uri}'"
-msgstr ""
+msgstr "[Řḗḿǿṽīƞɠ īƞṽḗƞŧǿřẏ ŭƥḓȧŧḗ şŭƀşƈřīƥŧīǿƞ ƒǿř '{uri}' ǅϐΐẛ衋衋ǲ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Connecting to '{pcpuri}' at '{uri}'"
-msgstr "[Ƈǿƞƞḗƈŧīƞɠ ŧǿ '{pcpuri}' ȧŧ '{uri}' ǈΐϱẛ衋ſϕǲıı]"
+msgstr "[Ƈǿƞƞḗƈŧīƞɠ ŧǿ '{pcpuri}' ȧŧ '{uri}' ıǅǋſϵǲǈ靐ıϰ]"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "v2 protocol endpoint not configured"
-msgstr "[ṽ2 ƥřǿŧǿƈǿŀ ḗƞḓƥǿīƞŧ ƞǿŧ ƈǿƞƒīɠŭřḗḓ ϖϐ ǅ鶱靐ǋϑϵΰΐ]"
+msgstr "[ṽ2 ƥřǿŧǿƈǿŀ ḗƞḓƥǿīƞŧ ƞǿŧ ƈǿƞƒīɠŭřḗḓ ǋϕ 靐靐ϕΐϰϵΐſ]"
 
 #: src/puppetlabs/pcp/broker/service.clj
 msgid "Initializing broker service"
-msgstr "[Īƞīŧīȧŀīzīƞɠ ƀřǿķḗř şḗřṽīƈḗ 鶱靐ẛǈǈ鶱ϵϵ鶱ſ]"
+msgstr "[Īƞīŧīȧŀīzīƞɠ ƀřǿķḗř şḗřṽīƈḗ ϖſ鶱ϖΐϑϵϵΐϰ]"
 
 #: src/puppetlabs/pcp/broker/service.clj
 msgid "Starting broker service"
-msgstr "[Şŧȧřŧīƞɠ ƀřǿķḗř şḗřṽīƈḗ ϕǲ衋ıẛϰϑǈ ϐ靐]"
+msgstr "[Şŧȧřŧīƞɠ ƀřǿķḗř şḗřṽīƈḗ ϑϵϕǋϵẛ鶱ǲ 靐靐]"
 
 #: src/puppetlabs/pcp/broker/service.clj
 msgid "Broker service <'{brokername}'> started"
-msgstr "[Ɓřǿķḗř şḗřṽīƈḗ <'{brokername}'> şŧȧřŧḗḓ ϰǲıΰſϰ ϰǋǅ]"
+msgstr "[Ɓřǿķḗř şḗřṽīƈḗ <'{brokername}'> şŧȧřŧḗḓ ϕǲ靐ςǋϵ ϰϐϖ]"
 
 #: src/puppetlabs/pcp/broker/service.clj
 msgid "Shutting down broker service"
-msgstr "[Şħŭŧŧīƞɠ ḓǿẇƞ ƀřǿķḗř şḗřṽīƈḗ ẛı衋ϖΐıſẛ ǈǈ]"
+msgstr "[Şħŭŧŧīƞɠ ḓǿẇƞ ƀřǿķḗř şḗřṽīƈḗ ı鶱ẛǋǈςΐ鶱 ϑǈ]"
 
 #: src/puppetlabs/pcp/broker/service.clj
 msgid "Broker service <'{brokername}'> stopped"
-msgstr "[Ɓřǿķḗř şḗřṽīƈḗ <'{brokername}'> şŧǿƥƥḗḓ ς鶱ϵ衋ǅǅ ıǈϰ]"
+msgstr "[Ɓřǿķḗř şḗřṽīƈḗ <'{brokername}'> şŧǿƥƥḗḓ ϰϕ衋ϐǈǲ ϰϑǋ]"
 
 #: src/puppetlabs/pcp/broker/shared.clj
 msgid "Sending PCP message to '{uri}': '{rawmsg}'"
-msgstr "[Şḗƞḓīƞɠ ƤƇƤ ḿḗşşȧɠḗ ŧǿ '{uri}': '{rawmsg}' ΐΐϰ衋ΐ鶱ϑ ϱǋ]"
+msgstr "[Şḗƞḓīƞɠ ƤƇƤ ḿḗşşȧɠḗ ŧǿ '{uri}': '{rawmsg}' ǈǲϵϰΰ靐ϑ ǋẛ]"
 
 #: src/puppetlabs/pcp/broker/shared.clj
 msgid "Error in send-error-message"
-msgstr "[Ḗřřǿř īƞ şḗƞḓ-ḗřřǿř-ḿḗşşȧɠḗ ϐϑϕẛǲ 鶱ǅ 鶱]"
+msgstr "[Ḗřřǿř īƞ şḗƞḓ-ḗřřǿř-ḿḗşşȧɠḗ ϵſ鶱ǋϖ ẛǋ 靐]"
 
 #: src/puppetlabs/pcp/broker/shared.clj
 msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
 msgstr ""
-"[Ƒȧīŀḗḓ ŧǿ ḓḗŀīṽḗř '{messageid}' ƒǿř '{destination}': '{reason}' ΰϰϖϱǲϰ ǈẛ]"
+"[Ƒȧīŀḗḓ ŧǿ ḓḗŀīṽḗř '{messageid}' ƒǿř '{destination}': '{reason}' ϵẛϐſ鶱ǈ ϐϖ]"
 
 #: src/puppetlabs/pcp/broker/shared.clj
 msgid "Delivering '{messageid}' to '{destination}' at '{remoteaddress}'"
 msgstr ""
-"[Ḓḗŀīṽḗřīƞɠ '{messageid}' ŧǿ '{destination}' ȧŧ '{remoteaddress}' ǈΐſẛΰϐǲǈϐ]"
+"[Ḓḗŀīṽḗřīƞɠ '{messageid}' ŧǿ '{destination}' ȧŧ '{remoteaddress}' ıϰǅϱǋ衋衋ıǈ]"
 
 #: src/puppetlabs/pcp/broker/shared.clj
 msgid "Error in deliver-message"
-msgstr "[Ḗřřǿř īƞ ḓḗŀīṽḗř-ḿḗşşȧɠḗ ϕǅϰǋϖ ϑǋ ϑ]"
+msgstr "[Ḗřřǿř īƞ ḓḗŀīṽḗř-ḿḗşşȧɠḗ ııϐϰϰ ϕϕ ϖ]"
 
 #: src/puppetlabs/pcp/broker/shared.clj
 msgid "not connected"
-msgstr "[ƞǿŧ ƈǿƞƞḗƈŧḗḓ ǲǅς ϱ靐ΰıǅſ鶱]"
+msgstr "[ƞǿŧ ƈǿƞƞḗƈŧḗḓ ǈϐϖ ΰǲϑΐϕϰı]"
 
 #: src/puppetlabs/pcp/broker/shared.clj
 msgid "client no longer connected"
-msgstr "[ƈŀīḗƞŧ ƞǿ ŀǿƞɠḗř ƈǿƞƞḗƈŧḗḓ ϕ靐靐鶱ſΰ ϖϖ ϱ]"
+msgstr "[ƈŀīḗƞŧ ƞǿ ŀǿƞɠḗř ƈǿƞƞḗƈŧḗḓ ΐǅıẛϰı ǲϱ ϱ]"
