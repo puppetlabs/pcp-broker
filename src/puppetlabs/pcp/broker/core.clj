@@ -11,7 +11,7 @@
             [puppetlabs.pcp.client :as pcp-client]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
-            [clj-time.core :refer [millis now plus equal?]]
+            [clj-time.core :refer [now plus equal?]]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
@@ -582,17 +582,17 @@
     (i18n/trs "Established connection with controller '{uri}'")))
 
 (defn schedule-client-purge!
-  [broker timestamp controller-disconnection-graceperiod]
-  (future (do (Thread/sleep controller-disconnection-graceperiod)
+  [broker timestamp controller-disconnection-ms]
+  (future (do (Thread/sleep controller-disconnection-ms)
               (maybe-purge-clients! broker timestamp)))
   (sl/maplog
-    :debug {:timeout controller-disconnection-graceperiod}
+    :debug {:timeout controller-disconnection-ms}
     (i18n/trs "Scheduled full client eviction in '{timeout}' ms")))
 
 (s/defn forget-controller-subscription
   [broker :- Broker
    uri :- s/Str
-   controller-disconnection-graceperiod :- s/Int
+   controller-disconnection-ms :- s/Int
    client :- Client]
   (let [timestamp (now)]
     (sl/maplog
@@ -604,13 +604,13 @@
     (swap! (:database broker) update :subscriptions dissoc uri)
     (swap! (:database broker) update :warning-bin assoc uri timestamp)
     (when (and (= :running @(:state broker)) (all-controllers-disconnected? broker))
-      (schedule-client-purge! broker timestamp controller-disconnection-graceperiod))))
+      (schedule-client-purge! broker timestamp controller-disconnection-ms))))
 
 (s/defn start-client
   [broker :- Broker
    ssl-context :- SSLContext
    controller-whitelist :- #{s/Str}
-   controller-disconnection-graceperiod :- s/Int
+   controller-disconnection-ms :- s/Int
    uri :- s/Str]
   (let [;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
         pcp-uri (str "pcp://" (.getAuthority (URI. uri)) "/server")
@@ -619,7 +619,7 @@
                                     :type "server"
                                     :on-connect-cb (partial on-controller-connect! broker pcp-uri)
                                     :on-close-cb (partial forget-controller-subscription broker pcp-uri
-                                                          controller-disconnection-graceperiod)}
+                                                          controller-disconnection-ms)}
                                     {:default (partial default-message-handler broker controller-whitelist)})
         identity-codec {:decode identity :encode identity}]
     (sl/maplog :debug {:type :controller-connection :uri uri :pcpuri pcp-uri}
@@ -632,9 +632,9 @@
    ssl-context :- SSLContext
    controller-uris :- [s/Str]
    controller-whitelist :- #{s/Str}
-   controller-disconnection-graceperiod :- s/Int]
+   controller-disconnection-ms :- s/Int]
   (into {} (pmap (partial start-client broker ssl-context
-                          controller-whitelist controller-disconnection-graceperiod)
+                          controller-whitelist controller-disconnection-ms)
                  controller-uris)))
 
 ;;

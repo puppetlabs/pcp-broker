@@ -1,6 +1,7 @@
 (ns puppetlabs.pcp.broker.controllers-test
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.testutils :refer [dotestseq received?]]
+            [puppetlabs.pcp.client :as pcp-client]
             [puppetlabs.pcp.testutils.service :refer [protocol-versions broker-services get-broker get-context]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.testutils.server :as server]
@@ -32,7 +33,7 @@
         :pcp-broker {:controller-uris ["wss://localhost:58143/server"]
                      :controller-whitelist ["http://puppetlabs.com/inventory_request"
                                             "greeting"]
-                     :controller-disconnection-graceperiod 100})))
+                     :controller-disconnection-graceperiod "1s"})))
 
 (def broker-config
   (merge-with merge mock-server-config only-broker-config))
@@ -208,6 +209,7 @@
 
 (deftest controllers-unsubscribe
   (let [server-message-sent (atom 0)
+        connect pcp-client/connect
         server-messages-at-unsubscribe (promise)
         clients-purged? (promise)
         controller-timeout? (promise)
@@ -219,7 +221,8 @@
         first-update-sent? (promise)
         inventory-response (promise)]
     (with-redefs
-      [core/maybe-purge-clients! (fn [b t]
+      [pcp-client/connect #(connect (assoc %1 :retry? false) %2)
+       core/maybe-purge-clients! (fn [b t]
                                    @controller-timeout?
                                    (maybe-purge-clients! b t)
                                    (deliver clients-purged? true))
