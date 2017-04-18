@@ -1,3 +1,11 @@
+## 1.3.1
+
+This is a maintenance release
+
+* Bump the default controller-disconnection-graceperiod setting from 45000 to
+  90000, to allow ample time for service restarts.
+* Bump clj-pcp-client to version 1.1.5
+
 ## 1.3.0
 
 This is a feature release.

@@ -90,7 +90,7 @@ connections in the `pcp-broker` section. These options are:
 * controller-disconnection-graceperiod: The number of milliseconds after losing
   connectivity to all configured controllers that the broker will wait before
   dropping all connected clients (to allow them to redistribute to other
-  brokers).
+  brokers). Defaults to 90s.
 * max-connections: The maximum number of clients that can connect to the
   broker. Defaults to 0, which is interpreted as unlimited.
 
@@ -99,7 +99,7 @@ pcp-broker: {
     controller-uris: ["wss://broker.example.com:8143/server", "wss://broker2.example.com:8143/server"],
     controller-whitelist: ["http://puppetlabs.com/inventory_request",
                            "http://puppetlabs.com/rpc_blocking_request"],
-    controller-disconnection-graceperiod: 45000
+    controller-disconnection-graceperiod: "90s"
     max-connections: 10000
 }
 ```
