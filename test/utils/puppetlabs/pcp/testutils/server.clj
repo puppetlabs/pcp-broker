@@ -52,5 +52,10 @@
 
 (defn wait-for-inbound-connection
   [svc-context]
-  (while (empty? @(:inventory svc-context))
-    (Thread/sleep 100)))
+  (loop [i 0]
+    (when (empty? @(:inventory svc-context))
+      (if (> i 50)
+        (throw (Exception. "Test timed out waiting for inbound connection"))
+        (do
+         (Thread/sleep 100)
+         (recur (inc i)))))))
