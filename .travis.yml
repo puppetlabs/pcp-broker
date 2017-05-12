@@ -7,5 +7,7 @@ jdk:
 script:
   - lein test
   - lein with-profile test-schema-validation test
+  - chmod +x $TRAVIS_BUILD_DIR/ext/travisci/secscan.sh
+  - $TRAVIS_BUILD_DIR/ext/travisci/secscan.sh "$TRAVIS_BUILD_DIR/src" "clj" "clojure.core/read-string"
 notifications:
   email: false
