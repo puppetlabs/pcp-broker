@@ -97,7 +97,9 @@
   (sl/maplog :trace {:type :outgoing-message-trace
                      :uri (:uri connection)
                      :rawmsg message}
-             (i18n/trs "Sending PCP message to '{uri}': '{rawmsg}'"))
+             ;; 0 : connection uri
+             ;; 1 : raw message
+             #(i18n/trs "Sending PCP message to {0}: {1}" (:uri %) (:rawmsg %)))
   (websockets-client/send! (:websocket connection)
                            ((get-in connection [:codec :encode]) message))
   nil)
@@ -116,7 +118,7 @@
       (catch Exception e
         (sl/maplog :debug e
                    {:type :message-delivery-error}
-                   (i18n/trs "Error in send-error-message"))))))
+                   (fn [_] (i18n/trs "Error in send-error-message")))))))
 
 (s/defn log-delivery-failure
   "Log message delivery failure given the message and failure reason."
@@ -124,7 +126,11 @@
   (sl/maplog :trace (assoc (summarize message)
                       :type :message-delivery-failure
                       :reason reason)
-             (i18n/trs "Failed to deliver '{messageid}' for '{destination}': '{reason}'"))
+             ;; 0 : message id (uuid)
+             ;; 1 : destination uri
+             ;; 2 : reason for failure
+             #(i18n/trs "Failed to deliver {0} for {1}: {2}"
+               (:messageid %) (:destination %) (:reason %)))
   nil)                                                      ;; ensure nil is returned
 
 (s/defn handle-delivery-failure
@@ -146,14 +152,18 @@
         :debug (merge (summarize message)
                       (connection/summarize connection)
                       {:type :message-delivery})
-        (i18n/trs "Delivering '{messageid}' to '{destination}' at '{remoteaddress}'"))
+        ;; 0 : message id (uuid)
+        ;; 1 : destination uri
+        ;; 2 : remote address
+        #(i18n/trs "Delivering {0} to {1} at {2}"
+          (:messageid %) (:destination %) (:remoteaddress %)))
       (locking (:websocket connection)
         (time! (:on-send (:metrics broker))
                (send-message connection message)))
       (catch Exception e
         (sl/maplog :error e
                    {:type :message-delivery-error}
-                   (i18n/trs "Error in deliver-message"))
+                   (fn [_] (i18n/trs "Error in deliver-message")))
         (handle-delivery-failure message sender (str e))))
     (handle-delivery-failure message sender (i18n/trs "not connected"))))
 
@@ -172,7 +182,11 @@
           :debug (merge (summarize message)
                         (connection/summarize connection)
                         {:type :message-delivery})
-          (i18n/trs "Delivering '{messageid}' to '{destination}' at '{remoteaddress}'"))
+          ;; 0 : message id (uuid)
+          ;; 1 : destination uri
+          ;; 2 : remote address
+          #(i18n/trs "Delivering {0} to {1} at {2}"
+            (:messageid %) (:destination %) (:remoteaddress %)))
         (locking (:websocket connection)
           (time! (:on-send (:metrics broker))
                  (send-message connection message))
@@ -180,6 +194,6 @@
         (catch Exception e
           (sl/maplog :error e
                      {:type :message-delivery-error}
-                     (i18n/trs "Error in deliver-message"))
+                     (fn [_] (i18n/trs "Error in deliver-message")))
           (log-delivery-failure message (str e))))
       (log-delivery-failure message (i18n/trs "client no longer connected")))))
