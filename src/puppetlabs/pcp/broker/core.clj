@@ -115,7 +115,13 @@
                        :uri as
                        :existinguri uri
                        :type :connection-already-associated)
-         (i18n/trs "Received session association for '{uri}' from '{commonname}' '{remoteaddress}'. Session was already associated as '{existinguri}'"))
+         ;; Logs association status with the following arguments
+         ;; 0 : uri associated with incoming connection
+         ;; 1 : certificate common name of connection
+         ;; 2 : remote address of connection
+         ;; 3 : uri previously associated with the connection
+         #(i18n/trs "Received session association for {0} from {1} {2}. Session was already associated as {3}"
+           (:uri %) (:commonname %) (:remoteaddress %) (:existinguri %)))
         (i18n/trs "Session already associated")))))
 
 (s/defn make-associate_response-data-content :- p/AssociateResponse
@@ -166,14 +172,16 @@
        (catch Exception e
          (sl/maplog :debug e
                     {:type :message-delivery-error}
-                    (i18n/trs "Error in process-associate-request!"))))
+                    (fn [_] (i18n/trs "Error in process-associate-request!")))))
      (if reason-to-deny
        (do
          (sl/maplog
           :debug {:type   :connection-association-failed
                   :uri    requester-uri
                   :reason reason-to-deny}
-          (i18n/trs "Invalid associate_request ('{reason}'); closing '{uri}' WebSocket"))
+          ;; 0 : reason to deny request
+          ;; 1 : uri of connection
+          #(i18n/trs "Invalid associate_request ({0}); closing {1} WebSocket" (:reason %) (:uri %)))
          (websockets-client/close! (:websocket connection) 4002 (i18n/trs "association unsuccessful"))
          nil)
        (assoc connection :uri requester-uri)))))
@@ -218,7 +226,11 @@
        :debug (assoc (connection/summarize connection)
                      :messagetype message-type
                      :type :broker-unhandled-message)
-       (i18n/trs "Unhandled message type '{messagetype}' received from '{commonname}' '{remoteaddr}'")))))
+       ;; 0 : message type
+       ;; 1 : common name of connection
+       ;; 2 : remote address of connection
+       #(i18n/trs "Unhandled message type {0} received from {1} {2}"
+         (:messagetype %) (:commonname %) (:remoteaddr %))))))
 
 ;;
 ;; Message validation
@@ -245,7 +257,11 @@
                       {:type    :message-authorization
                        :allowed false
                        :message validation-result})
-         (i18n/trs "Message '{messageid}' for '{destination}' didn''t pass pre-authorization validation: '{message}'"))
+         ;; 0 : message id (uuid)
+         ;; 1 : uri of destination
+         ;; 2 : message content
+         #(i18n/trs "Message {0} for {1} didn''t pass pre-authorization validation: {2}"
+           (:messageid %) (:destination %) (:message %)))
         nil)                                                ; make sure to return nil
       (let [query-params {"sender" sender
                           "target" target
@@ -278,7 +294,12 @@
                      {:type    :message-authorization
                       :allowed allowed
                       :message message})
-       (i18n/trs "Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"))
+       ;; 0 : message id (uuid)
+       ;; 1 : uri of destination
+       ;; 2 : whether the message is authorized (true or false)
+       ;; 3 : message content
+       #(i18n/trs "Authorizing {0} for {1} - {2}: {3}"
+         (:messageid %) (:destination %) (:allowed %) (:message %)))
       allowed)
     false))
 
@@ -319,7 +340,7 @@
   (sl/maplog
    [:puppetlabs.pcp.broker.pcp_access lvl]
    message-data
-   "{accessoutcome} {remoteaddress} {commonname} {source} {messagetype} {messageid} {destination}"))
+   #(str (:accessoutcome %) (:remoteaddress %) (:commonname %) (:source %) (:messagetype %) (:messageid %) (:destination %))))
 
 (s/defn process-message!
   "Deserialize, validate (authentication, authorization, and expiration), and
@@ -345,7 +366,10 @@
        (sl/maplog :trace {:type :incoming-message-trace
                           :uri uri
                           :rawmsg message}
-                  (i18n/trs "Processing PCP message from '{uri}': '{rawmsg}'"))
+                  ;; 0 : uri of connection
+                  ;; 1 : raw message string
+                  #(i18n/trs "Processing PCP message from {0}: {1}"
+                    (:uri %) (:rawmsg %)))
        (try+
         (case (validate-message broker message connection is-association-request)
           :not-authenticated
@@ -380,7 +404,14 @@
            :debug (merge (connection/summarize connection)
                          (summarize message)
                          {:type :processing-error :errortype (:type m)})
-           (i18n/trs "Failed to process '{messagetype}' '{messageid}' from '{commonname}' '{remoteaddress}': '{errortype}'"))
+           ;; Failure while reading the message.
+           ;; 0 : message type
+           ;; 1 : message id (uuid)
+           ;; 2 : common name of connection
+           ;; 3 : remote address for connection
+           ;; 4 : error type
+           #(i18n/trs "Failed to process {0} {1} from {2} {3}: {4}"
+             (:messagetype %) (:messageid %) (:commonname %) (:remoteaddress %) (:errortype %)))
           (send-error-message
            message
            (i18n/trs "Error {0} handling message: {1}" (:type m) &throw-context)
@@ -391,7 +422,7 @@
         (assoc (connection/summarize connection)
                :type :deserialization-failure
                :outcome "DESERIALIZATION_ERROR")
-        "{outcome} {remoteaddress} {commonname} unknown unknown unknown unknown unknown")
+        #(str (:outcome %) (:remoteaddress %) (:commonname %) "unknown unknown unknown unknown unknown"))
         ;; TODO(richardc): this could use a different message_type to
         ;; indicate an encoding error rather than a processing error
        (send-error-message nil (i18n/trs "Could not decode message") connection)))))
@@ -442,7 +473,8 @@
      (nil? (ws->common-name ws))
      (do (sl/maplog :debug {:remoteaddress (ws->remote-address ws)
                             :type :connection-no-peer-certificate}
-                    (i18n/trs "No client certificate, closing '{remoteaddress}'"))
+                    ;; 0 : remote address of connection
+                    #(i18n/trs "No client certificate, closing {0}" (:remoteaddress %)))
          (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
 
 
@@ -473,14 +505,22 @@
              (sl/maplog :debug (assoc (connection/summarize old-conn)
                                       :uri uri
                                       :type :connection-association-failed)
-                        (i18n/trs "Node with URI '{uri}' already associated with connection '{commonname}' '{remoteaddress}'"))
+                        ;; 0 : uri of connection
+                        ;; 1 : common name of connection
+                        ;; 2 : remote address of connection
+                        #(i18n/trs "Node with URI {0} already associated with connection {1} {2}"
+                          (:uri %) (:commonname %) (:remoteaddress %)))
              (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "superseded")))
            (websockets-client/idle-timeout! ws (* 1000 60 15))
            (add-connection! broker connection)
            (sl/maplog :debug (assoc (connection/summarize connection)
                                     :uri uri
                                     :type :connection-open)
-                      (i18n/trs "'{uri}' connected from '{remoteaddress}'"))))))))
+                      ;; Connection was successfully established.
+                      ;; 0 : uri
+                      ;; 1 : remote address
+                      #(i18n/trs "{0} connected from {1}"
+                        (:uri %) (:remoteaddress %)))))))))
 
 (defn- on-error
   "OnError WebSocket event handler. Just log the event."
@@ -488,7 +528,10 @@
   (let [connection (get-connection broker (ws->uri ws))]
     (sl/maplog :error e (assoc (connection/summarize connection)
                                :type :connection-error)
-               (i18n/trs "Websocket error '{commonname}' '{remoteaddress}'"))))
+               ;; 0 : common name of connection
+               ;; 1 : remote address of connection
+               #(i18n/trs "Websocket error {0} {1}"
+                 (:commonname %) (:remoteaddress %)))))
 
 (defn- on-close!
   "OnClose WebSocket event handler. Remove the Connection instance out of the
@@ -501,7 +544,12 @@
                     :type :connection-close
                     :statuscode status-code
                     :reason reason}
-            (i18n/trs "'{uri}' disconnected '{statuscode}' '{reason}'"))
+            ;; Connection closed.
+            ;; 0 : uri of closed connection
+            ;; 1 : status code from close event
+            ;; 2 : reason close occurred
+            #(i18n/trs "{0} disconnected {1} {2}"
+              (:uri %) (:statuscode %) (:reason %)))
            (remove-connection! broker uri))))
 
 (s/defn build-websocket-handlers :- {s/Keyword IFn}
@@ -539,7 +587,10 @@
       (sl/maplog :trace {:type :controller-message-trace
                          :uri uri
                          :rawmsg message}
-                 (i18n/trs "Received PCP message from '{uri}': '{rawmsg}'"))
+                 ;; 0 : uri
+                 ;; 1 : raw message
+                 #(i18n/trs "Received PCP message from {0}: {1}"
+                   (:uri %) (:rawmsg %)))
       (cond
         ;; only accept messages from the sender
         (not (authenticated? message connection))
@@ -579,7 +630,8 @@
   (swap! (:database broker) update :warning-bin dissoc controller-uri)
   (sl/maplog
     :debug {:uri controller-uri}
-    (i18n/trs "Established connection with controller '{uri}'")))
+    ;; 0 : connection uri
+    #(i18n/trs "Established connection with controller {0}" (:uri %))))
 
 (defn schedule-client-purge!
   [broker timestamp controller-disconnection-ms]
@@ -587,7 +639,8 @@
               (maybe-purge-clients! broker timestamp)))
   (sl/maplog
     :debug {:timeout controller-disconnection-ms}
-    (i18n/trs "Scheduled full client eviction in '{timeout}' ms")))
+    ;; 0 : number of milliseconds
+    #(i18n/trs "Scheduled full client eviction in {0,number,integer} ms" (:timeout %))))
 
 (s/defn forget-controller-subscription
   [broker :- Broker
@@ -597,10 +650,12 @@
   (let [timestamp (now)]
     (sl/maplog
       :debug {:uri uri}
-      (i18n/trs "Lost connection to controller: '{uri}'"))
+      ;; 0 : connection uri
+      #(i18n/trs "Lost connection to controller: {0}" (:uri %)))
     (sl/maplog
       :debug {:uri uri}
-      (i18n/trs "Removing inventory update subscription for '{uri}'"))
+      ;; 0 : connection uri
+      #(i18n/trs "Removing inventory update subscription for {0}" (:uri %)))
     (swap! (:database broker) update :subscriptions dissoc uri)
     (swap! (:database broker) update :warning-bin assoc uri timestamp)
     (when (and (= :running @(:state broker)) (all-controllers-disconnected? broker))
@@ -623,7 +678,9 @@
                                     {:default (partial default-message-handler broker controller-whitelist)})
         identity-codec {:decode identity :encode identity}]
     (sl/maplog :debug {:type :controller-connection :uri uri :pcpuri pcp-uri}
-               (i18n/trs "Connecting to '{pcpuri}' at '{uri}'"))
+               ;; 0 : uri identifying connection
+               ;; 1 : url to connect to
+               #(i18n/trs "Connecting to {0} at {1}" (:pcpuri %) (:uri %)))
     [pcp-uri (connection/make-connection client identity-codec pcp-uri)]))
 
 (s/defn initiate-controller-connections :- {p/Uri Connection}
@@ -674,7 +731,7 @@
         (add-websocket-handler (build-websocket-handlers broker message/v2-codec) {:route-id :v2}))
       (catch IllegalArgumentException e
         (sl/maplog :trace {:type :v2-unavailable}
-                   (i18n/trs "v2 protocol endpoint not configured"))))
+                   (fn [_] (i18n/trs "v2 protocol endpoint not configured")))))
     broker))
 
 (s/defn start

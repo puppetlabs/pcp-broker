@@ -20,7 +20,7 @@
    [:MetricsService get-metrics-registry]
    [:StatusService register-status]]
   (init [this context]
-        (sl/maplog :info {:type :broker-init} (i18n/trs "Initializing broker service"))
+        (sl/maplog :info {:type :broker-init} (fn [_] (i18n/trs "Initializing broker service")))
         (let [max-connections    (get-in-config [:pcp-broker :max-connections] 0)
               broker             (core/init {:add-websocket-handler (partial add-websocket-handler this)
                                              :authorization-check   authorization-check
@@ -33,7 +33,7 @@
                            (partial core/status broker))
           (assoc context :broker broker)))
   (start [this context]
-         (sl/maplog :info {:type :broker-start} (i18n/trs "Starting broker service"))
+         (sl/maplog :info {:type :broker-start} (fn [_] (i18n/trs "Starting broker service")))
          (let [controller-uris (get-in-config [:pcp-broker :controller-uris] [])
                controller-disconnection-ms (-> (get-in-config [:pcp-broker
                                                                :controller-disconnection-graceperiod]
@@ -68,13 +68,15 @@
                                                          controller-disconnection-ms))
            (core/start broker)
            (sl/maplog :debug {:type :broker-started :brokername broker-name}
-                      (i18n/trs "Broker service <'{brokername}'> started"))
+                      ;; 0 : broker name
+                      #(i18n/trs "Broker service <{0}> started" (:brokername %)))
            context))
   (stop [this context]
-        (sl/maplog :info {:type :broker-stop} (i18n/trs "Shutting down broker service"))
+        (sl/maplog :info {:type :broker-stop} (fn [_] (i18n/trs "Shutting down broker service")))
         (let [broker (:broker context)
               broker-name (:broker-name broker)]
           (core/stop broker)
           (sl/maplog :debug {:type :broker-stopped :brokername broker-name}
-                     (i18n/trs "Broker service <'{brokername}'> stopped")))
+                     ;; 0 : broker name
+                     #(i18n/trs "Broker service <{0}> stopped" (:brokername %))))
         context))
