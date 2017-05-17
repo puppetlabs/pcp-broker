@@ -13,7 +13,7 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "0.8.1"]
+  :parent-project {:coords [puppetlabs/clj-parent "1.0.0"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -29,14 +29,14 @@
 
                  [cheshire]
 
-                 [com.taoensso/nippy "2.9.0"]
+                 [com.taoensso/nippy]
 
                  [metrics-clojure "2.5.1"]
 
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "1.1.5"]
+                 [puppetlabs/pcp-client "1.1.6"]
 
                  [puppetlabs/i18n]]
 

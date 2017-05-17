@@ -32,16 +32,11 @@
   entries in the key store of the specified org.eclipse.jetty.util.ssl.SslContextFactory
   instance - `ssl-context-factory`."
   [ssl-context-factory]
-  (try
-    (let [load-key-store-method (doto
-                                 (-> (class ssl-context-factory)
-                                     (.getDeclaredMethod "loadKeyStore" (into-array Class [])))
-                                  (.setAccessible true))
-          ^KeyStore key-store (.invoke load-key-store-method ssl-context-factory (into-array Object []))]
+  (let [^KeyStore key-store (.getKeyStore ssl-context-factory)]
+    (when key-store
       (->> (.aliases key-store)
            enumeration-seq
-           (some #(.getCertificateChain key-store %))))
-    (catch Exception _)))
+           (some #(.getCertificateChain key-store %))))))
 
 (s/defn get-webserver-cn :- (s/maybe s/Str)
   "Return the common name from the certificate the webserver specified by its

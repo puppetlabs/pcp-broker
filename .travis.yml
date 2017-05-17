@@ -2,8 +2,7 @@ language: clojure
 sudo: false
 lein: 2.7.1
 jdk:
-  - oraclejdk7
-  - openjdk7
+  - oraclejdk8
 script:
   - lein test
   - lein with-profile test-schema-validation test
