@@ -13,7 +13,7 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "1.0.0"]
+  :parent-project {:coords [puppetlabs/clj-parent "1.1.0"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -26,12 +26,8 @@
                  [puppetlabs/trapperkeeper-status]
 
                  [puppetlabs/structured-logging]
-
-                 [cheshire]
-
-                 [com.taoensso/nippy]
-
-                 [metrics-clojure "2.5.1"]
+                 [puppetlabs/ssl-utils]
+                 [metrics-clojure]
 
                  ;; try+/throw+
                  [slingshot]
@@ -62,7 +58,6 @@
                                   [http.async.client ~http-async-client-version]
                                   [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink :classifier "test" :scope "test"]
-                                  [puppetlabs/ssl-utils]
                                   [org.clojure/tools.namespace]]
                    :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
              :dev-schema-validation [:dev
