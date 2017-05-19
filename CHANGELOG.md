@@ -1,3 +1,10 @@
+## 1.3.4
+
+This is a maintenance release
+
+* Bump clj-parent to 1.1.0 which adds versioning for metrics-clojure, bump
+  metrics-clojure from 2.5.1 to 2.6.1 as a result, remove unused dependencies
+
 ## 1.3.3
 
 This is a maintenance release
