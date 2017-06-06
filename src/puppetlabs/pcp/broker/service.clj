@@ -67,7 +67,7 @@
                                                          controller-whitelist
                                                          controller-disconnection-ms))
            (core/start broker)
-           (sl/maplog :debug {:type :broker-started :brokername broker-name}
+           (sl/maplog :info {:type :broker-started :brokername broker-name}
                       ;; 0 : broker name
                       #(i18n/trs "Broker service <{0}> started" (:brokername %)))
            context))
@@ -76,7 +76,7 @@
         (let [broker (:broker context)
               broker-name (:broker-name broker)]
           (core/stop broker)
-          (sl/maplog :debug {:type :broker-stopped :brokername broker-name}
+          (sl/maplog :info {:type :broker-stopped :brokername broker-name}
                      ;; 0 : broker name
                      #(i18n/trs "Broker service <{0}> stopped" (:brokername %))))
         context))
