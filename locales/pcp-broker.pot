@@ -1,12 +1,13 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR Puppet <docs@puppet.com>
-# This file is distributed under the same license as the puppetlabs.pcp_broker package.
+# This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.pcp_broker \n"
+"X-Git-Ref: 856269cff5597358ed75d2121803be60b5f14fb7\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -24,7 +25,7 @@ msgstr ""
 #. 3 : uri previously associated with the connection
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Received session association for {0} from {1} {2}. Session was already "
+"Rejecting session association for {0} from {1} {2}. Session was already "
 "associated as {3}"
 msgstr ""
 
@@ -33,7 +34,7 @@ msgid "Session already associated"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Error in process-associate-request!"
+msgid "Attempted associate response delivery to {0} failed."
 msgstr ""
 
 #. 0 : reason to deny request
@@ -42,6 +43,7 @@ msgstr ""
 msgid "Invalid associate_request ({0}); closing {1} WebSocket"
 msgstr ""
 
+#: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "association unsuccessful"
 msgstr ""
@@ -83,10 +85,12 @@ msgid "Processing PCP message from {0}: {1}"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authenticated"
 msgstr ""
 
 #. TODO(ale): use 'unauthorized' in version 2
+#: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authorized"
 msgstr ""
@@ -121,6 +125,7 @@ msgid "Could not decode message"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Broker is not running"
 msgstr ""
 
@@ -133,6 +138,7 @@ msgstr ""
 msgid "No client certificate"
 msgstr ""
 
+#: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "All controllers disconnected"
 msgstr ""
@@ -179,6 +185,10 @@ msgstr ""
 msgid "Received PCP message from {0}: {1}"
 msgstr ""
 
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Evicted all clients as there is no controller connection."
+msgstr ""
+
 #. 0 : connection uri
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Established connection with controller {0}"
@@ -186,17 +196,12 @@ msgstr ""
 
 #. 0 : number of milliseconds
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Scheduled full client eviction in {0,number,integer} ms"
+msgid "Scheduled potential full client eviction in {0,number,integer} ms"
 msgstr ""
 
 #. 0 : connection uri
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Lost connection to controller: {0}"
-msgstr ""
-
-#. 0 : connection uri
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Removing inventory update subscription for {0}"
 msgstr ""
 
 #. 0 : uri identifying connection
@@ -238,7 +243,7 @@ msgid "Sending PCP message to {0}: {1}"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/shared.clj
-msgid "Error in send-error-message"
+msgid "Attempted error message delivery to {0} failed."
 msgstr ""
 
 #. 0 : message id (uuid)
@@ -252,11 +257,13 @@ msgstr ""
 #. 1 : destination uri
 #. 2 : remote address
 #: src/puppetlabs/pcp/broker/shared.clj
+#: src/puppetlabs/pcp/broker/shared.clj
 msgid "Delivering {0} to {1} at {2}"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/shared.clj
-msgid "Error in deliver-message"
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "Attempted message delivery to {0} failed."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/shared.clj
