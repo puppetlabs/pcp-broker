@@ -116,16 +116,17 @@
       (locking (:websocket connection)
         (send-message connection error-msg))
       (catch Exception e
-        (sl/maplog :debug e
-                   {:type :message-delivery-error}
-                   (fn [_] (i18n/trs "Error in send-error-message")))))))
+        (sl/maplog :warn e
+                   {:target (:uri connection)
+                    :type :message-delivery-error}
+                   #(i18n/trs "Attempted error message delivery to {0} failed." (:target %)))))))
 
 (s/defn log-delivery-failure
   "Log message delivery failure given the message and failure reason."
   [message :- Message reason :- s/Str]
   (sl/maplog :trace (assoc (summarize message)
-                      :type :message-delivery-failure
-                      :reason reason)
+                           :type :message-delivery-failure
+                           :reason reason)
              ;; 0 : message id (uuid)
              ;; 1 : destination uri
              ;; 2 : reason for failure
@@ -161,15 +162,16 @@
         (time! (:on-send (:metrics broker))
                (send-message connection message)))
       (catch Exception e
-        (sl/maplog :error e
-                   {:type :message-delivery-error}
-                   (fn [_] (i18n/trs "Error in deliver-message")))
+        (sl/maplog :warn e
+                   (merge (summarize message)
+                          {:type :message-delivery-error})
+                   #(i18n/trs "Attempted message delivery to {0} failed." (:destination %)))
         (handle-delivery-failure message sender (str e))))
     (handle-delivery-failure message sender (i18n/trs "not connected"))))
 
 (s/defn deliver-server-message
   "Message consumer. Delivers a message to the websocket indicated by the :target field but only if it still
-  routed to the conection specified by the client argument"
+  routed to the connection specified by the client argument"
   [broker :- Broker
    message :- Message
    client :- Connection]
@@ -192,8 +194,9 @@
                  (send-message connection message))
           true)
         (catch Exception e
-          (sl/maplog :error e
-                     {:type :message-delivery-error}
-                     (fn [_] (i18n/trs "Error in deliver-message")))
+          (sl/maplog :warn e
+                     (merge (summarize message)
+                            {:type :message-delivery-error})
+                     #(i18n/trs "Attempted message delivery to {0} failed." (:destination %)))
           (log-delivery-failure message (str e))))
       (log-delivery-failure message (i18n/trs "client no longer connected")))))

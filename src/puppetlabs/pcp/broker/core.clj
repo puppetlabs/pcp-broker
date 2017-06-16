@@ -106,16 +106,16 @@
     (when (not= type (ws->client-type (:websocket connection)))
       (let [{:keys [uri]} connection]
         (sl/maplog
-         :debug (assoc (connection/summarize connection)
-                       :uri as
-                       :existinguri uri
-                       :type :connection-already-associated)
+         :info (assoc (connection/summarize connection)
+                      :uri as
+                      :existinguri uri
+                      :type :connection-already-associated)
          ;; Logs association status with the following arguments
          ;; 0 : uri associated with incoming connection
          ;; 1 : certificate common name of connection
          ;; 2 : remote address of connection
          ;; 3 : uri previously associated with the connection
-         #(i18n/trs "Received session association for {0} from {1} {2}. Session was already associated as {3}"
+         #(i18n/trs "Rejecting session association for {0} from {1} {2}. Session was already associated as {3}"
            (:uri %) (:commonname %) (:remoteaddress %) (:existinguri %)))
         (i18n/trs "Session already associated")))))
 
@@ -165,15 +165,16 @@
        (locking (:websocket connection)
          (send-message connection message))
        (catch Exception e
-         (sl/maplog :debug e
-                    {:type :message-delivery-error}
-                    (fn [_] (i18n/trs "Error in process-associate-request!")))))
+         (sl/maplog :warn e
+                    {:target requester-uri
+                     :type :message-delivery-error}
+                    #(i18n/trs "Attempted associate response delivery to {0} failed." (:target %)))))
      (if reason-to-deny
        (do
          (sl/maplog
-          :debug {:type   :connection-association-failed
-                  :uri    requester-uri
-                  :reason reason-to-deny}
+          :warn {:type   :connection-association-failed
+                 :uri    requester-uri
+                 :reason reason-to-deny}
           ;; 0 : reason to deny request
           ;; 1 : uri of connection
           #(i18n/trs "Invalid associate_request ({0}); closing {1} WebSocket" (:reason %) (:uri %)))
@@ -218,9 +219,9 @@
       "http://puppetlabs.com/associate_request" (process-associate-request! broker message connection)
       "http://puppetlabs.com/inventory_request" (process-inventory-request broker message connection)
       (sl/maplog
-       :debug (assoc (connection/summarize connection)
-                     :messagetype message-type
-                     :type :broker-unhandled-message)
+       :warn (assoc (connection/summarize connection)
+                    :messagetype message-type
+                    :type :broker-unhandled-message)
        ;; 0 : message type
        ;; 1 : common name of connection
        ;; 2 : remote address of connection
@@ -396,9 +397,9 @@
           (assert false (i18n/trs "unexpected message validation outcome")))
         (catch map? m
           (sl/maplog
-           :debug (merge (connection/summarize connection)
-                         (summarize message)
-                         {:type :processing-error :errortype (:type m)})
+           :warn (merge (connection/summarize connection)
+                        (summarize message)
+                        {:type :processing-error :errortype (:type m)})
            ;; Failure while reading the message.
            ;; 0 : message type
            ;; 1 : message id (uuid)
@@ -466,8 +467,8 @@
      (websockets-client/close! ws 1011 (i18n/trs "Broker is not running"))
 
      (nil? (ws->common-name ws))
-     (do (sl/maplog :debug {:remoteaddress (ws->remote-address ws)
-                            :type :connection-no-peer-certificate}
+     (do (sl/maplog :warn {:remoteaddress (ws->remote-address ws)
+                           :type :connection-no-peer-certificate}
                     ;; 0 : remote address of connection
                     #(i18n/trs "No client certificate, closing {0}" (:remoteaddress %)))
          (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
@@ -497,9 +498,9 @@
 
          (do
            (when-let [old-conn (get-connection broker uri)]
-             (sl/maplog :debug (assoc (connection/summarize old-conn)
-                                      :uri uri
-                                      :type :connection-association-failed)
+             (sl/maplog :info (assoc (connection/summarize old-conn)
+                                     :uri uri
+                                     :type :connection-association-failed)
                         ;; 0 : uri of connection
                         ;; 1 : common name of connection
                         ;; 2 : remote address of connection
@@ -508,9 +509,9 @@
              (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "superseded")))
            (websockets-client/idle-timeout! ws (* 1000 60 15))
            (add-connection! broker connection)
-           (sl/maplog :debug (assoc (connection/summarize connection)
-                                    :uri uri
-                                    :type :connection-open)
+           (sl/maplog :info (assoc (connection/summarize connection)
+                                   :uri uri
+                                   :type :connection-open)
                       ;; Connection was successfully established.
                       ;; 0 : uri
                       ;; 1 : remote address
@@ -535,10 +536,10 @@
   (time! (:on-close (:metrics broker))
          (let [uri (ws->uri ws)]
            (sl/maplog
-            :debug {:uri uri
-                    :type :connection-close
-                    :statuscode status-code
-                    :reason reason}
+            :info {:uri uri
+                   :type :connection-close
+                   :statuscode status-code
+                   :reason reason}
             ;; Connection closed.
             ;; 0 : uri of closed connection
             ;; 1 : status code from close event
@@ -618,13 +619,16 @@
     (doseq [[_ client-connection] (:inventory @(:database broker))]
       (websockets-client/close!
         (:websocket client-connection)
-        1011 (i18n/trs "All controllers disconnected")))))
+        1011 (i18n/trs "All controllers disconnected")))
+    (sl/maplog
+      :info {}
+      (fn [_] (i18n/trs "Evicted all clients as there is no controller connection.")))))
 
 (defn on-controller-connect!
   [broker controller-uri ws]
   (swap! (:database broker) update :warning-bin dissoc controller-uri)
   (sl/maplog
-    :debug {:uri controller-uri}
+    :info {:uri controller-uri}
     ;; 0 : connection uri
     #(i18n/trs "Established connection with controller {0}" (:uri %))))
 
@@ -635,7 +639,7 @@
   (sl/maplog
     :debug {:timeout controller-disconnection-ms}
     ;; 0 : number of milliseconds
-    #(i18n/trs "Scheduled full client eviction in {0,number,integer} ms" (:timeout %))))
+    #(i18n/trs "Scheduled potential full client eviction in {0,number,integer} ms" (:timeout %))))
 
 (s/defn forget-controller-subscription
   [broker :- Broker
@@ -644,13 +648,9 @@
    client :- Client]
   (let [timestamp (now)]
     (sl/maplog
-      :debug {:uri uri}
+      :info {:uri uri}
       ;; 0 : connection uri
       #(i18n/trs "Lost connection to controller: {0}" (:uri %)))
-    (sl/maplog
-      :debug {:uri uri}
-      ;; 0 : connection uri
-      #(i18n/trs "Removing inventory update subscription for {0}" (:uri %)))
     (swap! (:database broker) update :subscriptions dissoc uri)
     (swap! (:database broker) update :warning-bin assoc uri timestamp)
     (when (and (= :running @(:state broker)) (all-controllers-disconnected? broker))
@@ -672,7 +672,7 @@
                                                           controller-disconnection-ms)}
                                     {:default (partial default-message-handler broker controller-whitelist)})
         identity-codec {:decode identity :encode identity}]
-    (sl/maplog :debug {:type :controller-connection :uri uri :pcpuri pcp-uri}
+    (sl/maplog :info {:type :controller-connection :uri uri :pcpuri pcp-uri}
                ;; 0 : uri identifying connection
                ;; 1 : url to connect to
                #(i18n/trs "Connecting to {0} at {1}" (:pcpuri %) (:uri %)))
@@ -725,7 +725,7 @@
       (when (get-route :v2)
         (add-websocket-handler (build-websocket-handlers broker message/v2-codec) {:route-id :v2}))
       (catch IllegalArgumentException e
-        (sl/maplog :trace {:type :v2-unavailable}
+        (sl/maplog :info {:type :v2-unavailable}
                    (fn [_] (i18n/trs "v2 protocol endpoint not configured")))))
     broker))
 
