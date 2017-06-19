@@ -7,7 +7,7 @@
             [puppetlabs.pcp.broker.metrics :as metrics]
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
             [puppetlabs.pcp.broker.inventory :as inventory]
-            [puppetlabs.pcp.broker.util :refer [assoc-when]]
+            [puppetlabs.pcp.broker.util :refer [assoc-when] :as util]
             [puppetlabs.pcp.client :as pcp-client]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
@@ -347,81 +347,90 @@
   [broker :- Broker
    bytes :- (s/either bytes s/Str)
    ws :- Websocket]
-  (let [uri (ws->uri ws)
-        connection (get-connection broker uri)
-        decoder (get-in connection [:codec :decode])]
-    (try+
-     (let [message (-> bytes
-                       decoder
-                       (assoc-when :sender uri
-                                   :target "pcp:///server"))
-           message-data (merge (connection/summarize connection)
-                               (summarize message))
-           is-association-request (session-association-request? message)]
-        ;; Note that the data section of messages could be large. Hence :trace.
-       (sl/maplog :trace {:type :incoming-message-trace
-                          :uri uri
-                          :rawmsg message}
-                  ;; 0 : uri of connection
-                  ;; 1 : raw message string
-                  #(i18n/trs "Processing PCP message from {0}: {1}"
-                    (:uri %) (:rawmsg %)))
-       (try+
-        (case (validate-message broker message connection is-association-request)
-          :not-authenticated
-          (let [not-authenticated-msg (i18n/trs "Message not authenticated")]
-            (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
-            (if is-association-request
-                ;; send an unsuccessful associate_response and close the WebSocket
-              (process-associate-request! broker message connection not-authenticated-msg)
-              (send-error-message message not-authenticated-msg connection)))
-          :not-authorized
-          (let [not-authorized-msg (i18n/trs "Message not authorized")]
-            (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
-            (if is-association-request
-                ;; send an unsuccessful associate_response and close the WebSocket
-              (process-associate-request! broker message connection not-authorized-msg)
-                ;; TODO(ale): use 'unauthorized' in version 2
-              (send-error-message message not-authorized-msg connection)))
-          :multicast-unsupported
-          (let [multicast-unsupported-message (i18n/trs "Multiple recipients no longer supported")]
-            (log-access :warn (assoc message-data :accessoutcome "MULTICAST_UNSUPPORTED"))
-            (send-error-message message multicast-unsupported-message connection))
-          :to-be-processed
-          (do
-            (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))
-            (if (= (:target message) "pcp:///server")
-              (process-server-message! broker message connection)
-              (deliver-message broker message connection)))
-            ;; default case
-          (assert false (i18n/trs "unexpected message validation outcome")))
-        (catch map? m
-          (sl/maplog
-           :warn (merge (connection/summarize connection)
-                        (summarize message)
-                        {:type :processing-error :errortype (:type m)})
-           ;; Failure while reading the message.
-           ;; 0 : message type
-           ;; 1 : message id (uuid)
-           ;; 2 : common name of connection
-           ;; 3 : remote address for connection
-           ;; 4 : error type
-           #(i18n/trs "Failed to process {0} {1} from {2} {3}: {4}"
-             (:messagetype %) (:messageid %) (:commonname %) (:remoteaddress %) (:errortype %)))
-          (send-error-message
-           message
-           (i18n/trs "Error {0} handling message: {1}" (:type m) &throw-context)
-           connection))))
-     (catch map? m
-       (sl/maplog
-        [:puppetlabs.pcp.broker.pcp_access :warn]
-        (assoc (connection/summarize connection)
-               :type :deserialization-failure
-               :outcome "DESERIALIZATION_ERROR")
-        #(str (:outcome %) (:remoteaddress %) (:commonname %) "unknown unknown unknown unknown unknown"))
-        ;; TODO(richardc): this could use a different message_type to
-        ;; indicate an encoding error rather than a processing error
-       (send-error-message nil (i18n/trs "Could not decode message") connection)))))
+  (let [uri (ws->uri ws)]
+    (if-let [connection (get-connection broker uri)]
+      (let [decoder (get-in connection [:codec :decode])]
+        (try+
+          (let [message (-> bytes
+                            decoder
+                            (assoc-when :sender uri
+                                        :target "pcp:///server"))
+                message-data (merge (connection/summarize connection)
+                                    (summarize message))
+                is-association-request (session-association-request? message)]
+            ;; Note that the data section of messages could be large. Hence :trace.
+            (sl/maplog :trace {:type :incoming-message-trace
+                               :uri uri
+                               :rawmsg message}
+                       ;; 0 : uri of connection
+                       ;; 1 : raw message string
+                       #(i18n/trs "Processing PCP message from {0}: {1}"
+                                  (:uri %) (:rawmsg %)))
+            (try+
+              (case (validate-message broker message connection is-association-request)
+                :not-authenticated
+                (let [not-authenticated-msg (i18n/trs "Message not authenticated")]
+                  (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
+                  (if is-association-request
+                    ;; send an unsuccessful associate_response and close the WebSocket
+                    (process-associate-request! broker message connection not-authenticated-msg)
+                    (send-error-message message not-authenticated-msg connection)))
+                :not-authorized
+                (let [not-authorized-msg (i18n/trs "Message not authorized")]
+                  (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
+                  (if is-association-request
+                    ;; send an unsuccessful associate_response and close the WebSocket
+                    (process-associate-request! broker message connection not-authorized-msg)
+                    ;; TODO(ale): use 'unauthorized' in version 2
+                    (send-error-message message not-authorized-msg connection)))
+                :multicast-unsupported
+                (let [multicast-unsupported-message (i18n/trs "Multiple recipients no longer supported")]
+                  (log-access :warn (assoc message-data :accessoutcome "MULTICAST_UNSUPPORTED"))
+                  (send-error-message message multicast-unsupported-message connection))
+                :to-be-processed
+                (do
+                  (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))
+                  (if (= (:target message) "pcp:///server")
+                    (process-server-message! broker message connection)
+                    (deliver-message broker message connection)))
+                ;; default case
+                (assert false (i18n/trs "unexpected message validation outcome")))
+              (catch map? m
+                (sl/maplog
+                  :warn (merge (connection/summarize connection)
+                               (summarize message)
+                               {:type :processing-error :errortype (:type m)})
+                  ;; Failure while reading the message.
+                  ;; 0 : message type
+                  ;; 1 : message id (uuid)
+                  ;; 2 : common name of connection
+                  ;; 3 : remote address for connection
+                  ;; 4 : error type
+                  #(i18n/trs "Failed to process {0} {1} from {2} {3}: {4}"
+                             (:messagetype %) (:messageid %) (:commonname %) (:remoteaddress %) (:errortype %)))
+                (send-error-message
+                  message
+                  (i18n/trs "Error {0} handling message: {1}" (:type m) &throw-context)
+                  connection))))
+          (catch map? m
+            (sl/maplog
+              [:puppetlabs.pcp.broker.pcp_access :warn]
+              (assoc (connection/summarize connection)
+                :type :deserialization-failure
+                :outcome "DESERIALIZATION_ERROR")
+              #(str (:outcome %) (:remoteaddress %) (:commonname %) "unknown unknown unknown unknown unknown"))
+            ;; TODO(richardc): this could use a different message_type to
+            ;; indicate an encoding error rather than a processing error
+            (send-error-message nil (i18n/trs "Could not decode message") connection))))
+      (sl/maplog :trace {:type :incoming-message-trace
+                         :uri uri
+                         :remoteaddress (ws->remote-address ws)
+                         :msgdump (util/hexdump bytes)}
+                 ;; 0 : uri of connection
+                 ;; 1 : remote address of connection
+                 ;; 2 : hexdump of the websocket message payload
+                 #(i18n/trs "Ignoring message received on stale connection to: {0} {1}. Message dump: {2}"
+                            (:uri %) (:remoteaddress %) (:msgdump %))))))
 
 (defn on-message!
   "If the broker service is not running, close the WebSocket connection.
@@ -521,13 +530,20 @@
 (defn- on-error
   "OnError WebSocket event handler. Just log the event."
   [broker ws e]
-  (let [connection (get-connection broker (ws->uri ws))]
+  (if-let [connection (get-connection broker (ws->uri ws))]
     (sl/maplog :error e (assoc (connection/summarize connection)
                                :type :connection-error)
                ;; 0 : common name of connection
                ;; 1 : remote address of connection
-               #(i18n/trs "Websocket error {0} {1}"
-                 (:commonname %) (:remoteaddress %)))))
+               #(i18n/trs "Websocket error on connection to: {0} {1}"
+                 (:commonname %) (:remoteaddress %)))
+    (sl/maplog :debug e {:commonname    (ws->common-name ws)
+                         :remoteaddress (ws->remote-address ws)
+                         :type          :connection-error}
+               ;; 0 : common name of connection
+               ;; 1 : remote address of connection
+               #(i18n/trs "Websocket error on stale connection to: {0} {1}"
+                          (:commonname %) (:remoteaddress %)))))
 
 (defn- on-close!
   "OnClose WebSocket event handler. Remove the Connection instance out of the

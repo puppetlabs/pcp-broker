@@ -1,4 +1,5 @@
-(ns puppetlabs.pcp.broker.util)
+(ns puppetlabs.pcp.broker.util
+  (:require [schema.core :as s]))
 
 (defn update-cond
   "Works like update, but only if pred is satisfied"
@@ -28,3 +29,8 @@
 (defn ensure-vec
   [v]
   (if (vector? v) v (vector v)))
+
+(s/defn hexdump :- s/Str
+  [data :- (s/either bytes s/Str)]
+  (let [bytes (if (string? data) (.getBytes data) data)]
+    (clojure.string/join " " (map #(format "%02X" %) bytes))))
