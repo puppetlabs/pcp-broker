@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.pcp_broker \n"
-"X-Git-Ref: 856269cff5597358ed75d2121803be60b5f14fb7\n"
+"X-Git-Ref: 0f8bb6e2eba173cf58729100f9ce4e246885d990\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -124,6 +124,14 @@ msgstr ""
 msgid "Could not decode message"
 msgstr ""
 
+#. 0 : uri of connection
+#. 1 : remote address of connection
+#. 2 : hexdump of the websocket message payload
+#: src/puppetlabs/pcp/broker/core.clj
+msgid ""
+"Ignoring message received on stale connection to: {0} {1}. Message dump: {2}"
+msgstr ""
+
 #: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Broker is not running"
@@ -168,7 +176,13 @@ msgstr ""
 #. 0 : common name of connection
 #. 1 : remote address of connection
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Websocket error {0} {1}"
+msgid "Websocket error on connection to: {0} {1}"
+msgstr ""
+
+#. 0 : common name of connection
+#. 1 : remote address of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Websocket error on stale connection to: {0} {1}"
 msgstr ""
 
 #. Connection closed.
