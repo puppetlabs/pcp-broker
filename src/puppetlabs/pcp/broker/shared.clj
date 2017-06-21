@@ -156,7 +156,7 @@
         ;; 0 : message id (uuid)
         ;; 1 : destination uri
         ;; 2 : remote address
-        #(i18n/trs "Delivering {0} to {1} at {2}"
+        #(i18n/trs "Delivering {0} to {1} at {2}."
           (:messageid %) (:destination %) (:remoteaddress %)))
       (locking (:websocket connection)
         (time! (:on-send (:metrics broker))
@@ -167,7 +167,7 @@
                           {:type :message-delivery-error})
                    #(i18n/trs "Attempted message delivery to {0} failed." (:destination %)))
         (handle-delivery-failure message sender (str e))))
-    (handle-delivery-failure message sender (i18n/trs "not connected"))))
+    (handle-delivery-failure message sender (i18n/trs "Not connected."))))
 
 (s/defn deliver-server-message
   "Message consumer. Delivers a message to the websocket indicated by the :target field but only if it still
@@ -187,7 +187,7 @@
           ;; 0 : message id (uuid)
           ;; 1 : destination uri
           ;; 2 : remote address
-          #(i18n/trs "Delivering {0} to {1} at {2}"
+          #(i18n/trs "Delivering {0} to {1} at {2}."
             (:messageid %) (:destination %) (:remoteaddress %)))
         (locking (:websocket connection)
           (time! (:on-send (:metrics broker))
@@ -199,4 +199,4 @@
                             {:type :message-delivery-error})
                      #(i18n/trs "Attempted message delivery to {0} failed." (:destination %)))
           (log-delivery-failure message (str e))))
-      (log-delivery-failure message (i18n/trs "client no longer connected")))))
+      (log-delivery-failure message (i18n/trs "Client no longer connected.")))))
