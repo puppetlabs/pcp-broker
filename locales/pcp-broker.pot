@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.pcp_broker \n"
-"X-Git-Ref: bf722326657fc2904ada9e2f71bec5da5a1ea97c\n"
+"X-Git-Ref: 8cd7a3ef1ecfac12d92a21d5777bb11994fbc980\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -197,6 +197,13 @@ msgstr ""
 #. 1 : raw message
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Received PCP message from {0}: {1}"
+msgstr ""
+
+#. 0 : uri of connection
+#. 1 : remote address of connection
+#. 2 : raw message
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Ignoring message received on stale controller connection {0} {1}: {2}"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
