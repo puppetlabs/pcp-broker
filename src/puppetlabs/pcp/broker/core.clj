@@ -590,39 +590,48 @@
    whitelist :- #{s/Str}
    client :- Client
    message :- Message]
-  (let [uri (ws->uri client)
-        connection (get-controller broker uri)
-        message (assoc-when message :sender uri :target "pcp:///server")
-        message-data (merge (connection/summarize connection) (summarize message))]
-    (time!
-     (:on-message (:metrics broker))
+  (let [uri (ws->uri client)]
+    (if-let [connection (get-controller broker uri)]
+      (let [message (assoc-when message :sender uri :target "pcp:///server")
+            message-data (merge (connection/summarize connection) (summarize message))]
+        (time!
+         (:on-message (:metrics broker))
+          (sl/maplog :trace {:type :controller-message-trace
+                             :uri uri
+                             :rawmsg message}
+                     ;; 0 : uri
+                     ;; 1 : raw message
+                     #(i18n/trs "Received PCP message from {0}: {1}"
+                       (:uri %) (:rawmsg %)))
+          (cond
+            ;; only accept messages from the sender
+            (not (authenticated? message connection))
+            (do
+              (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
+              (send-error-message message (i18n/trs "Message not authenticated.") connection))
+
+            ;; deny messages unless in `whitelist`
+            (not (contains? whitelist (:message_type message)))
+            (do
+              (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
+              ;; TODO(ale): use 'unauthorized' in version 2
+              (send-error-message message (i18n/trs "Message not authorized.") connection))
+
+            :else
+            (do
+              (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))
+              (if (= (:target message) "pcp:///server")
+                (process-server-message! broker message connection)
+                (deliver-message broker message connection))))))
       (sl/maplog :trace {:type :controller-message-trace
                          :uri uri
+                         :remoteaddress (ws->remote-address client)
                          :rawmsg message}
-                 ;; 0 : uri
-                 ;; 1 : raw message
-                 #(i18n/trs "Received PCP message from {0}: {1}"
-                   (:uri %) (:rawmsg %)))
-      (cond
-        ;; only accept messages from the sender
-        (not (authenticated? message connection))
-        (do
-          (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
-          (send-error-message message (i18n/trs "Message not authenticated.") connection))
-
-        ;; deny messages unless in `whitelist`
-        (not (contains? whitelist (:message_type message)))
-        (do
-          (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
-          ;; TODO(ale): use 'unauthorized' in version 2
-          (send-error-message message (i18n/trs "Message not authorized.") connection))
-
-        :else
-        (do
-          (log-access :info (assoc message-data :accessoutcome "AUTHORIZATION_SUCCESS"))
-          (if (= (:target message) "pcp:///server")
-            (process-server-message! broker message connection)
-            (deliver-message broker message connection)))))))
+                 ;; 0 : uri of connection
+                 ;; 1 : remote address of connection
+                 ;; 2 : raw message
+                 #(i18n/trs "Ignoring message received on stale controller connection {0} {1}: {2}"
+                            (:uri %) (:remoteaddress %) (:rawmsg %))))))
 
 (defn maybe-purge-clients!
   "After having slept for the grace period, if all controllers are still
