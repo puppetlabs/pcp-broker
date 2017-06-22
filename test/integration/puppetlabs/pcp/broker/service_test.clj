@@ -176,8 +176,8 @@
                                                     :version version)]
                    (let [pcp-response (client/recv! client)
                          close-websocket-msg (client/recv! client)]
-                     (is-association_response pcp-response version false "Message not authenticated")
-                     (is (= [4002 "association unsuccessful"] close-websocket-msg))))))))
+                     (is-association_response pcp-response version false "Message not authenticated.")
+                     (is (= [4002 "Association unsuccessful."] close-websocket-msg))))))))
 
 (deftest basic-session-association-test
   (with-app-with-config app broker-services broker-config
@@ -197,8 +197,8 @@
                                                     :version version)]
                    (let [pcp-response (client/recv! client)
                          close-websocket-msg (client/recv! client)]
-                     (is-association_response pcp-response version false "Session already associated")
-                     (is (= [4002 "association unsuccessful"] close-websocket-msg))))))))
+                     (is-association_response pcp-response version false "Session already associated.")
+                     (is (= [4002 "Association unsuccessful."] close-websocket-msg))))))))
 
 (deftest second-association-new-connection-closes-first-test
   (with-app-with-config app broker-services broker-config
@@ -211,7 +211,7 @@
                                                          :version version)]
                  ;; NB(ale): client/connect checks associate_response for both clients
                  (let [close-websocket-msg1 (client/recv! first-client)]
-                   (is (= [4000 "superseded"] close-websocket-msg1)))))))
+                   (is (= [4000 "Superseded."] close-websocket-msg1)))))))
 
 (deftest second-association-same-connection-is-accepted-test
   (with-app-with-config app broker-services broker-config
@@ -243,7 +243,7 @@
                                                   :check-association false)]
                  (testing "cannot associate - closes connection"
                    (let [response (client/recv! client)]
-                     (is (or (= [4002 "association unsuccessful"] response)
+                     (is (or (= [4002 "Association unsuccessful."] response)
                              ;; the response can also be 1006; this may happen because we close the connection during the on-connect callback
                              ;; since this isn't an issue when things are set up correctly, just accept the 1006
                              (= [1006 "Connection was closed abnormally (that is, with no close frame being sent)."] response)))))
@@ -356,7 +356,7 @@
                                    :data {:query ["pcp://client01.example.com/agent"]}})]
                      (client/send! client request)
                      (let [response (client/recv! client)]
-                       (is (is-error-message response version "Message not authorized" true)))))))))
+                       (is (is-error-message response version "Message not authorized." true)))))))))
 
 (deftest invalid-message-types-not-authorized
   (with-app-with-config app broker-services broker-config
@@ -372,7 +372,7 @@
                                      :sender "pcp://client01.example.com/agent"})]
                        (client/send! client request)
                        (let [response (client/recv! client)]
-                         (is (is-error-message response version "Message not authorized" true))
+                         (is (is-error-message response version "Message not authorized." true))
                          (is (logged? #"Illegal message type: 'http://puppetlabs.com/inventory_request" :warn))))))))))
 
 (deftest invalid-targets-not-authorized
@@ -389,7 +389,7 @@
                                      :sender "pcp://client01.example.com/agent"})]
                        (client/send! client request)
                        (let [response (client/recv! client)]
-                         (is (is-error-message response version "Message not authorized" true))
+                         (is (is-error-message response version "Message not authorized." true))
                          (is (logged? #"Illegal message target: 'pcp:///server" :warn))))))))))
 
 ;; Message sending
@@ -423,7 +423,7 @@
                                  :data "Hello"})]
                    (client/send! client message)
                    (let [response (client/recv! client)]
-                     (is-error-message response version "Multiple recipients no longer supported" false)))))))
+                     (is-error-message response version "Multiple recipients no longer supported." false)))))))
 
 (deftest send-with-destination-report-ignored-test
   (with-app-with-config app broker-services broker-config
@@ -455,7 +455,7 @@
                                  :data "Hello"})]
                    (client/send! client message)
                    (let [response (client/recv! client)]
-                     (is-error-message response version "not connected" false)))))))
+                     (is-error-message response version "Not connected." false)))))))
 
 (deftest send-disconnect-connect-not-delivered-test
   (with-app-with-config app broker-services broker-config
@@ -472,7 +472,7 @@
          (client/send! client1 message))
        (with-open [client2 (client/connect :certname "client02.example.com")]
          (let [response (client/recv! client1)]
-           (is-error-message response version "not connected" false))
+           (is-error-message response version "Not connected." false))
          (let [response (client/recv! client2 1000)]
            (is (= nil response))))))))
 
@@ -532,7 +532,7 @@
                   client2 (client/connect :certname "client02.example.com")]
         (is (client/connected? client1))
         (is (received? (client/recv! client2)
-                       [1011 "Connection limit exceeded"]))
+                       [1011 "Connection limit exceeded."]))
         (is (not (client/connected? client2)))))))
 
 (deftest interversion-send-test

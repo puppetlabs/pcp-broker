@@ -76,7 +76,7 @@
         (is (deref response2 3000 nil))
         (is (= "http://puppetlabs.com/error_message" (:message_type @response2)))
         (is (= (:id agent-request) (:in_reply_to @response2)))
-        (is (= "not connected" (:data @response2)))))))
+        (is (= "Not connected." (:data @response2)))))))
 
 (deftest controller-agent-connected-test
   (let [inventory-response (promise)
@@ -130,7 +130,7 @@
         (is (deref response 3000 nil))
         (is (= "http://puppetlabs.com/error_message" (:message_type @response)))
         (is (= (:id self-request) (:in_reply_to @response)))
-        (is (= "Message not authorized" (:data @response)))))))
+        (is (= "Message not authorized." (:data @response)))))))
 
 (def spoof-sender-request (message/make-message
                             {:message_type "greeting"
@@ -145,7 +145,7 @@
         (is (deref response 3000 nil))
         (is (= "http://puppetlabs.com/error_message" (:message_type @response)))
         (is (= (:id spoof-sender-request) (:in_reply_to @response)))
-        (is (= "Message not authenticated" (:data @response)))))))
+        (is (= "Message not authenticated." (:data @response)))))))
 
 (deftest multiple-controllers-test
   (let [responses {:mock-server-1 [(promise) (promise)]
@@ -174,7 +174,7 @@
             (is (deref response2 3000 nil))
             (is (= "http://puppetlabs.com/error_message" (:message_type @response2)))
             (is (= (:id agent-request) (:in_reply_to @response2)))
-            (is (= "not connected" (:data @response2)))))))))
+            (is (= "Not connected." (:data @response2)))))))))
 
 (def inventory-subscribe
   (client/make-message
@@ -277,7 +277,7 @@
                 database (:database broker)]
             (testing "client connections disallowed when no controller is connected"
               (with-open [client (client/connect :certname agent-cert)]
-                (is (received? (client/recv! client) [1011 "All controllers disconnected"]))))
+                (is (received? (client/recv! client) [1011 "All controllers disconnected."]))))
             (testing "broker state is error on start (no controllers connected)"
               (is (= :error (:state (core/status broker :info)))))
             (testing "controller disconnection"
@@ -301,10 +301,10 @@
                       (testing "new connections are rejected while controllers in the bin"
                         (with-open [client' (client/connect :certname agent2-cert)]
                           (is (received? (client/recv! client')
-                                         [1011 "All controllers disconnected"]))))
+                                         [1011 "All controllers disconnected."]))))
                       (deliver timed-out? true)
                       (is (received? (client/recv! client)
-                                     [1011 "All controllers disconnected"]))
+                                     [1011 "All controllers disconnected."]))
                       (is (not (websockets-client/connected? (:websocket client-connection)))))
                     (testing "warning bin contains one element"
                       (is (= 1 (count (:warning-bin @database)))))))))

@@ -115,9 +115,9 @@
          ;; 1 : certificate common name of connection
          ;; 2 : remote address of connection
          ;; 3 : uri previously associated with the connection
-         #(i18n/trs "Rejecting session association for {0} from {1} {2}. Session was already associated as {3}"
+         #(i18n/trs "Rejecting session association for {0} from {1} {2}. Session was already associated as {3}."
            (:uri %) (:commonname %) (:remoteaddress %) (:existinguri %)))
-        (i18n/trs "Session already associated")))))
+        (i18n/trs "Session already associated.")))))
 
 (s/defn make-associate_response-data-content :- p/AssociateResponse
   [id reason-to-deny]
@@ -177,8 +177,8 @@
                  :reason reason-to-deny}
           ;; 0 : reason to deny request
           ;; 1 : uri of connection
-          #(i18n/trs "Invalid associate_request ({0}); closing {1} WebSocket" (:reason %) (:uri %)))
-         (websockets-client/close! (:websocket connection) 4002 (i18n/trs "association unsuccessful"))
+          #(i18n/trs "Invalid associate_request ({0}). Closing {1} WebSocket." (:reason %) (:uri %)))
+         (websockets-client/close! (:websocket connection) 4002 (i18n/trs "Association unsuccessful."))
          nil)
        (assoc connection :uri requester-uri)))))
 
@@ -225,7 +225,7 @@
        ;; 0 : message type
        ;; 1 : common name of connection
        ;; 2 : remote address of connection
-       #(i18n/trs "Unhandled message type {0} received from {1} {2}"
+       #(i18n/trs "Unhandled message type {0} received from {1} {2}."
          (:messagetype %) (:commonname %) (:remoteaddr %))))))
 
 ;;
@@ -235,12 +235,12 @@
 (defn- validate-message-type
   [^String message-type]
   (if-not (re-matches #"^[\w\-.:/]*$" message-type)
-    (i18n/trs "Illegal message type: ''{0}''" message-type)))
+    (i18n/trs "Illegal message type: ''{0}''." message-type)))
 
 (defn- validate-target
   [^String target]
   (if-not (re-matches #"^[\w\-.:/*]*$" target)
-    (i18n/trs "Illegal message target: ''{0}''" target)))
+    (i18n/trs "Illegal message target: ''{0}''." target)))
 
 (s/defn make-ring-request :- (s/maybe ring/Request)
   [message :- Message connection :- (s/maybe Connection)]
@@ -369,14 +369,14 @@
             (try+
               (case (validate-message broker message connection is-association-request)
                 :not-authenticated
-                (let [not-authenticated-msg (i18n/trs "Message not authenticated")]
+                (let [not-authenticated-msg (i18n/trs "Message not authenticated.")]
                   (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
                   (if is-association-request
                     ;; send an unsuccessful associate_response and close the WebSocket
                     (process-associate-request! broker message connection not-authenticated-msg)
                     (send-error-message message not-authenticated-msg connection)))
                 :not-authorized
-                (let [not-authorized-msg (i18n/trs "Message not authorized")]
+                (let [not-authorized-msg (i18n/trs "Message not authorized.")]
                   (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
                   (if is-association-request
                     ;; send an unsuccessful associate_response and close the WebSocket
@@ -384,7 +384,7 @@
                     ;; TODO(ale): use 'unauthorized' in version 2
                     (send-error-message message not-authorized-msg connection)))
                 :multicast-unsupported
-                (let [multicast-unsupported-message (i18n/trs "Multiple recipients no longer supported")]
+                (let [multicast-unsupported-message (i18n/trs "Multiple recipients no longer supported.")]
                   (log-access :warn (assoc message-data :accessoutcome "MULTICAST_UNSUPPORTED"))
                   (send-error-message message multicast-unsupported-message connection))
                 :to-be-processed
@@ -394,7 +394,7 @@
                     (process-server-message! broker message connection)
                     (deliver-message broker message connection)))
                 ;; default case
-                (assert false (i18n/trs "unexpected message validation outcome")))
+                (assert false (i18n/trs "Unexpected message validation outcome.")))
               (catch map? m
                 (sl/maplog
                   :warn (merge (connection/summarize connection)
@@ -429,7 +429,7 @@
                  ;; 0 : uri of connection
                  ;; 1 : remote address of connection
                  ;; 2 : hexdump of the websocket message payload
-                 #(i18n/trs "Ignoring message received on stale connection to: {0} {1}. Message dump: {2}"
+                 #(i18n/trs "Ignoring message received on stale connection {0} {1}. Message dump: {2}"
                             (:uri %) (:remoteaddress %) (:msgdump %))))))
 
 (defn on-message!
@@ -440,7 +440,7 @@
   (time!
    (:on-message (:metrics broker))
    (if-not (= :running @(:state broker))
-     (websockets-client/close! ws 1011 (i18n/trs "Broker is not running"))
+     (websockets-client/close! ws 1011 (i18n/trs "Broker is not running."))
      (process-message! broker bytes ws))))
 
 (defn- on-text!
@@ -473,21 +473,21 @@
    (:on-connect (:metrics broker))
    (cond
      (not= :running @(:state broker))
-     (websockets-client/close! ws 1011 (i18n/trs "Broker is not running"))
+     (websockets-client/close! ws 1011 (i18n/trs "Broker is not running."))
 
      (nil? (ws->common-name ws))
      (do (sl/maplog :warn {:remoteaddress (ws->remote-address ws)
                            :type :connection-no-peer-certificate}
                     ;; 0 : remote address of connection
-                    #(i18n/trs "No client certificate, closing {0}" (:remoteaddress %)))
-         (websockets-client/close! ws 4003 (i18n/trs "No client certificate")))
+                    #(i18n/trs "No client certificate. Closing {0}." (:remoteaddress %)))
+         (websockets-client/close! ws 4003 (i18n/trs "No client certificate.")))
 
 
      (all-controllers-disconnected? broker)
-     (websockets-client/close! ws 1011 (i18n/trs "All controllers disconnected"))
+     (websockets-client/close! ws 1011 (i18n/trs "All controllers disconnected."))
 
      (and (pos? max-connections) (>= (count (:inventory @(:database broker))) max-connections))
-     (websockets-client/close!  ws 1011 (i18n/trs "Connection limit exceeded"))
+     (websockets-client/close!  ws 1011 (i18n/trs "Connection limit exceeded."))
 
      :else
       ;; Generate an implicit association request and authorize association.
@@ -503,7 +503,7 @@
          (let [message-data (merge (connection/summarize connection)
                                    (summarize message))]
            (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
-           (websockets-client/close! ws 4002 (i18n/trs "association unsuccessful")))
+           (websockets-client/close! ws 4002 (i18n/trs "Association unsuccessful.")))
 
          (do
            (when-let [old-conn (get-connection broker uri)]
@@ -513,15 +513,15 @@
                         ;; 0 : uri of connection
                         ;; 1 : common name of connection
                         ;; 2 : remote address of connection
-                        #(i18n/trs "Node with URI {0} already associated with connection {1} {2}"
+                        #(i18n/trs "Node with URI {0} already associated with connection {1} {2}."
                           (:uri %) (:commonname %) (:remoteaddress %)))
-             (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "superseded")))
+             (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "Superseded.")))
            (websockets-client/idle-timeout! ws (* 1000 60 15))
            (add-connection! broker connection)
            (sl/maplog :info (assoc (connection/summarize connection)
                                    :uri uri
                                    :type :connection-open)
-                      ;; Connection was successfully established.
+                      ;; Connection successfully established.
                       ;; 0 : uri
                       ;; 1 : remote address
                       #(i18n/trs "{0} connected from {1}"
@@ -535,14 +535,14 @@
                                :type :connection-error)
                ;; 0 : common name of connection
                ;; 1 : remote address of connection
-               #(i18n/trs "Websocket error on connection to: {0} {1}"
+               #(i18n/trs "Websocket error on connection {0} {1}."
                  (:commonname %) (:remoteaddress %)))
     (sl/maplog :debug e {:commonname    (ws->common-name ws)
                          :remoteaddress (ws->remote-address ws)
                          :type          :connection-error}
                ;; 0 : common name of connection
                ;; 1 : remote address of connection
-               #(i18n/trs "Websocket error on stale connection to: {0} {1}"
+               #(i18n/trs "Websocket error on stale connection {0} {1}."
                           (:commonname %) (:remoteaddress %)))))
 
 (defn- on-close!
@@ -608,14 +608,14 @@
         (not (authenticated? message connection))
         (do
           (log-access :warn (assoc message-data :accessoutcome "AUTHENTICATION_FAILURE"))
-          (send-error-message message (i18n/trs "Message not authenticated") connection))
+          (send-error-message message (i18n/trs "Message not authenticated.") connection))
 
         ;; deny messages unless in `whitelist`
         (not (contains? whitelist (:message_type message)))
         (do
           (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
           ;; TODO(ale): use 'unauthorized' in version 2
-          (send-error-message message (i18n/trs "Message not authorized") connection))
+          (send-error-message message (i18n/trs "Message not authorized.") connection))
 
         :else
         (do
@@ -635,7 +635,7 @@
     (doseq [[_ client-connection] (:inventory @(:database broker))]
       (websockets-client/close!
         (:websocket client-connection)
-        1011 (i18n/trs "All controllers disconnected")))
+        1011 (i18n/trs "All controllers disconnected.")))
     (sl/maplog
       :info {}
       (fn [_] (i18n/trs "Evicted all clients as there is no controller connection.")))))
@@ -646,7 +646,7 @@
   (sl/maplog
     :info {:uri controller-uri}
     ;; 0 : connection uri
-    #(i18n/trs "Established connection with controller {0}" (:uri %))))
+    #(i18n/trs "Established connection with controller {0}." (:uri %))))
 
 (defn schedule-client-purge!
   [broker timestamp controller-disconnection-ms]
@@ -655,7 +655,7 @@
   (sl/maplog
     :debug {:timeout controller-disconnection-ms}
     ;; 0 : number of milliseconds
-    #(i18n/trs "Scheduled potential full client eviction in {0,number,integer} ms" (:timeout %))))
+    #(i18n/trs "Scheduled potential full client eviction in {0,number,integer} ms." (:timeout %))))
 
 (s/defn forget-controller-subscription
   [broker :- Broker
@@ -666,7 +666,7 @@
     (sl/maplog
       :info {:uri uri}
       ;; 0 : connection uri
-      #(i18n/trs "Lost connection to controller: {0}" (:uri %)))
+      #(i18n/trs "Lost connection to controller: {0}." (:uri %)))
     (swap! (:database broker) update :subscriptions dissoc uri)
     (swap! (:database broker) update :warning-bin assoc uri timestamp)
     (when (and (= :running @(:state broker)) (all-controllers-disconnected? broker))
@@ -691,7 +691,7 @@
     (sl/maplog :info {:type :controller-connection :uri uri :pcpuri pcp-uri}
                ;; 0 : uri identifying connection
                ;; 1 : url to connect to
-               #(i18n/trs "Connecting to {0} at {1}" (:pcpuri %) (:uri %)))
+               #(i18n/trs "Connecting to {0} at {1}." (:pcpuri %) (:uri %)))
     [pcp-uri (connection/make-connection client identity-codec pcp-uri)]))
 
 (s/defn initiate-controller-connections :- {p/Uri Connection}
@@ -742,7 +742,7 @@
         (add-websocket-handler (build-websocket-handlers broker message/v2-codec) {:route-id :v2}))
       (catch IllegalArgumentException e
         (sl/maplog :info {:type :v2-unavailable}
-                   (fn [_] (i18n/trs "v2 protocol endpoint not configured")))))
+                   (fn [_] (i18n/trs "v2 protocol endpoint not configured.")))))
     broker))
 
 (s/defn start

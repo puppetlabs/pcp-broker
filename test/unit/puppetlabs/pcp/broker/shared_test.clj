@@ -51,7 +51,7 @@
         (with-redefs [puppetlabs.pcp.broker.shared/handle-delivery-failure
                       (fn [_ _ err] (reset! failure err))]
           (deliver-message broker message nil)
-          (is (= "not connected" @failure)))))
+          (is (= "Not connected." @failure)))))
     (testing "errors if multicast message"
       (let [message (message/make-message)]
         (with-redefs [puppetlabs.pcp.broker.message/multicast-message?  (fn [_] true)]

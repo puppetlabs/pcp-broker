@@ -291,7 +291,7 @@
         (with-redefs [puppetlabs.pcp.broker.shared/send-error-message
                       (fn [_ description _] (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
-            (is (= "Message not authenticated" @error-message-description))
+            (is (= "Message not authenticated." @error-message-description))
             (is (nil? outcome))))))
     (testing "sends an error message and returns nil in case of authorization failure"
       (let [broker (assoc (make-test-broker)
@@ -305,7 +305,7 @@
                       (fn [_ description _]
                         (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
-            (is (= "Message not authorized" @error-message-description))
+            (is (= "Message not authorized." @error-message-description))
             (is (nil? outcome))))))
     (testing "process an authorized message sent to broker"
       (let [broker (assoc (make-test-broker)
@@ -331,7 +331,7 @@
         (with-redefs [puppetlabs.pcp.broker.shared/send-error-message
                       (fn [_ description _] (reset! error-message-description description) nil)]
           (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
-            (is (= "Multiple recipients no longer supported" @error-message-description))
+            (is (= "Multiple recipients no longer supported." @error-message-description))
             (is (nil? outcome))))))
     (testing "delivers an authorized message"
       (let [broker (assoc (make-test-broker)
