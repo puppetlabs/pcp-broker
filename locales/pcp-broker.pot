@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.pcp_broker \n"
-"X-Git-Ref: 0f8bb6e2eba173cf58729100f9ce4e246885d990\n"
+"X-Git-Ref: bf722326657fc2904ada9e2f71bec5da5a1ea97c\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -26,11 +26,11 @@ msgstr ""
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
 "Rejecting session association for {0} from {1} {2}. Session was already "
-"associated as {3}"
+"associated as {3}."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Session already associated"
+msgid "Session already associated."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
@@ -40,27 +40,27 @@ msgstr ""
 #. 0 : reason to deny request
 #. 1 : uri of connection
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Invalid associate_request ({0}); closing {1} WebSocket"
+msgid "Invalid associate_request ({0}). Closing {1} WebSocket."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "association unsuccessful"
+msgid "Association unsuccessful."
 msgstr ""
 
 #. 0 : message type
 #. 1 : common name of connection
 #. 2 : remote address of connection
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Unhandled message type {0} received from {1} {2}"
+msgid "Unhandled message type {0} received from {1} {2}."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Illegal message type: ''{0}''"
+msgid "Illegal message type: ''{0}''."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Illegal message target: ''{0}''"
+msgid "Illegal message target: ''{0}''."
 msgstr ""
 
 #. 0 : message id (uuid)
@@ -86,22 +86,22 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Message not authenticated"
+msgid "Message not authenticated."
 msgstr ""
 
 #. TODO(ale): use 'unauthorized' in version 2
 #: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Message not authorized"
+msgid "Message not authorized."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Multiple recipients no longer supported"
+msgid "Multiple recipients no longer supported."
 msgstr ""
 
 #. default case
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "unexpected message validation outcome"
+msgid "Unexpected message validation outcome."
 msgstr ""
 
 #. Failure while reading the message.
@@ -129,44 +129,44 @@ msgstr ""
 #. 2 : hexdump of the websocket message payload
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Ignoring message received on stale connection to: {0} {1}. Message dump: {2}"
+"Ignoring message received on stale connection {0} {1}. Message dump: {2}"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Broker is not running"
+msgid "Broker is not running."
 msgstr ""
 
 #. 0 : remote address of connection
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "No client certificate, closing {0}"
+msgid "No client certificate. Closing {0}."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "No client certificate"
+msgid "No client certificate."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "All controllers disconnected"
+msgid "All controllers disconnected."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Connection limit exceeded"
+msgid "Connection limit exceeded."
 msgstr ""
 
 #. 0 : uri of connection
 #. 1 : common name of connection
 #. 2 : remote address of connection
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Node with URI {0} already associated with connection {1} {2}"
+msgid "Node with URI {0} already associated with connection {1} {2}."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "superseded"
+msgid "Superseded."
 msgstr ""
 
-#. Connection was successfully established.
+#. Connection successfully established.
 #. 0 : uri
 #. 1 : remote address
 #: src/puppetlabs/pcp/broker/core.clj
@@ -176,13 +176,13 @@ msgstr ""
 #. 0 : common name of connection
 #. 1 : remote address of connection
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Websocket error on connection to: {0} {1}"
+msgid "Websocket error on connection {0} {1}."
 msgstr ""
 
 #. 0 : common name of connection
 #. 1 : remote address of connection
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Websocket error on stale connection to: {0} {1}"
+msgid "Websocket error on stale connection {0} {1}."
 msgstr ""
 
 #. Connection closed.
@@ -205,49 +205,49 @@ msgstr ""
 
 #. 0 : connection uri
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Established connection with controller {0}"
+msgid "Established connection with controller {0}."
 msgstr ""
 
 #. 0 : number of milliseconds
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Scheduled potential full client eviction in {0,number,integer} ms"
+msgid "Scheduled potential full client eviction in {0,number,integer} ms."
 msgstr ""
 
 #. 0 : connection uri
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Lost connection to controller: {0}"
+msgid "Lost connection to controller: {0}."
 msgstr ""
 
 #. 0 : uri identifying connection
 #. 1 : url to connect to
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Connecting to {0} at {1}"
+msgid "Connecting to {0} at {1}."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "v2 protocol endpoint not configured"
+msgid "v2 protocol endpoint not configured."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Initializing broker service"
+msgid "Initializing broker service."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Starting broker service"
-msgstr ""
-
-#. 0 : broker name
-#: src/puppetlabs/pcp/broker/service.clj
-msgid "Broker service <{0}> started"
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/service.clj
-msgid "Shutting down broker service"
+msgid "Starting broker service."
 msgstr ""
 
 #. 0 : broker name
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Broker service <{0}> stopped"
+msgid "Started broker service <{0}>."
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/service.clj
+msgid "Shutting down broker service."
+msgstr ""
+
+#. 0 : broker name
+#: src/puppetlabs/pcp/broker/service.clj
+msgid "Stopped broker service <{0}>."
 msgstr ""
 
 #. 0 : connection uri
@@ -272,7 +272,7 @@ msgstr ""
 #. 2 : remote address
 #: src/puppetlabs/pcp/broker/shared.clj
 #: src/puppetlabs/pcp/broker/shared.clj
-msgid "Delivering {0} to {1} at {2}"
+msgid "Delivering {0} to {1} at {2}."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/shared.clj
@@ -281,9 +281,9 @@ msgid "Attempted message delivery to {0} failed."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/shared.clj
-msgid "not connected"
+msgid "Not connected."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/shared.clj
-msgid "client no longer connected"
+msgid "Client no longer connected."
 msgstr ""
