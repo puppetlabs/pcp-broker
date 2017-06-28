@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.broker.service-test
   (:require [clojure.test :refer :all]
             [http.async.client :as http]
-            [puppetlabs.pcp.testutils :refer [dotestseq received?]]
+            [puppetlabs.pcp.testutils :refer [dotestseq received? retry-until-true]]
             [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.message-v1 :as m1]
@@ -533,7 +533,8 @@
         (is (client/connected? client1))
         (is (received? (client/recv! client2)
                        [1011 "Connection limit exceeded."]))
-        (is (not (client/connected? client2)))))))
+        ;; Allow time for the websocket object to be closed.
+        (is (retry-until-true 10 #(not (client/connected? client2))))))))
 
 (deftest interversion-send-test
   (with-app-with-config app broker-services broker-config

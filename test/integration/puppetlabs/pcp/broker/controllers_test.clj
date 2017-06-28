@@ -1,6 +1,6 @@
 (ns puppetlabs.pcp.broker.controllers-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.pcp.testutils :refer [dotestseq received?]]
+            [puppetlabs.pcp.testutils :refer [dotestseq received? retry-until-true]]
             [puppetlabs.pcp.client :as pcp-client]
             [puppetlabs.pcp.testutils.service :refer [protocol-versions broker-services get-broker get-context]]
             [puppetlabs.pcp.testutils.client :as client]
@@ -368,4 +368,6 @@
           (is (= :error (:state (core/status broker :info))))
           (with-app-with-config mock-server server/mock-server-services mock-server-config
             (server/wait-for-inbound-connection (get-context mock-server :MockServer))
+            ;; Allow time for the controller client connection to register as connected.
+            (is (retry-until-true 10 #(not (core/all-controllers-disconnected? broker))))
             (is (= :running (:state (core/status broker :info))))))))))
