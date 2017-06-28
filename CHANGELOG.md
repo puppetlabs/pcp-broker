@@ -1,3 +1,12 @@
+## 1.4.0
+
+This is a feature release.
+
+* [PCP-732](https://tickets.puppetlabs.com/browse/PCP-732) Refine logging.
+* [PCP-737](https://tickets.puppetlabs.com/browse/PCP-737) Handle events on
+  stale connections gracefully.
+* Bump clj-parent to 1.2.1, which updates trapperkeeper-metrics to 1.1.0
+
 ## 1.3.4
 
 This is a maintenance release
