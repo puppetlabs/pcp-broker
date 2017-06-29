@@ -1,6 +1,6 @@
 (def http-async-client-version "0.6.1")
 
-(defproject puppetlabs/pcp-broker "1.4.0"
+(defproject puppetlabs/pcp-broker "1.4.1-SNAPSHOT"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name "Apache License, Version 2.0"
