@@ -4,9 +4,10 @@ lein: 2.7.1
 jdk:
   - oraclejdk8
 script:
-  - lein test
-  - lein with-profile test-schema-validation test
-  - chmod +x $TRAVIS_BUILD_DIR/ext/travisci/secscan.sh
-  - $TRAVIS_BUILD_DIR/ext/travisci/secscan.sh "$TRAVIS_BUILD_DIR/src" "clj" "clojure.core/read-string"
+  - lein $TEST_OPTIONS test
+  - if [ "$TEST_OPTIONS" = "" ]; then ./ext/travisci/secscan.sh src clj "clojure.core/read-string"; fi
+env:
+  - TEST_OPTIONS=""
+  - TEST_OPTIONS="with-profile test-schema-validation"
 notifications:
   email: false

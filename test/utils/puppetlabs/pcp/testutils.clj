@@ -20,3 +20,11 @@
   (let [[status message] response]
     (or (= 1006 status)
         (= response expected))))
+
+(defn retry-until-true
+  [times condf]
+  (Thread/sleep 1)
+  (cond
+    (condf) true
+    (not (pos? times)) false
+    :else (recur (dec times) condf)))
