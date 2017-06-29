@@ -60,7 +60,10 @@
 (deftest controller-no-agent-test
   (let [response1 (promise)
         response2 (promise)]
-    (with-redefs [server/on-connect (fn [_ ws] (websockets-client/send! ws (message/encode inventory-request)))
+    (with-redefs [server/on-connect (fn [_ ws]
+                    (try
+                      (websockets-client/send! ws (message/encode inventory-request))
+                      (catch Exception e (println "controller-no-agent-test exception:" (.getMessage e)))))
                   server/on-text (fn [_ ws text]
                     (if-not (realized? response1)
                       (do
@@ -83,7 +86,10 @@
 (deftest controller-agent-connected-test
   (let [inventory-response (promise)
         agent-response (promise)]
-    (with-redefs [server/on-connect (fn [_ ws] (websockets-client/send! ws (message/encode inventory-request)))
+    (with-redefs [server/on-connect (fn [_ ws]
+                    (try
+                      (websockets-client/send! ws (message/encode inventory-request))
+                      (catch Exception e (println "controller-agent-connected-test exception:" (.getMessage e)))))
                   server/on-text (fn [_ ws text]
                     (let [msg (message/decode text)]
                       (if (= (:message_type msg) "http://puppetlabs.com/inventory_response")
@@ -128,7 +134,10 @@
 
 (deftest controller-whitelist-test
   (let [response (promise)]
-    (with-redefs [server/on-connect (fn [_ ws] (websockets-client/send! ws (message/encode self-request)))
+    (with-redefs [server/on-connect (fn [_ ws]
+                    (try
+                      (websockets-client/send! ws (message/encode self-request))
+                      (catch Exception e (println "controller-whitelist-test exception:" (.getMessage e)))))
                   server/on-text (fn [_ ws text] (deliver response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (let [answer (deref response 3000 nil)]
@@ -144,7 +153,10 @@
 
 (deftest controller-prevent-spoofed-sender-test
   (let [response (promise)]
-    (with-redefs [server/on-connect (fn [_ ws] (websockets-client/send! ws (message/encode spoof-sender-request)))
+    (with-redefs [server/on-connect (fn [_ ws]
+                    (try
+                      (websockets-client/send! ws (message/encode spoof-sender-request))
+                      (catch Exception e (println "controller-prevent-spoofed-sender-test exception:" (.getMessage e)))))
                   server/on-text (fn [_ ws text] (deliver response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (let [answer (deref response 3000 nil)]
@@ -157,8 +169,10 @@
   (let [responses {:mock-server-1 [(promise) (promise)]
                    :mock-server-2 [(promise) (promise)]
                    :mock-server-3 [(promise) (promise)]}]
-    (with-redefs [server/on-connect (fn [server ws]
-                    (websockets-client/send! ws (message/encode inventory-request)))
+    (with-redefs [server/on-connect (fn [_ ws]
+                    (try
+                      (websockets-client/send! ws (message/encode inventory-request))
+                      (catch Exception e (println "multiple-controllers-test exception:" (.getMessage e)))))
                   server/on-text (fn [server ws text]
                     (let [[response1 response2] (get responses server)]
                       (if-not (realized? response1)
@@ -195,7 +209,10 @@
   (let [inventory-response (promise)
         inventory-update (atom (promise))]
     (with-redefs [puppetlabs.pcp.broker.inventory/batch-update-interval-ms 10
-                  server/on-connect (fn [_ ws] (websockets-client/send! ws (message/encode inventory-subscribe)))
+                  server/on-connect (fn [_ ws]
+                    (try
+                      (websockets-client/send! ws (message/encode inventory-subscribe))
+                      (catch Exception e (println "controllers-subscribe exception:" (.getMessage e)))))
                   server/on-text (fn [_ ws text]
                     (let [msg (message/decode text)]
                       (case (:message_type msg)
@@ -252,8 +269,9 @@
        server/on-connect (fn [_ ws]
                            ;; Only send subscribe the first time we connect
                            (when (zero? @server-message-sent)
-                             (websockets-client/send! ws (message/encode
-                                                           inventory-subscribe))))
+                             (try
+                               (websockets-client/send! ws (message/encode inventory-subscribe))
+                               (catch Exception e (println "controllers-unsubscribe exception:" (.getMessage e))))))
        server/on-text (fn [_ ws text] (deliver inventory-response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (let [broker (:broker (get-context app :BrokerService))]
