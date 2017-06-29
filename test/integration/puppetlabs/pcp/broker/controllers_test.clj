@@ -42,7 +42,7 @@
   (let [connected (promise)]
     (with-redefs [server/on-connect (fn [_ ws] (deliver connected true))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
-        (is (deref connected 3000 nil))))))
+        (is (deref connected 5000 nil))))))
 
 (def inventory-request (message/make-message
                          {:message_type "http://puppetlabs.com/inventory_request"
@@ -59,7 +59,7 @@
 
 (defn verify-response
   [response message_type message expected]
-  (let [answer (deref response 3000 nil)]
+  (let [answer (deref response 5000 nil)]
     (is answer)
     (is (= message_type (:message_type answer)))
     (is (= (:id message) (:in_reply_to answer)))
@@ -209,12 +209,12 @@
         (verify-response inventory-response "http://puppetlabs.com/inventory_response" inventory-subscribe {:uris []})
 
         (with-open [client (client/connect :certname agent-cert)]
-          (let [update (deref @inventory-update 3000 nil)]
+          (let [update (deref @inventory-update 5000 nil)]
             (is update)
             (reset! inventory-update (promise))
             (is (= [{:client agent-uri :change 1}] (:changes (client/get-data update))))))
 
-        (let [update (deref @inventory-update 3000 nil)]
+        (let [update (deref @inventory-update 5000 nil)]
           (is update)
           (is (= [{:client agent-uri :change -1}] (:changes (client/get-data update)))))))))
 
@@ -263,14 +263,14 @@
           (with-open [client (client/connect :certname agent-cert)]
             (while (empty? (:inventory @(:database broker)))
               (Thread/sleep 100))
-            (let [answer (deref inventory-response 3000 nil)]
+            (let [answer (deref inventory-response 5000 nil)]
               (is answer)
               (is (= (:id inventory-subscribe) (:in_reply_to answer))))
-            (is (deref first-update-sent? 3000 nil))
+            (is (deref first-update-sent? 5000 nil))
             ;; Disconnect the mock server
             (doseq [ws @(:inventory (get-context app :MockServer))]
               (websockets-client/close! ws))
-            (is (deref removed-subscription 3000 nil))
+            (is (deref removed-subscription 5000 nil))
             (deliver controller-timeout? true)
             (testing "updates for disconnected controllers are discarded, not sent"
               (is @clients-purged?)
