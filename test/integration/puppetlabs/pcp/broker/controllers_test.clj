@@ -42,7 +42,7 @@
   (let [connected (promise)]
     (with-redefs [server/on-connect (fn [_ ws] (deliver connected true))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
-        (is (deref connected 3000 nil))))))
+        (is (deref connected 10000 nil))))))
 
 (def inventory-request (message/make-message
                          {:message_type "http://puppetlabs.com/inventory_request"
@@ -71,13 +71,13 @@
                         (websockets-client/send! ws (message/encode agent-request)))
                       (deliver response2 (message/decode text))))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
-        (let [answer1 (deref response1 3000 nil)]
+        (let [answer1 (deref response1 10000 nil)]
           (is answer1)
           (is (= "http://puppetlabs.com/inventory_response" (:message_type answer1)))
           (is (= (:id inventory-request) (:in_reply_to answer1)))
           (is (= [] (get-in answer1 [:data :uris]))))
 
-        (let [answer2 (deref response2 3000 nil)]
+        (let [answer2 (deref response2 10000 nil)]
           (is answer2)
           (is (= "http://puppetlabs.com/error_message" (:message_type answer2)))
           (is (= (:id agent-request) (:in_reply_to answer2)))
@@ -106,7 +106,7 @@
         (server/wait-for-inbound-connection (get-context app :MockServer))
         (with-open [client (client/connect :certname agent-cert)]
           ;; Verify we get an inventory including the client
-          (let [inventory-answer (deref inventory-response 3000 nil)]
+          (let [inventory-answer (deref inventory-response 10000 nil)]
             (is inventory-answer)
             (is (= "http://puppetlabs.com/inventory_response" (:message_type inventory-answer)))
             (is (= (:id inventory-request) (:in_reply_to inventory-answer)))
@@ -140,7 +140,7 @@
                       (catch Exception e (println "controller-whitelist-test exception:" (.getMessage e)))))
                   server/on-text (fn [_ ws text] (deliver response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
-        (let [answer (deref response 3000 nil)]
+        (let [answer (deref response 10000 nil)]
           (is answer)
           (is (= "http://puppetlabs.com/error_message" (:message_type answer)))
           (is (= (:id self-request) (:in_reply_to answer)))
@@ -159,7 +159,7 @@
                       (catch Exception e (println "controller-prevent-spoofed-sender-test exception:" (.getMessage e)))))
                   server/on-text (fn [_ ws text] (deliver response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
-        (let [answer (deref response 3000 nil)]
+        (let [answer (deref response 10000 nil)]
           (is answer)
           (is (= "http://puppetlabs.com/error_message" (:message_type answer)))
           (is (= (:id spoof-sender-request) (:in_reply_to answer)))
@@ -187,13 +187,13 @@
         (doseq [server [:mock-server-1 :mock-server-2 :mock-server-3]]
           (testing (str "connected to " server ", inventory response received, and agent unreachable")
             (let [[response1 response2] (get responses server)]
-              (let [answer (deref response1 3000 nil)]
+              (let [answer (deref response1 10000 nil)]
                 (is answer)
                 (is (= "http://puppetlabs.com/inventory_response" (:message_type answer)))
                 (is (= (:id inventory-request) (:in_reply_to answer)))
                 (is (= [] (get-in answer [:data :uris]))))
 
-              (let [answer (deref response2 3000 nil)]
+              (let [answer (deref response2 10000 nil)]
                 (is answer)
                 (is (= "http://puppetlabs.com/error_message" (:message_type answer)))
                 (is (= (:id agent-request) (:in_reply_to answer)))
@@ -219,18 +219,18 @@
                         "http://puppetlabs.com/inventory_response" (deliver inventory-response msg)
                         "http://puppetlabs.com/inventory_update" (deliver @inventory-update msg))))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
-        (let [answer (deref inventory-response 3000 nil)]
+        (let [answer (deref inventory-response 10000 nil)]
           (is answer)
           (is (= (:id inventory-subscribe) (:in_reply_to answer)))
           (is (= [] (get-in answer [:data :uris]))))
 
         (with-open [client (client/connect :certname agent-cert)]
-          (let [update (deref @inventory-update 3000 nil)]
+          (let [update (deref @inventory-update 10000 nil)]
             (is update)
             (reset! inventory-update (promise))
             (is (= [{:client agent-uri :change 1}] (:changes (client/get-data update))))))
 
-        (let [update (deref @inventory-update 3000 nil)]
+        (let [update (deref @inventory-update 10000 nil)]
           (is update)
           (is (= [{:client agent-uri :change -1}] (:changes (client/get-data update)))))))))
 
@@ -279,14 +279,14 @@
           (with-open [client (client/connect :certname agent-cert)]
             (while (empty? (:inventory @(:database broker)))
               (Thread/sleep 100))
-            (let [answer (deref inventory-response 3000 nil)]
+            (let [answer (deref inventory-response 10000 nil)]
               (is answer)
               (is (= (:id inventory-subscribe) (:in_reply_to answer))))
-            (is (deref first-update-sent? 3000 nil))
+            (is (deref first-update-sent? 10000 nil))
             ;; Disconnect the mock server
             (doseq [ws @(:inventory (get-context app :MockServer))]
               (websockets-client/close! ws))
-            (is (deref removed-subscription 3000 nil))
+            (is (deref removed-subscription 10000 nil))
             (deliver controller-timeout? true)
             (testing "updates for disconnected controllers are discarded, not sent"
               (is @clients-purged?)
