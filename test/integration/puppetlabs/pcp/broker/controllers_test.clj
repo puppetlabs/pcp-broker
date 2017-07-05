@@ -305,8 +305,7 @@
           (let [{:keys [broker]} (get-context app :BrokerService)
                 database (:database broker)]
             (testing "client connections disallowed when no controller is connected"
-              (with-open [client (client/connect :certname agent-cert)]
-                (is (received? (client/recv! client) [1011 "All controllers disconnected."]))))
+              (is (nil? (client/connect :certname agent-cert))))
             (testing "broker state is error on start (no controllers connected)"
               (is (= :error (:state (core/status broker :info)))))
             (testing "controller disconnection"
@@ -333,7 +332,7 @@
                                          [1011 "All controllers disconnected."]))))
                       (deliver timed-out? true)
                       (is (received? (client/recv! client)
-                                     [1011 "All controllers disconnected."]))
+                                     [1001 "Shutdown"]))
                       (is (not (websockets-client/connected? (:websocket client-connection)))))
                     (testing "warning bin contains one element"
                       (is (= 1 (count (:warning-bin @database)))))))))

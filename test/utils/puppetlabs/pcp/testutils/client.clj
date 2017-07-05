@@ -100,10 +100,10 @@
                                                      (put! message-chan (m1/decode msg)))
                                             :close (fn [ws code reason]
                                                      (put! message-chan [code reason])))
-        wrapper             (ChanClient. client ws message-chan)]
+        wrapper             (when ws (ChanClient. client ws message-chan))]
 
     ;; session association messages are normally only used in PCP v1
-    (when (and (or (= "v1.0" version) force-association) check-association)
+    (when (and wrapper (or (= "v1.0" version) force-association) check-association)
       (let [response (recv! wrapper)]
         (is (= "http://puppetlabs.com/associate_response" (:message_type response)))
         (is (= (case version
@@ -114,4 +114,5 @@
                (case version
                  "v1.0" (m1/get-json-data response)
                  (m2/get-data response))))))
+
     wrapper))

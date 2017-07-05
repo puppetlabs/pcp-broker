@@ -459,6 +459,28 @@
        (= (set (keys @(:controllers broker)))
           (set (keys (:warning-bin @(:database broker)))))))
 
+;; Should only be called within a lock of the broker object, to prevent multiple actions on a handler.
+(defn stop-handlers
+  [broker]
+  (doseq [handler @(:handlers broker)]
+    (when (.isRunning handler)
+      (sl/maplog :info {:handler (.getContextPath handler)
+                         :type :rejecting-connections}
+                 ;; 0 : remote address of connection
+                 #(i18n/trs "Stopping handler {0}, connections will be rejected." (:handler %)))
+      (.stop handler))))
+
+;; Should only be called within a lock of the broker object, to prevent multiple actions on a handler.
+(defn start-handlers
+  [broker]
+  (doseq [handler @(:handlers broker)]
+    (when-not (.isRunning handler)
+      (sl/maplog :info {:handler (.getContextPath handler)
+                         :type :accepting-connections}
+                 ;; 0 : remote address of connection
+                 #(i18n/trs "Starting handler {0}, connections are now accepted." (:handler %)))
+      (.start handler))))
+
 ;;
 ;; Other WebSocket event handlers
 ;;
@@ -482,7 +504,7 @@
                     #(i18n/trs "No client certificate. Closing {0}." (:remoteaddress %)))
          (websockets-client/close! ws 4003 (i18n/trs "No client certificate.")))
 
-
+     ;; Should no longer happen
      (all-controllers-disconnected? broker)
      (websockets-client/close! ws 1011 (i18n/trs "All controllers disconnected."))
 
@@ -490,7 +512,7 @@
      (websockets-client/close!  ws 1011 (i18n/trs "Connection limit exceeded."))
 
      :else
-      ;; Generate an implicit association request and authorize association.
+     ;; Generate an implicit association request and authorize association.
      (let [uri (ws->uri ws)
            connection (connection/make-connection ws codec uri)
            message (message/make-message
@@ -561,7 +583,7 @@
             ;; 1 : status code from close event
             ;; 2 : reason close occurred
             #(i18n/trs "{0} disconnected {1} {2}"
-              (:uri %) (:statuscode %) (:reason %)))
+              (:uri %) (str (:statuscode %)) (:reason %)))
            (remove-connection! broker uri))))
 
 (s/defn build-websocket-handlers :- {s/Keyword IFn}
@@ -649,6 +671,12 @@
   (when (and (all-controllers-disconnected? broker)
              (equal? target-timestamp
                      (last (sort (vals (:warning-bin @(:database broker)))))))
+    ;; lock to ensure that restarting handlers only happens when no controllers are connected
+    ;; i.e. ensure that we don't check for controller connections, then on-controller-connect!
+    ;; runs, then we stop all handlers. This would result in a non-functional broker.
+    (locking broker
+      (when (all-controllers-disconnected? broker)
+        (stop-handlers broker)))
     (doseq [[_ client-connection] (:inventory @(:database broker))]
       (websockets-client/close!
         (:websocket client-connection)
@@ -659,7 +687,10 @@
 
 (defn on-controller-connect!
   [broker controller-uri ws]
-  (swap! (:database broker) update :warning-bin dissoc controller-uri)
+  ;; lock to ensure that updating connected controllers and restarting handlers happen together
+  (locking broker
+    (swap! (:database broker) update :warning-bin dissoc controller-uri)
+    (start-handlers broker))
   (sl/maplog
     :info {:uri controller-uri}
     ;; 0 : connection uri
@@ -750,13 +781,16 @@
                  :should-stop         (promise)
                  :metrics             {}
                  :metrics-registry    (get-metrics-registry)
-                 :state               (atom :starting)}
+                 :state               (atom :starting)
+                 :handlers            (atom [])}
         metrics (shared/build-and-register-metrics broker)
         broker  (assoc broker :metrics metrics)]
-    (add-websocket-handler (build-websocket-handlers broker message/v1-codec) {:route-id :v1})
+    (swap! (:handlers broker) conj
+           (add-websocket-handler (build-websocket-handlers broker message/v1-codec) {:route-id :v1}))
     (try
       (when (get-route :v2)
-        (add-websocket-handler (build-websocket-handlers broker message/v2-codec) {:route-id :v2}))
+        (swap! (:handlers broker) conj
+               (add-websocket-handler (build-websocket-handlers broker message/v2-codec) {:route-id :v2})))
       (catch IllegalArgumentException e
         (sl/maplog :info {:type :v2-unavailable}
                    (fn [_] (i18n/trs "v2 protocol endpoint not configured.")))))
@@ -764,6 +798,10 @@
 
 (s/defn start
   [broker :- Broker]
+  ;; either start accepting websocket connections now, or wait for a controller connection
+  (locking broker
+    (when (all-controllers-disconnected? broker)
+      (stop-handlers broker)))
   (inventory/start-inventory-updates! broker)
   (-> broker :state (reset! :running)))
 
