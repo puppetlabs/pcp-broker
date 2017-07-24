@@ -1,3 +1,11 @@
+## 1.4.1
+
+This is a maintenance release
+
+* [PCP-760](https://tickets.puppetlabs.com/browse/PCP-760) Fix an issue where
+    requests received immediately after connecting to a controller may be
+    ignored.
+
 ## 1.4.0
 
 This is a feature release.
