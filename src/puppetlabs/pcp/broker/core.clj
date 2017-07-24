@@ -585,13 +585,21 @@
 ;; messages.
 ;;
 
+;; When a controller connection is initially established, it's possible that
+;; messages can be received from the connection (in particular, the initial
+;; inventory request) before our internal record-keeping considers the
+;; connection to be ready. In that case, we briefly wait for the connection to
+;; "complete" before processing the message, so that we can properly send a
+;; response.
+(def ^:const controller-connection-timeout 1000)
+
 (s/defn default-message-handler
   [broker :- Broker
    whitelist :- #{s/Str}
    client :- Client
    message :- Message]
   (let [uri (ws->uri client)]
-    (if-let [connection (get-controller broker uri)]
+    (if-let [connection (get-controller broker uri controller-connection-timeout)]
       (let [message (assoc-when message :sender uri :target "pcp:///server")
             message-data (merge (connection/summarize connection) (summarize message))]
         (time!
