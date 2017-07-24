@@ -58,10 +58,13 @@
   (-> broker :database deref :inventory (get uri)))
 
 (s/defn get-controller :- (s/maybe Connection)
-  [broker :- Broker uri :- p/Uri]
-  (if-let [controller (get @(:controllers broker) uri)]
-    (if (pcp-client/connected? (:websocket controller))
-      controller)))
+  ([broker :- Broker uri :- p/Uri]
+   (get-controller broker uri 0))
+  ([broker :- Broker uri :- p/Uri timeout :- s/Int]
+   (when-let [controller (get @(:controllers broker) uri)]
+     (pcp-client/wait-for-connection (:websocket controller) timeout)
+     (if (pcp-client/connected? (:websocket controller))
+       controller))))
 
 (s/defn build-and-register-metrics :- {s/Keyword Object}
   [broker :- Broker]
