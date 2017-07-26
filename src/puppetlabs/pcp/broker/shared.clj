@@ -46,6 +46,7 @@
   {:broker-name         (s/maybe s/Str)
    :authorization-check IFn
    :max-connections     s/Int
+   :max-message-size    s/Int
    :database            (s/atom BrokerDatabase)
    :controllers         (s/atom {p/Uri Connection})
    :should-stop         Object                              ;; Promise used to signal the inventory updates should stop

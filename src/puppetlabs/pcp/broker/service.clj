@@ -22,10 +22,12 @@
   (init [this context]
         (sl/maplog :info {:type :broker-init} (fn [_] (i18n/trs "Initializing broker service.")))
         (let [max-connections    (get-in-config [:pcp-broker :max-connections] 0)
+              max-message-size   (get-in-config [:pcp-broker :max-message-size] (* 64 1024 1024))
               broker             (core/init {:add-websocket-handler (partial add-websocket-handler this)
                                              :authorization-check   authorization-check
                                              :get-metrics-registry  get-metrics-registry
                                              :max-connections       max-connections
+                                             :max-message-size      max-message-size
                                              :get-route             (partial get-route this)})]
           (register-status "broker-service"
                            (status-core/get-artifact-version "puppetlabs" "pcp-broker")

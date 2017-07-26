@@ -23,6 +23,7 @@
                 :database            (atom (inventory/init-database))
                 :controllers         (atom {})
                 :max-connections     0
+                :max-message-size    65536
                 :should-stop         (promise)
                 :metrics             {}
                 :metrics-registry    metrics.core/default-registry
