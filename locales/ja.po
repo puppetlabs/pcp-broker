@@ -1,6 +1,6 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR Puppet <docs@puppet.com>
-# This file is distributed under the same license as the puppetlabs.pcp_broker package.
+# This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 # 
 #, fuzzy
@@ -10,92 +10,107 @@ msgstr ""
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Atsuya Kumano <at.kumano@gmail.com>, 2017\n"
+"Last-Translator: satoko inoue <satoko-inoue@to-in.co.jp>, 2017\n"
 "Language-Team: Japanese (Japan) (https://www.transifex.com/puppet/teams/59186/ja_JP/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Language: ja_JP\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+"X-Git-Ref: 8cd7a3ef1ecfac12d92a21d5777bb11994fbc980\n"
 
+#. Logs association status with the following arguments
+#. 0 : uri associated with incoming connection
+#. 1 : certificate common name of connection
+#. 2 : remote address of connection
+#. 3 : uri previously associated with the connection
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Received session association for '{uri}' from '{commonname}' "
-"'{remoteaddress}'. Session was already associated as '{existinguri}'"
-msgstr ""
-" '{commonname}' '{remoteaddress}'から'{uri}' "
-"のセッション関連付けを受信しました。セッションは'{existinguri}'としてすでに関連付けられています。"
+"Rejecting session association for {0} from {1} {2}. Session was already "
+"associated as {3}."
+msgstr "{1} {2}からの{0}のセッション関連付けを拒否します。セッションは{3}としてすでに関連付けられています。"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Session already associated"
+msgid "Session already associated."
 msgstr "セッションの関連付けはすでに完了しています"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Error in process-associate-request!"
-msgstr "process-associate-requestのエラー"
+msgid "Attempted associate response delivery to {0} failed."
+msgstr "{0}への応答送信の関連付けに失敗しました。"
+
+#. 0 : reason to deny request
+#. 1 : uri of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Invalid associate_request ({0}). Closing {1} WebSocket."
+msgstr "無効なassociate_requestです ({0})。 {1} WebSocketを閉じます。"
+
+#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+msgid "Association unsuccessful."
+msgstr "関連付けに失敗しました。"
+
+#. 0 : message type
+#. 1 : common name of connection
+#. 2 : remote address of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Unhandled message type {0} received from {1} {2}."
+msgstr "{1} {2}から無効なメッセージタイプ{0}を受信しました"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Invalid associate_request ('{reason}'); closing '{uri}' WebSocket"
-msgstr "無効なassociate_requestです ('{reason}'); '{uri}' WebSocketを閉じます"
+msgid "Illegal message type: ''{0}''."
+msgstr "不正なメッセージタイプ: \"{0}\"。"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "association unsuccessful"
-msgstr "関連付けに失敗しました"
+msgid "Illegal message target: ''{0}''."
+msgstr "不正なメッセージターゲット: \"{0}\"。"
 
+#. 0 : message id (uuid)
+#. 1 : uri of destination
+#. 2 : message content
 #: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Unhandled message type '{messagetype}' received from '{commonname}' "
-"'{remoteaddr}'"
-msgstr "'{commonname}' '{remoteaddr}'から無効なメッセージタイプ'{messagetype}'を受信しました"
+msgid "Message {0} for {1} didn''t pass pre-authorization validation: {2}"
+msgstr "{1}へのメッセージ{0}は認証前検証に合格しませんでした: {2}"
 
+#. 0 : message id (uuid)
+#. 1 : uri of destination
+#. 2 : whether the message is authorized (true or false)
+#. 3 : message content
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Illegal message type: ''{0}''"
-msgstr "不正なメッセージタイプ: \"{0}\""
+msgid "Authorizing {0} for {1} - {2}: {3}"
+msgstr "{1}の{0}を認証中 - {2}: {3}"
 
+#. 0 : uri of connection
+#. 1 : raw message string
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Illegal message target: ''{0}''"
-msgstr "不正なメッセージターゲット: \"{0}\""
+msgid "Processing PCP message from {0}: {1}"
+msgstr "{0}からのPCPメッセージの処理: {1}"
 
-#: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Message '{messageid}' for '{destination}' didn''t pass pre-authorization "
-"validation: '{message}'"
-msgstr "'{destination}'へのメッセージ'{messageid}'は認証前検証に合格しませんでした: '{message}'"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Authorizing '{messageid}' for '{destination}' - '{allowed}': '{message}'"
-msgstr "'{destination}'への'{messageid}'の認証 - '{allowed}': '{message}'"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Processing PCP message from '{uri}': '{rawmsg}'"
-msgstr "'{uri}'からのPCPメッセージの処理: '{rawmsg}'"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Message not authenticated"
-msgstr "メッセージは認証されていません"
+#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+msgid "Message not authenticated."
+msgstr "メッセージは認証されていません。"
 
 #. TODO(ale): use 'unauthorized' in version 2
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Message not authorized"
-msgstr "メッセージは許可されていません"
+#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+msgid "Message not authorized."
+msgstr "メッセージは許可されていません。"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Multiple recipients no longer supported"
-msgstr "複数受信者機能は廃止されました"
+msgid "Multiple recipients no longer supported."
+msgstr "複数受信者機能は廃止されました。"
 
 #. default case
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "unexpected message validation outcome"
-msgstr "予期せぬメッセージ検証の結果"
+msgid "Unexpected message validation outcome."
+msgstr "予期せぬメッセージ検証の結果。"
 
+#. Failure while reading the message.
+#. 0 : message type
+#. 1 : message id (uuid)
+#. 2 : common name of connection
+#. 3 : remote address for connection
+#. 4 : error type
 #: src/puppetlabs/pcp/broker/core.clj
-msgid ""
-"Failed to process '{messagetype}' '{messageid}' from '{commonname}' "
-"'{remoteaddress}': '{errortype}'"
-msgstr ""
-" '{commonname}' '{remoteaddress}'からの'{messagetype}' '{messageid}'の処理に失敗しました:"
-" '{errortype}'"
+msgid "Failed to process {0} {1} from {2} {3}: {4}"
+msgstr "{2} {3}からの{0} {1}の処理に失敗しました: {4}"
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Error {0} handling message: {1}"
@@ -107,120 +122,169 @@ msgstr "メッセージ処理中のエラー{0}: {1}"
 msgid "Could not decode message"
 msgstr "メッセージを復号できませんでした"
 
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Broker is not running"
-msgstr "ブローカは実行していません"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "No client certificate, closing '{remoteaddress}'"
-msgstr "クライアント証明書がありません。'{remoteaddress}'を閉じます"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "No client certificate"
-msgstr "クライアント証明書がありません"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "All controllers disconnected"
-msgstr "コントローラは全て接続されていません"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Connection limit exceeded"
-msgstr "接続の上限を超えました"
-
+#. 0 : uri of connection
+#. 1 : remote address of connection
+#. 2 : hexdump of the websocket message payload
 #: src/puppetlabs/pcp/broker/core.clj
 msgid ""
-"Node with URI '{uri}' already associated with connection '{commonname}' "
-"'{remoteaddress}'"
-msgstr "URI '{uri}'のノードはすでに '{commonname}' '{remoteaddress}' との接続に関連付けられています"
+"Ignoring message received on stale connection {0} {1}. Message dump: {2}"
+msgstr "失効した接続{0} {1}で受信したメッセージを無視します。メッセージダンプ: {2}"
+
+#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+msgid "Broker is not running."
+msgstr "ブローカは実行していません。"
+
+#. 0 : remote address of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "No client certificate. Closing {0}."
+msgstr "クライアント証明書がありません。 {0}を閉じます。"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "superseded"
-msgstr "置換されました"
+msgid "No client certificate."
+msgstr "クライアント証明書がありません。"
+
+#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+msgid "All controllers disconnected."
+msgstr "コントローラは全て接続されていません。"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "'{uri}' connected from '{remoteaddress}'"
-msgstr "'{uri}'が'{remoteaddress}'から接続しました"
+msgid "Connection limit exceeded."
+msgstr "接続の上限を超えました。"
+
+#. 0 : uri of connection
+#. 1 : common name of connection
+#. 2 : remote address of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Node with URI {0} already associated with connection {1} {2}."
+msgstr "URI {0}のノードはすでに{1} {2}との接続に関連付けられています"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Websocket error '{commonname}' '{remoteaddress}'"
-msgstr "Websocketエラー'{commonname}' '{remoteaddress}'"
+msgid "Superseded."
+msgstr "置換されました。"
+
+#. Connection successfully established.
+#. 0 : uri
+#. 1 : remote address
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "{0} connected from {1}"
+msgstr "{1}から{0}が接続"
+
+#. 0 : common name of connection
+#. 1 : remote address of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Websocket error on connection {0} {1}."
+msgstr "接続{0}{1}でWebSocketエラーが発生しました。"
+
+#. 0 : common name of connection
+#. 1 : remote address of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Websocket error on stale connection {0} {1}."
+msgstr "失効した接続{0} {1}でWebSocketエラーが発生しました。"
+
+#. Connection closed.
+#. 0 : uri of closed connection
+#. 1 : status code from close event
+#. 2 : reason close occurred
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "{0} disconnected {1} {2}"
+msgstr "{0}の接続は切断されました。{1} {2}"
+
+#. 0 : uri
+#. 1 : raw message
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Received PCP message from {0}: {1}"
+msgstr "{0}からPCPメッセージを受信しました: {1}"
+
+#. 0 : uri of connection
+#. 1 : remote address of connection
+#. 2 : raw message
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Ignoring message received on stale controller connection {0} {1}: {2}"
+msgstr "失効したコントローラ接続{0} {1}で受信したメッセージを無視します: {2}"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "'{uri}' disconnected '{statuscode}' '{reason}'"
-msgstr "'{uri}'の接続は切断されました '{statuscode}' '{reason}'"
+msgid "Evicted all clients as there is no controller connection."
+msgstr "コントローラが接続されていないため、全クライアントを除去しました。"
+
+#. 0 : connection uri
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Established connection with controller {0}."
+msgstr "コントローラ{0}と接続を確立しました"
+
+#. 0 : number of milliseconds
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Scheduled potential full client eviction in {0,number,integer} ms."
+msgstr "{0,number,integer}ミリ秒後に全クライアントを除去する可能性があります。"
+
+#. 0 : connection uri
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Lost connection to controller: {0}."
+msgstr "コントローラとの接続が絶たれました：{0}。"
+
+#. 0 : uri identifying connection
+#. 1 : url to connect to
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Connecting to {0} at {1}."
+msgstr "{1}で{0}に接続しています。"
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Received PCP message from '{uri}': '{rawmsg}'"
-msgstr "'{uri}'からPCPメッセージを受信しました: '{rawmsg}'"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Established connection with controller '{uri}'"
-msgstr "コントローラ'{uri}'と接続を確立しました"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Scheduled full client eviction in '{timeout}' ms"
-msgstr "'{timeout}'ミリ秒後に全クライアントを除去します"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Lost connection to controller: '{uri}'"
-msgstr "コントローラ'{uri}'との接続が絶たれました"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Removing inventory update subscription for '{uri}'"
-msgstr "'{uri}'へのインベントリ情報更新を休止します"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Connecting to '{pcpuri}' at '{uri}'"
-msgstr "'{uri}'で'{pcpuri}'に接続しています"
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "v2 protocol endpoint not configured"
-msgstr "v2プロトコルのエンドポイントが設定されていません"
+msgid "v2 protocol endpoint not configured."
+msgstr "v2プロトコルのエンドポイントが設定されていません。"
 
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Initializing broker service"
-msgstr "ブローカサービスを初期化します"
+msgid "Initializing broker service."
+msgstr "ブローカサービスを初期化します。"
 
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Starting broker service"
-msgstr "ブローカサービスを開始します"
+msgid "Starting broker service."
+msgstr "ブローカサービスを開始します。"
+
+#. 0 : broker name
+#: src/puppetlabs/pcp/broker/service.clj
+msgid "Started broker service <{0}>."
+msgstr "ブローカサービス<{0}>を開始しました。"
 
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Broker service <'{brokername}'> started"
-msgstr "ブローカサービス <'{brokername}'>を開始しました"
+msgid "Shutting down broker service."
+msgstr "ブローカサービスをシャットダウンします。"
 
+#. 0 : broker name
 #: src/puppetlabs/pcp/broker/service.clj
-msgid "Shutting down broker service"
-msgstr "ブローカサービスをシャットダウンします"
+msgid "Stopped broker service <{0}>."
+msgstr "ブローカサービス<{0}>を停止しました"
 
-#: src/puppetlabs/pcp/broker/service.clj
-msgid "Broker service <'{brokername}'> stopped"
-msgstr "ブローカサービス<'{brokername}'>は停止しました"
+#. 0 : connection uri
+#. 1 : raw message
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "Sending PCP message to {0}: {1}"
+msgstr "{0}にPCPメッセージを送信します: {1}"
 
 #: src/puppetlabs/pcp/broker/shared.clj
-msgid "Sending PCP message to '{uri}': '{rawmsg}'"
-msgstr "PCPメッセージを'{uri}'に送信します: '{rawmsg}'"
+msgid "Attempted error message delivery to {0} failed."
+msgstr "{0}へのエラーメッセージ送信が失敗しました。"
+
+#. 0 : message id (uuid)
+#. 1 : destination uri
+#. 2 : reason for failure
+#: src/puppetlabs/pcp/broker/shared.clj
+msgid "Failed to deliver {0} for {1}: {2}"
+msgstr "{1}への{0}の送信が失敗しました: {2}"
+
+#. 0 : message id (uuid)
+#. 1 : destination uri
+#. 2 : remote address
+#: src/puppetlabs/pcp/broker/shared.clj src/puppetlabs/pcp/broker/shared.clj
+msgid "Delivering {0} to {1} at {2}."
+msgstr "{2}で{1}に{0}を送信しています。"
+
+#: src/puppetlabs/pcp/broker/shared.clj src/puppetlabs/pcp/broker/shared.clj
+msgid "Attempted message delivery to {0} failed."
+msgstr "{0}へのメッセージ送信が失敗しました。"
 
 #: src/puppetlabs/pcp/broker/shared.clj
-msgid "Error in send-error-message"
-msgstr "send-error-messageのエラー"
+msgid "Not connected."
+msgstr "未接続。"
 
 #: src/puppetlabs/pcp/broker/shared.clj
-msgid "Failed to deliver '{messageid}' for '{destination}': '{reason}'"
-msgstr "'{destination}'への'{messageid}'の送信に失敗しました : '{reason}'"
-
-#: src/puppetlabs/pcp/broker/shared.clj
-msgid "Delivering '{messageid}' to '{destination}' at '{remoteaddress}'"
-msgstr "'{messageid}'を'{remoteaddress}'の'{destination}'に送信します"
-
-#: src/puppetlabs/pcp/broker/shared.clj
-msgid "Error in deliver-message"
-msgstr "deliver-messageのエラー"
-
-#: src/puppetlabs/pcp/broker/shared.clj
-msgid "not connected"
-msgstr "未接続"
-
-#: src/puppetlabs/pcp/broker/shared.clj
-msgid "client no longer connected"
-msgstr "クライアントへの接続は絶たれています"
+msgid "Client no longer connected."
+msgstr "クライアントへの接続は絶たれています。"
