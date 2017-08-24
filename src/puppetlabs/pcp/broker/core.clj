@@ -487,7 +487,7 @@
      (websockets-client/close! ws 1011 (i18n/trs "All controllers disconnected."))
 
      (and (pos? max-connections) (>= (count (:inventory @(:database broker))) max-connections))
-     (websockets-client/close!  ws 1011 (i18n/trs "Connection limit exceeded."))
+     (websockets-client/close! ws 1011 (i18n/trs "Connection limit exceeded."))
 
      :else
       ;; Generate an implicit association request and authorize association.
@@ -517,6 +517,10 @@
                           (:uri %) (:commonname %) (:remoteaddress %)))
              (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "Superseded.")))
            (websockets-client/idle-timeout! ws (* 1000 60 15))
+           (let [policy (.. ws getSession getPolicy)]
+             ;; Support both v1 and v2 agents
+             (.setMaxTextMessageSize policy (:max-message-size broker))
+             (.setMaxBinaryMessageSize policy (:max-message-size broker)))
            (add-connection! broker connection)
            (sl/maplog :info (assoc (connection/summarize connection)
                                    :uri uri
@@ -732,6 +736,7 @@
    :get-route IFn
    :get-metrics-registry IFn
    :max-connections s/Int
+   :max-message-size s/Int
    (s/optional-key :broker-name) s/Str})
 
 (s/defn init :- Broker
@@ -741,9 +746,11 @@
                 authorization-check
                 get-route
                 get-metrics-registry
-                max-connections]} options
+                max-connections
+                max-message-size]} options
         broker  {:broker-name         broker-name
                  :max-connections     max-connections
+                 :max-message-size    max-message-size
                  :authorization-check authorization-check
                  :database            (atom (inventory/init-database))
                  :controllers         (atom {})
