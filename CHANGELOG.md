@@ -1,10 +1,17 @@
+## 1.4.2
+
+This is a maintenance release
+
+* [PCP-491](https://tickets.puppetlabs.com/browse/PCP-491) Make max message
+  size for receiving messages configurable.
+* Includes updated Japanese translations.
+
 ## 1.4.1
 
 This is a maintenance release
 
 * [PCP-760](https://tickets.puppetlabs.com/browse/PCP-760) Fix an issue where
-    requests received immediately after connecting to a controller may be
-    ignored.
+  requests received immediately after connecting to a controller may be ignored.
 
 ## 1.4.0
 
