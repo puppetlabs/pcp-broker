@@ -12,7 +12,8 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]
             [schema.core :as s]
             [slingshot.test])
-  (:import [puppetlabs.pcp.broker.connection Connection]))
+  (:import [puppetlabs.pcp.broker.connection Connection]
+           [com.puppetlabs.trapperkeeper.services.webserver.jetty9.utils InternalSslContextFactory]))
 
 (s/def identity-codec :- Codec
   {:encode identity
@@ -21,7 +22,7 @@
 (def dummy-connection
   (connection/make-connection :dummy-ws message/v2-codec mock-uri))
 
-(s/defn make-mock-ssl-context-factory :- org.eclipse.jetty.util.ssl.SslContextFactory
+(s/defn make-mock-ssl-context-factory :- InternalSslContextFactory
   "Return an instance of the SslContextFactory with only a minimal configuration
   of the key & trust stores. If the specified `certificate-chain` is not nil it is
   included with the PrivateKey entry in the factory's key store."
@@ -33,14 +34,14 @@
                      pem-config
                      (assoc pem-config :ssl-cert-chain certificate-chain))
         keystore-config (jetty9-config/pem-ssl-config->keystore-ssl-config pem-config)]
-    (doto (org.eclipse.jetty.util.ssl.SslContextFactory.)
+    (doto (InternalSslContextFactory.)
       (.setKeyStore (:keystore keystore-config))
       (.setKeyStorePassword (:key-password keystore-config))
       (.setTrustStore (:truststore keystore-config)))))
 
 (s/defn make-mock-webserver-context :- jetty9-core/ServerContext
   "Return a mock webserver context including the specfied `ssl-context-factory`."
-  [ssl-context-factory :- org.eclipse.jetty.util.ssl.SslContextFactory]
+  [ssl-context-factory :- InternalSslContextFactory]
   {:server   nil
    :handlers (org.eclipse.jetty.server.handler.ContextHandlerCollection.)
    :state    (atom {:mbean-container             nil
@@ -63,7 +64,7 @@
                  get-webserver-cn)]
       (is (= "broker.example.com" cn))))
   (testing "It returns nil if anything goes wrong"
-    (is (nil? (-> (org.eclipse.jetty.util.ssl.SslContextFactory.)
+    (is (nil? (-> (InternalSslContextFactory.)
                   make-mock-webserver-context
                   get-webserver-cn)))))
 
