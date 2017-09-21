@@ -27,7 +27,8 @@
                 :should-stop         (promise)
                 :metrics             {}
                 :metrics-registry    metrics.core/default-registry
-                :state               (atom :running)}
+                :state               (atom :running)
+                :handlers            (atom [])}
         metrics (build-and-register-metrics broker)
         broker (assoc broker :metrics metrics)]
     broker))

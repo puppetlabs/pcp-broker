@@ -12,6 +12,7 @@
             [puppetlabs.i18n.core :as i18n])
   (:import [puppetlabs.pcp.broker.connection Connection]
            [org.joda.time DateTime]
+           [org.eclipse.jetty.server.handler ContextHandler]
            [clojure.lang IFn]))
 
 (def BrokerState
@@ -52,7 +53,8 @@
    :should-stop         Object                              ;; Promise used to signal the inventory updates should stop
    :metrics-registry    Object
    :metrics             {s/Keyword Object}
-   :state               (s/atom BrokerState)})
+   :state               (s/atom BrokerState)
+   :handlers            (s/atom [ContextHandler])})
 
 (s/defn get-connection :- (s/maybe Connection)
   [broker :- Broker uri :- p/Uri]
