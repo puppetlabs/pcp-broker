@@ -1,3 +1,10 @@
+## 1.4.3
+
+This is a maintenance release
+
+* [PCP-777](https://tickets.puppetlabs.com/browse/PCP-777) Reject connections
+  before websocket upgrade rather than after they've connected.
+
 ## 1.4.2
 
 This is a maintenance release
