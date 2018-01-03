@@ -82,13 +82,13 @@
                       :parent-project {:path "../pl-clojure-style/project.clj"
                                        :inherit [:cljfmt]}}
              :internal-mirrors {:mirrors [["releases" {:name "internal-releases"
-                                                       :url "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"}]
+                                                       :url "https://artifactory.delivery.puppetlabs.net/artifactory/clojure-releases__local/"}]
                                           ["central" {:name "internal-central-mirror"
-                                                      :url "http://nexus.delivery.puppetlabs.net/content/repositories/central" }]
+                                                      :url "https://artifactory.delivery.puppetlabs.net/artifactory/maven/" }]
                                           ["clojars" {:name "internal-clojars-mirror"
-                                                      :url"http://nexus.delivery.puppetlabs.net/content/repositories/clojars" }]
+                                                      :url" https://artifactory.delivery.puppetlabs.net/artifactory/maven/" }]
                                           ["snapshots" {:name "internal-snapshots"
-                                                        :url "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/" }]]}}
+                                                        :url "https://artifactory.delivery.puppetlabs.net/artifactory/clojure-snapshots__local/" }]]}}
 
   :repl-options {:init-ns user}
 
