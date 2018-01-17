@@ -17,7 +17,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: ja_JP\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Git-Ref: 8cd7a3ef1ecfac12d92a21d5777bb11994fbc980\n"
+"X-Git-Ref: 12ad15a33c3c65faf31cdfd0f5b4bccbd66c60ff\n"
 
 #. Logs association status with the following arguments
 #. 0 : uri associated with incoming connection
@@ -44,7 +44,7 @@ msgstr "{0}への応答送信の関連付けに失敗しました。"
 msgid "Invalid associate_request ({0}). Closing {1} WebSocket."
 msgstr "無効なassociate_requestです ({0})。 {1} WebSocketを閉じます。"
 
-#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Association unsuccessful."
 msgstr "関連付けに失敗しました。"
 
@@ -84,12 +84,12 @@ msgstr "{1}の{0}を認証中 - {2}: {3}"
 msgid "Processing PCP message from {0}: {1}"
 msgstr "{0}からのPCPメッセージの処理: {1}"
 
-#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authenticated."
 msgstr "メッセージは認証されていません。"
 
 #. TODO(ale): use 'unauthorized' in version 2
-#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Message not authorized."
 msgstr "メッセージは許可されていません。"
 
@@ -130,9 +130,19 @@ msgid ""
 "Ignoring message received on stale connection {0} {1}. Message dump: {2}"
 msgstr "失効した接続{0} {1}で受信したメッセージを無視します。メッセージダンプ: {2}"
 
-#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "Broker is not running."
 msgstr "ブローカは実行していません。"
+
+#. 0 : remote address of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Stopping handler {0}, connections will be rejected."
+msgstr "ハンドラ{0}を停止しています。接続は拒否されます。"
+
+#. 0 : remote address of connection
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Starting handler {0}, connections are now accepted."
+msgstr "ハンドラ{0}を開始しています。接続が許可されます。"
 
 #. 0 : remote address of connection
 #: src/puppetlabs/pcp/broker/core.clj
@@ -143,7 +153,7 @@ msgstr "クライアント証明書がありません。 {0}を閉じます。"
 msgid "No client certificate."
 msgstr "クライアント証明書がありません。"
 
-#: src/puppetlabs/pcp/broker/core.clj src/puppetlabs/pcp/broker/core.clj
+#: src/puppetlabs/pcp/broker/core.clj
 msgid "All controllers disconnected."
 msgstr "コントローラは全て接続されていません。"
 
@@ -273,11 +283,11 @@ msgstr "{1}への{0}の送信が失敗しました: {2}"
 #. 0 : message id (uuid)
 #. 1 : destination uri
 #. 2 : remote address
-#: src/puppetlabs/pcp/broker/shared.clj src/puppetlabs/pcp/broker/shared.clj
+#: src/puppetlabs/pcp/broker/shared.clj
 msgid "Delivering {0} to {1} at {2}."
 msgstr "{2}で{1}に{0}を送信しています。"
 
-#: src/puppetlabs/pcp/broker/shared.clj src/puppetlabs/pcp/broker/shared.clj
+#: src/puppetlabs/pcp/broker/shared.clj
 msgid "Attempted message delivery to {0} failed."
 msgstr "{0}へのメッセージ送信が失敗しました。"
 
