@@ -1,3 +1,9 @@
+## 1.4.4
+
+This is a maintenance release
+
+* Includes updated Japanese translations for changes in 1.4.3.
+
 ## 1.4.3
 
 This is a maintenance release
