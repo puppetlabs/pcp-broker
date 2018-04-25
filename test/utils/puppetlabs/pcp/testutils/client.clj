@@ -96,8 +96,8 @@
                                                                   (m2/encode association-request))))))
                                             :text (fn [ws msg]
                                                     (put! message-chan (m2/decode msg)))
-                                            :byte  (fn [ws msg]
-                                                     (put! message-chan (m1/decode msg)))
+                                            ; :byte  (fn [ws msg]
+                                            ;         (put! message-chan (m1/decode msg)))
                                             :close (fn [ws code reason]
                                                      (put! message-chan [code reason])))
         wrapper             (when ws (ChanClient. client ws message-chan))]
