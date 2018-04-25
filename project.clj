@@ -1,6 +1,6 @@
-(def http-async-client-version "0.6.1")
+(def http-async-client-version "1.3.0")
 
-(defproject puppetlabs/pcp-broker "1.4.5-SNAPSHOT"
+(defproject puppetlabs/pcp-broker "1.5.0-SNAPSHOT"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name "Apache License, Version 2.0"
@@ -13,7 +13,7 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "1.4.3"]
+  :parent-project {:coords [puppetlabs/clj-parent "2.0.0"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -32,11 +32,11 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "1.1.6"]
+                 [puppetlabs/pcp-client "1.2.0"]
 
                  [puppetlabs/i18n]]
 
-  :plugins [[lein-parent "0.3.1"]
+  :plugins [[lein-parent "0.3.4"]
             [puppetlabs/i18n "0.8.0"]
             [lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
 
@@ -51,14 +51,11 @@
   :test-paths ["test/unit" "test/integration" "test/utils" "test-resources"]
 
   :profiles {:dev {:source-paths ["dev"]
-                   :dependencies [;; Transient dependency of http.async.client
-                                  ;; - it actually brings in netty 3.9.2.Final, but we
-                                  ;; want some fixes to websocket handling that are in later .x releases
-                                  [io.netty/netty "3.9.9.Final"]
-                                  [http.async.client ~http-async-client-version]
+                   :dependencies [[http.async.client ~http-async-client-version]
                                   [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink :classifier "test" :scope "test"]
-                                  [org.clojure/tools.namespace]]
+                                  [org.clojure/tools.namespace]
+                                  [org.clojure/tools.nrepl]]
                    :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
              :dev-schema-validation [:dev
                                      {:injections [(do
@@ -77,8 +74,8 @@
                     {:test-paths ^:replace ["test/unit"]}]
              :integration [:test-base
                            {:test-paths ^:replace ["test/integration"]}]
-             :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
-                                [lein-parent "0.3.1"]]
+             :cljfmt {:plugins [[lein-cljfmt "0.5.7" :exclusions [org.clojure/clojure]]
+                                [lein-parent "0.3.4"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
                                        :inherit [:cljfmt]}}
              :internal-mirrors {:mirrors [["releases" {:name "internal-releases"
