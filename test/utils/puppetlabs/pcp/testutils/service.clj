@@ -18,7 +18,7 @@
                             :allow-unauthenticated true
                             :sort-order 1}]}
 
-   :webserver {:ssl-host "127.0.0.1"
+   :webserver {:ssl-host "localhost"
                ;; usual port is 8142.  Here we use 58142 so if we're developing
                ;; we can run a long-running instance and this one for the
                ;; tests.
