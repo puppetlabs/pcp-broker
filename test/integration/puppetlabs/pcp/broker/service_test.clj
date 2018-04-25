@@ -14,7 +14,7 @@
     (let [connected (promise)]
       (with-open [client (client/http-client-with-cert "client01.example.com")
                   ws     (http/websocket client
-                                         "wss://127.0.0.1:58142/pcp/v2.0"
+                                         "wss://localhost:58142/pcp/v2.0"
                                          :open (fn [ws] (deliver connected true)))]
         (is (= true (deref connected (* 2 1000) false)) "Connected within 2 seconds")))))
 
@@ -23,7 +23,7 @@
     (let [closed (promise)]
       (with-open [client (http/create-client)
                   ws (http/websocket client
-                                     "wss://127.0.0.1:58142/pcp/v2.0"
+                                     "wss://localhost:58142/pcp/v2.0"
                                      :close (fn [ws code reason] (deliver closed code)))]
         ;; NOTE(richardc): This test should only check for close-code 4003, but it
         ;; is a little unreliable and so may sometimes yield the close-code 1006 due
@@ -47,7 +47,7 @@
     (try
      (with-open [client (client/http-client-with-cert "client01.example.com")
                  ws (http/websocket client
-                                    "wss://127.0.0.1:58142/pcp/v2.0"
+                                    "wss://localhost:58142/pcp/v2.0"
                                     :open (fn [ws] (deliver connected true))
                                     :close (fn [ws code reason]
                                              (deliver connected false)
