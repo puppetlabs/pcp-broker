@@ -1,7 +1,8 @@
 language: clojure
 sudo: false
-lein: 2.7.1
+lein: 2.8.1
 jdk:
+  - oraclejdk9
   - oraclejdk8
 script:
   - lein $TEST_OPTIONS test
