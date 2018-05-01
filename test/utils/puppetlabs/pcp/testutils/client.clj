@@ -88,6 +88,7 @@
                                                          ws :byte
                                                          (modify-association-encoding
                                                           (m1/encode association-request))))
+                                              :error (fn [ws e] (throw (Exception. e)))
                                               :byte  (fn [ws msg] (put! message-chan (m1/decode msg)))
                                               :close (fn [ws code reason] (put! message-chan [code reason])))
                               (http/websocket client (str "wss://localhost:58142/pcp/" version "/" type)
@@ -96,6 +97,7 @@
                                                                  ws :text
                                                                  (modify-association-encoding
                                                                   (m2/encode association-request)))))
+                                              :error (fn [ws e] (throw (Exception. e)))
                                               :text (fn [ws msg]
                                                       (put! message-chan (m2/decode msg)))
                                               :close (fn [ws code reason]

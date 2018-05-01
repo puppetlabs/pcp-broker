@@ -15,6 +15,9 @@
       (with-open [client (client/http-client-with-cert "client01.example.com")
                   ws     (http/websocket client
                                          "wss://localhost:58142/pcp/v2.0"
+                                         :close (fn [ws code reason])
+                                         :text (fn [ws msg])
+                                         :error (fn [ws e])
                                          :open (fn [ws] (deliver connected true)))]
         (is (= true (deref connected (* 2 1000) false)) "Connected within 2 seconds")))))
 
@@ -49,6 +52,8 @@
                  ws (http/websocket client
                                     "wss://localhost:58142/pcp/v2.0"
                                     :open (fn [ws] (deliver connected true))
+                                    :text (fn [ws msg])
+                                    :error (fn [ws e])
                                     :close (fn [ws code reason]
                                              (deliver connected false)
                                              (deliver close-code code)))]
