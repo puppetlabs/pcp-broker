@@ -305,7 +305,7 @@
           (let [{:keys [broker]} (get-context app :BrokerService)
                 database (:database broker)]
             (testing "client connections disallowed when no controller is connected"
-              (is (nil? (client/connect :certname agent-cert))))
+              (is (thrown? Exception (client/connect :certname agent-cert))))
             (testing "broker state is error on start (no controllers connected)"
               (is (= :error (:state (core/status broker :info)))))
             (testing "controller disconnection"

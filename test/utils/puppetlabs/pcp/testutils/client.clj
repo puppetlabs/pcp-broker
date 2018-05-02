@@ -81,25 +81,28 @@
         association-request (modify-association (make-association-request uri version))
         client              (http-client-with-cert certname)
         message-chan        (chan)
-        ws                  (http/websocket client (str "wss://127.0.0.1:58142/pcp/" version "/"
-                                                        (when (= version "v2.0") type))
-                                            :open  (fn [ws]
-                                                     (case version
-                                                       "v1.0" (http/send
-                                                               ws :byte
-                                                               (modify-association-encoding
-                                                                (m1/encode association-request)))
-                                                       "v2.0" (when force-association
+        ws                  (if (= "v1.0" version)
+                              (http/websocket client (str "wss://localhost:58142/pcp/" version "/")
+                                              :open  (fn [ws]
+                                                       (http/send
+                                                         ws :byte
+                                                         (modify-association-encoding
+                                                          (m1/encode association-request))))
+                                              :error (fn [ws e] (throw (Exception. e)))
+                                              :byte  (fn [ws msg] (put! message-chan (m1/decode msg)))
+                                              :close (fn [ws code reason] (put! message-chan [code reason])))
+                              (http/websocket client (str "wss://localhost:58142/pcp/" version "/" type)
+                                              :open  (fn [ws] (when force-association
                                                                 (http/send
                                                                  ws :text
                                                                  (modify-association-encoding
-                                                                  (m2/encode association-request))))))
-                                            :text (fn [ws msg]
-                                                    (put! message-chan (m2/decode msg)))
-                                            :byte  (fn [ws msg]
-                                                     (put! message-chan (m1/decode msg)))
-                                            :close (fn [ws code reason]
-                                                     (put! message-chan [code reason])))
+                                                                  (m2/encode association-request)))))
+                                              :error (fn [ws e] (throw (Exception. e)))
+                                              :text (fn [ws msg]
+                                                      (put! message-chan (m2/decode msg)))
+                                              :close (fn [ws code reason]
+                                                       (put! message-chan [code reason]))))
+
         wrapper             (when ws (ChanClient. client ws message-chan))]
 
     ;; session association messages are normally only used in PCP v1
