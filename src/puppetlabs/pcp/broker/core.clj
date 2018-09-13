@@ -735,6 +735,7 @@
         client (pcp-client/connect {:server uri
                                     :ssl-context ssl-context
                                     :type "server"
+                                    :max-message-size (:max-message-size broker)
                                     :on-connect-cb (partial on-controller-connect! broker pcp-uri)
                                     :on-close-cb (partial forget-controller-subscription broker pcp-uri
                                                           controller-disconnection-ms)}
