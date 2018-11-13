@@ -1,0 +1,19 @@
+<configuration scan="true">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5p [%t] [%c{2}] %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="puppetlabs.trapperkeeper.services.status.status-debug-logging" level="debug" />
+
+    <!-- only reports failures by default, to see successes change level to "info" -->
+    <logger name="puppetlabs.pcp.broker.pcp_access" level="error" />
+    <logger name="puppetlabs.pcp" level="info" />
+    <logger name="org.eclipse.jetty" level="INFO"/>
+
+    <root level="info">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
+
