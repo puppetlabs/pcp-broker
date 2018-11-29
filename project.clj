@@ -37,6 +37,7 @@
                  [puppetlabs/i18n]]
 
   :plugins [[lein-parent "0.3.4"]
+            [puppetlabs/lein-ezbake "1.9.0"]
             [puppetlabs/i18n "0.8.0"]
             [lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
 
@@ -49,6 +50,9 @@
                                      :sign-releases false}]]
 
   :test-paths ["test/unit" "test/integration" "test/utils" "test-resources"]
+
+  :lein-ezbake {:config-dir "ezbake/config"
+                :vars {:docker {:ports [8140]}}}
 
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[http.async.client ~http-async-client-version]
@@ -70,6 +74,13 @@
                                       {:injections [(do
                                                      (require 'schema.core)
                                                      (schema.core/set-fn-validation! true))]}]
+             :uberjar {:aot [puppetlabs.pcp.broker.service
+                             puppetlabs.trapperkeeper.services.authorization.authorization-service
+                             puppetlabs.trapperkeeper.services.metrics.metrics-service
+                             puppetlabs.trapperkeeper.services.scheduler.scheduler-service
+                             puppetlabs.trapperkeeper.services.status.status-service
+                             puppetlabs.trapperkeeper.services.webrouting.webrouting-service
+                             puppetlabs.trapperkeeper.services.webserver.jetty9-service]}
              :unit [:test-base
                     {:test-paths ^:replace ["test/unit"]}]
              :integration [:test-base
