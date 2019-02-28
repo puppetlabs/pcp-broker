@@ -537,7 +537,6 @@
                         ;; 2 : remote address of connection
                         #(i18n/trs "Node with URI {0} already associated with connection {1} {2}."
                           (:uri %) (:commonname %) (:remoteaddress %)))
-             (websockets-client/close! (:websocket old-conn) 4000 (i18n/trs "Superseded."))
              (websockets-client/disconnect (:websocket old-conn)))
            (websockets-client/idle-timeout! ws (* 1000 60 15))
            (let [policy (.. ws getSession getPolicy)]

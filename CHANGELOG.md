@@ -1,3 +1,13 @@
+## 1.5.3
+
+This is a maintenance release
+* Removes the `close!` call before disconnecting. Having both `close` and `disconnect` created a race condition where `close` could close the connection too quickly. Manual testing with a check to ensure the session was still open nullified any resource saving benefits of having the disconnect.
+
+## 1.5.2
+
+This is a maintenance release
+* [PCP-862](https://tickets.puppetlabs.com/browse/PCP-862) Adds `disconnect` call when ending a superseded session after `close!` in order to free resources more quickly
+
 ## 1.5.0
 
 This is a feature release

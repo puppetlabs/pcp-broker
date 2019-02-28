@@ -197,7 +197,7 @@
                                                          :version version)]
                  ;; NB(ale): client/connect checks associate_response for both clients
                  (let [close-websocket-msg1 (client/recv! first-client)]
-                   (is (= [4000 "Superseded."] close-websocket-msg1)))))))
+                   (is (= [1006 "Connection was closed abnormally (that is, with no close frame being sent)."] close-websocket-msg1)))))))
 
 (deftest second-association-same-connection-is-accepted-test
   (with-app-with-config app broker-services broker-config
