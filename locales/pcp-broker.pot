@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.pcp_broker \n"
-"X-Git-Ref: 12ad15a33c3c65faf31cdfd0f5b4bccbd66c60ff\n"
+"X-Git-Ref: cd38ff3e901363c7d52771339ba4ad1ba0561be6\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -165,10 +165,6 @@ msgstr ""
 #. 2 : remote address of connection
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Node with URI {0} already associated with connection {1} {2}."
-msgstr ""
-
-#: src/puppetlabs/pcp/broker/core.clj
-msgid "Superseded."
 msgstr ""
 
 #. Connection successfully established.
