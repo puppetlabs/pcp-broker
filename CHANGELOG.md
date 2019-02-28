@@ -1,3 +1,8 @@
+## 1.5.2
+
+This is a maintenance release
+* [PCP-862](https://tickets.puppetlabs.com/browse/PCP-862) Adds `disconnect` call when ending a superseded session after `close!` in order to free resources more quickly
+
 ## 1.5.0
 
 This is a feature release
