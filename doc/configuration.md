@@ -93,7 +93,7 @@ connections in the `pcp-broker` section. These options are:
   brokers). Defaults to 90s.
 * max-connections: The maximum number of clients that can connect to the
   broker. Defaults to 0, which is interpreted as unlimited.
-
+* max-message-size: The maximum message size, specified in bytes. Defaults to 64 MB. This value can be overriden and reduced to something smaller as desired.
 ```
 pcp-broker: {
     controller-uris: ["wss://broker.example.com:8143/server", "wss://broker2.example.com:8143/server"],
