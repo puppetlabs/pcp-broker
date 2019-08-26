@@ -13,7 +13,7 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "2.6.4"]
+  :parent-project {:coords [puppetlabs/clj-parent "4.1.0"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -36,7 +36,7 @@
 
                  [puppetlabs/i18n]]
 
-  :plugins [[lein-parent "0.3.4"]
+  :plugins [[lein-parent "0.3.7"]
             [puppetlabs/lein-ezbake "1.9.0"]
             [puppetlabs/i18n "0.8.0"]
             [lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
@@ -58,6 +58,7 @@
                    :dependencies [[http.async.client ~http-async-client-version]
                                   [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink :classifier "test" :scope "test"]
+                                  [org.bouncycastle/bcpkix-jdk15on]
                                   [org.clojure/tools.namespace]
                                   [org.clojure/tools.nrepl]]
                    :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
