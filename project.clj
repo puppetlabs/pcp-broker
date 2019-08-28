@@ -69,7 +69,8 @@
              :test-base {:source-paths ["test/utils" "test-resources"]
                          :dependencies [[http.async.client ~http-async-client-version]
                                        [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
-                                       [puppetlabs/kitchensink :classifier "test" :scope "test"]]
+                                       [puppetlabs/kitchensink :classifier "test" :scope "test"]
+                                       [org.bouncycastle/bcpkix-jdk15on]]
                          :test-paths ^:replace ["test/unit" "test/integration"]}
              :test-schema-validation [:test-base
                                       {:injections [(do
@@ -97,7 +98,8 @@
                                           ["clojars" {:name "internal-clojars-mirror"
                                                       :url "https://artifactory.delivery.puppetlabs.net/artifactory/maven/" }]
                                           ["snapshots" {:name "internal-snapshots"
-                                                        :url "https://artifactory.delivery.puppetlabs.net/artifactory/clojure-snapshots__local/" }]]}}
+                                                        :url "https://artifactory.delivery.puppetlabs.net/artifactory/clojure-snapshots__local/" }]]}
+             :internal-integration [:integration :internal-mirrors]}
 
   :repl-options {:init-ns user}
 
