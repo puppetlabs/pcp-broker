@@ -1,9 +1,10 @@
 language: clojure
+dist: xenial
 sudo: false
 lein: 2.8.1
 jdk:
-  - oraclejdk9
-  - oraclejdk8
+  - openjdk8
+  - openjdk11
 script:
   - lein $TEST_OPTIONS test
   - if [ "$TEST_OPTIONS" = "" ]; then ./ext/travisci/secscan.sh src clj "clojure.core/read-string"; fi
