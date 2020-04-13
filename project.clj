@@ -47,7 +47,11 @@
   :deploy-repositories [["releases" {:url "https://clojars.org/repo"
                                      :username :env/clojars_jenkins_username
                                      :password :env/clojars_jenkins_password
-                                     :sign-releases false}]]
+                                     :sign-releases false}]
+                        ["snapshots" {:url "https://artifactory.delivery.puppetlabs.net/artifactory/clojure-snapshots__local/"
+                                      :username :env/nexus_jenkins_username
+                                      :password :env/nexus_jenkins_password
+                                      :sign-releases false}]]
 
   :test-paths ["test/unit" "test/integration" "test/utils" "test-resources"]
 
