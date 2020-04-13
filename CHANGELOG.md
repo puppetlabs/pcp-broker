@@ -1,3 +1,14 @@
+# 1.5.6
+
+This is a maintenance release
+* Update deploy repositories
+
+## 1.5.5
+
+This is a maintenance release
+* Update clj-parent (4.4.1)
+* Update pcp-client (1.3.1)
+
 ## 1.5.3
 
 This is a maintenance release
