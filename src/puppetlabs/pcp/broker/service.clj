@@ -23,7 +23,7 @@
         (sl/maplog :info {:type :broker-init} (fn [_] (i18n/trs "Initializing broker service.")))
         (let [max-connections    (get-in-config [:pcp-broker :max-connections] 0)
               max-message-size   (get-in-config [:pcp-broker :max-message-size] (* 64 1024 1024))
-              idle-timeout       (get-in-config [:pcp-broker :idle-timeout] (* 1000 60 15))
+              idle-timeout       (get-in-config [:pcp-broker :idle-timeout] (* 1000 60 2))
               broker             (core/init {:add-websocket-handler (partial add-websocket-handler this)
                                              :authorization-check   authorization-check
                                              :get-metrics-registry  get-metrics-registry
