@@ -490,7 +490,7 @@
    Broker service is not running or if the client common name is not obtainable
    from its cert. Otherwise set the idle timeout of the WebSocket connection
    to 15 min."
-  [{:keys [max-connections] :as broker} codec ws]
+  [{:keys [max-connections idle-timeout] :as broker} codec ws]
   (time!
    (:on-connect (:metrics broker))
    (cond
@@ -538,7 +538,7 @@
                         #(i18n/trs "Node with URI {0} already associated with connection {1} {2}."
                           (:uri %) (:commonname %) (:remoteaddress %)))
              (websockets-client/disconnect (:websocket old-conn)))
-           (websockets-client/idle-timeout! ws (* 1000 60 15))
+           (websockets-client/idle-timeout! ws idle-timeout)
            (let [policy (.. ws getSession getPolicy)]
              ;; Support both v1 and v2 agents
              (.setMaxTextMessageSize policy (:max-message-size broker))
@@ -779,10 +779,12 @@
                 get-route
                 get-metrics-registry
                 max-connections
-                max-message-size]} options
+                max-message-size
+                idle-timeout]} options
         broker  {:broker-name         broker-name
                  :max-connections     max-connections
                  :max-message-size    max-message-size
+                 :idle-timeout        idle-timeout
                  :authorization-check authorization-check
                  :database            (atom (inventory/init-database))
                  :controllers         (atom {})
