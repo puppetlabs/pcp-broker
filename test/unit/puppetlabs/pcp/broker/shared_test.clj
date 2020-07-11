@@ -24,6 +24,7 @@
                 :controllers         (atom {})
                 :max-connections     0
                 :max-message-size    65536
+                :idle-timeout        360000
                 :should-stop         (promise)
                 :metrics             {}
                 :metrics-registry    metrics.core/default-registry
