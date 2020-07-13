@@ -5,20 +5,22 @@
             [clojure.string :as str]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
-            [puppetlabs.trapperkeeper.services :refer [service-context get-service]]
+            [puppetlabs.trapperkeeper.services :refer [service-context get-service maybe-get-service]]
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
+            [puppetlabs.trapperkeeper.services.protocols.filesystem-watch-service :as watch-protocol]
             [puppetlabs.i18n.core :as i18n]))
 
 (defprotocol BrokerService)
 
 (trapperkeeper/defservice broker-service
   BrokerService
-  [[:AuthorizationService authorization-check]
-   [:ConfigService get-in-config]
-   [:WebroutingService add-websocket-handler get-server get-route]
-   [:MetricsService get-metrics-registry]
-   [:StatusService register-status]]
+  {:required [[:AuthorizationService authorization-check]
+              [:ConfigService get-in-config]
+              [:WebroutingService add-websocket-handler get-server get-route]
+              [:MetricsService get-metrics-registry]
+              [:StatusService register-status]]
+   :optional [FileSyncStorageService]}
   (init [this context]
         (sl/maplog :info {:type :broker-init} (fn [_] (i18n/trs "Initializing broker service.")))
         (let [max-connections    (get-in-config [:pcp-broker :max-connections] 0)
@@ -53,11 +55,12 @@
                broker-name (or (:broker-name broker)
                                (core/get-webserver-cn server-context)
                                (core/get-localhost-hostname))
-               ssl-context (-> server-context
-                               :state
-                               deref
-                               :ssl-context-factory
-                               .getSslContext)
+               ssl-context-factory (-> server-context
+                                       :state
+                                       deref
+                                       :ssl-context-factory)
+
+               ssl-context (.getSslContext ssl-context-factory)
                broker (assoc broker :broker-name broker-name)
                context (assoc context :broker broker)
                timestamp (t/now)
@@ -71,6 +74,9 @@
                                                          controller-whitelist
                                                          controller-disconnection-ms))
            (core/start broker)
+           (if-let [filesystem-watcher-service (maybe-get-service this :FilesystemWatchService)]
+             (let [watcher (watch-protocol/create-watcher filesystem-watcher-service {:recursive false})]
+               (core/watch-crl watcher broker ssl-context-factory)))
            (sl/maplog :info {:type :broker-started :brokername broker-name}
                       ;; 0 : broker name
                       #(i18n/trs "Started broker service <{0}>." (:brokername %)))

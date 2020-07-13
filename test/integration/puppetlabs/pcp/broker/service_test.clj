@@ -1,6 +1,7 @@
 (ns puppetlabs.pcp.broker.service-test
   (:require [clojure.test :refer :all]
             [http.async.client :as http]
+            [me.raynes.fs :as fs]
             [puppetlabs.pcp.testutils :refer [dotestseq received? retry-until-true]]
             [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services]]
             [puppetlabs.pcp.testutils.client :as client]
@@ -124,6 +125,22 @@
         ; security measure to ensure the broker is stopped and wait for it to shutdown
         (deliver should-stop true)
         (deref broker)))))
+
+(deftest connection-resets-on-crl-change
+  (testing "broker closes connection when CRL file is changed"
+    (with-app-with-config app broker-services broker-config
+      (let [start (System/currentTimeMillis)
+            timeout 10000
+            should-disconnect-by (+ start (- timeout 1000))
+            closed-connection (future (connect-and-close timeout))
+            crl-path (get-in broker-config [:webserver :ssl-crl-path])
+            crl-content (slurp crl-path)]
+          (Thread/sleep 1000) ;; Wait to ensure the connection is established
+          (fs/delete crl-path)
+          (spit crl-path crl-content)
+          (deref closed-connection)
+          (let [disconnected-by (System/currentTimeMillis)]
+            (is (> should-disconnect-by disconnected-by)))))))
 
 (deftest poorly-encoded-message-test
   (testing "a 0-length byte array cannot be decoded by the v1.0 API"

@@ -17,13 +17,16 @@
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
+            [puppetlabs.trapperkeeper.services.protocols.filesystem-watch-service :as watch]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]]
+            [me.raynes.fs :as fs]
             [puppetlabs.i18n.core :as i18n])
   (:import [puppetlabs.pcp.broker.connection Connection]
            [puppetlabs.pcp.client Client]
            [clojure.lang IFn]
            [java.net InetAddress UnknownHostException URI]
+           [org.eclipse.jetty.util.ssl SslContextFactory]
            [javax.net.ssl SSLContext]
            [java.security KeyStore]))
 
@@ -689,6 +692,18 @@
       :info {}
       (fn [_] (i18n/trs "Evicted all clients as there is no controller connection.")))))
 
+(defn restart-client-connections!
+  "Forces clients to reconnect because the broker's CRL is out of date"
+  [broker]
+  (doseq [[_ client-connection] (:inventory @(:database broker))]
+    (websockets-client/close!
+      (:websocket client-connection)
+      1012 ;; code SERVER_RESTART, client *should* reconnect soon
+      (i18n/trs "CRL reloaded"))
+    (sl/maplog
+      :info {}
+      (fn [_] (i18n/trs "Evicted all clients because of CRL reload")))))
+
 (defn on-controller-connect!
   [broker controller-uri ws]
   ;; lock to ensure that updating connected controllers and restarting handlers happen together
@@ -757,6 +772,23 @@
   (into {} (pmap (partial start-client broker ssl-context
                           controller-whitelist controller-disconnection-ms)
                  controller-uris)))
+
+(s/defn watch-crl
+  [watcher :- (s/protocol watch/Watcher)
+   broker :- Broker
+   ssl-context-factory :- SslContextFactory]
+  (when-let [crl-config-path (.getCrlPath ssl-context-factory)]
+    (let [crl-path (.getCanonicalPath (fs/file crl-config-path))]
+      (watch/add-watch-dir! watcher (fs/parent crl-path))
+      (watch/add-callback!
+       watcher
+       (fn [events]
+         (when (some #(and
+                       (:changed-path %)
+                       (= (.getCanonicalPath (:changed-path %))
+                          crl-path))
+                     events)
+           (restart-client-connections! broker)))))))
 
 ;;
 ;; Broker service lifecycle, status service
