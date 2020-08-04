@@ -3,6 +3,7 @@
             [puppetlabs.trapperkeeper.app :as tka]
             [puppetlabs.pcp.broker.service :refer [broker-service]]
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
+            [puppetlabs.trapperkeeper.services.watcher.filesystem-watch-service :refer [filesystem-watch-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
             [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
             [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
@@ -42,7 +43,7 @@
 
 (def broker-services
   "The trapperkeeper services the broker needs"
-  [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service scheduler-service])
+  [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service scheduler-service filesystem-watch-service])
 
 (defn get-context
   [app svc]

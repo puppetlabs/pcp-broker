@@ -24,6 +24,7 @@
                  [puppetlabs/trapperkeeper-metrics]
                  [puppetlabs/trapperkeeper-webserver-jetty9]
                  [puppetlabs/trapperkeeper-status]
+                 [puppetlabs/trapperkeeper-filesystem-watcher]
 
                  [puppetlabs/structured-logging]
                  [puppetlabs/ssl-utils]
