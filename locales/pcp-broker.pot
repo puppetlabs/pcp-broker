@@ -1,13 +1,13 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR Puppet <docs@puppet.com>
-# This file is distributed under the same license as the PACKAGE package.
+# This file is distributed under the same license as the puppetlabs.pcp_broker package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.pcp_broker \n"
-"X-Git-Ref: cd38ff3e901363c7d52771339ba4ad1ba0561be6\n"
+"X-Git-Ref: 8791f46357c887c03dddda11437041e9ae3e0874\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -209,6 +209,15 @@ msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Evicted all clients as there is no controller connection."
+msgstr ""
+
+#. code SERVER_RESTART, client *should* reconnect soon
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "CRL reloaded"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Evicted all clients because of CRL reload"
 msgstr ""
 
 #. 0 : connection uri
