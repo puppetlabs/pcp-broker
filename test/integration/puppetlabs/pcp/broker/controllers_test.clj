@@ -31,7 +31,7 @@
       (assoc
         :webserver {:pcp-broker (assoc default-webserver :default-server true)}
         :pcp-broker {:controller-uris ["wss://localhost:58143/server"]
-                     :controller-whitelist ["http://puppetlabs.com/inventory_request"
+                     :controller-allowlist ["http://puppetlabs.com/inventory_request"
                                             "greeting"]
                      :controller-disconnection-graceperiod "1s"})))
 
@@ -132,12 +132,12 @@
                     {:message_type "loopy"
                      :target "pcp://localhost:58143/server"}))
 
-(deftest controller-whitelist-test
+(deftest controller-allowlist-test
   (let [response (promise)]
     (with-redefs [server/on-connect (fn [_ ws]
                     (try
                       (websockets-client/send! ws (message/encode self-request))
-                      (catch Exception e (println "controller-whitelist-test exception:" (.getMessage e)))))
+                      (catch Exception e (println "controller-allowlist-test exception:" (.getMessage e)))))
                   server/on-text (fn [_ ws text] (deliver response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (let [answer (deref response 10000 nil)]

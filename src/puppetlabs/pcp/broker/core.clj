@@ -742,7 +742,7 @@
 (s/defn start-client
   [broker :- Broker
    ssl-context :- SSLContext
-   controller-whitelist :- #{s/Str}
+   controller-allowlist :- #{s/Str}
    controller-disconnection-ms :- s/Int
    uri :- s/Str]
   (let [;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
@@ -754,7 +754,7 @@
                                     :on-connect-cb (partial on-controller-connect! broker pcp-uri)
                                     :on-close-cb (partial forget-controller-subscription broker pcp-uri
                                                           controller-disconnection-ms)}
-                                    {:default (partial default-message-handler broker controller-whitelist)})
+                                    {:default (partial default-message-handler broker controller-allowlist)})
         identity-codec {:decode identity :encode identity}]
     (sl/maplog :info {:type :controller-connection :uri uri :pcpuri pcp-uri}
                ;; 0 : uri identifying connection
@@ -767,10 +767,10 @@
   [broker :- Broker
    ssl-context :- SSLContext
    controller-uris :- [s/Str]
-   controller-whitelist :- #{s/Str}
+   controller-allowlist :- #{s/Str}
    controller-disconnection-ms :- s/Int]
   (into {} (pmap (partial start-client broker ssl-context
-                          controller-whitelist controller-disconnection-ms)
+                          controller-allowlist controller-disconnection-ms)
                  controller-uris)))
 
 (s/defn watch-crl

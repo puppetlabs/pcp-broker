@@ -46,7 +46,7 @@
                                                               "90s")
                                                ks/parse-interval
                                                t/in-millis)
-               controller-whitelist (set (get-in-config [:pcp-broker :controller-whitelist]
+               controller-allowlist (set (get-in-config [:pcp-broker :controller-allowlist]
                                                         ["http://puppetlabs.com/inventory_request"]))
                broker (:broker context)
                server-context (some-> (get-service this :WebserverService)
@@ -71,7 +71,7 @@
                    (core/initiate-controller-connections broker
                                                          ssl-context
                                                          controller-uris
-                                                         controller-whitelist
+                                                         controller-allowlist
                                                          controller-disconnection-ms))
            (core/start broker)
            (if-let [filesystem-watcher-service (maybe-get-service this :FilesystemWatchService)]
