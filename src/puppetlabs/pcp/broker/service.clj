@@ -23,16 +23,20 @@
    :optional [FileSyncStorageService]}
   (init [this context]
         (sl/maplog :info {:type :broker-init} (fn [_] (i18n/trs "Initializing broker service.")))
-        (let [max-connections    (get-in-config [:pcp-broker :max-connections] 0)
-              max-message-size   (get-in-config [:pcp-broker :max-message-size] (* 64 1024 1024))
-              idle-timeout       (get-in-config [:pcp-broker :idle-timeout] (* 1000 60 6))
-              broker             (core/init {:add-websocket-handler (partial add-websocket-handler this)
-                                             :authorization-check   authorization-check
-                                             :get-metrics-registry  get-metrics-registry
-                                             :max-connections       max-connections
-                                             :max-message-size      max-message-size
-                                             :idle-timeout          idle-timeout
-                                             :get-route             (partial get-route this)})]
+        (let [max-connections       (get-in-config [:pcp-broker :max-connections] 0)
+              max-message-size      (get-in-config [:pcp-broker :max-message-size] (* 64 1024 1024))
+              idle-timeout          (get-in-config [:pcp-broker :idle-timeout] (* 1000 60 6))
+              expired-conn-throttle (get-in-config [:pcp-broker :expired-conn-throttle] 30)
+              crl-check-period      (get-in-config [:pcp-broker :crl-check-period] (* 1000 60))
+              broker                (core/init {:add-websocket-handler (partial add-websocket-handler this)
+                                                :authorization-check   authorization-check
+                                                :get-metrics-registry  get-metrics-registry
+                                                :max-connections       max-connections
+                                                :max-message-size      max-message-size
+                                                :idle-timeout          idle-timeout
+                                                :crl-check-period      crl-check-period
+                                                :expired-conn-throttle expired-conn-throttle
+                                                :get-route             (partial get-route this)})]
           (register-status "broker-service"
                            (status-core/get-artifact-version "puppetlabs" "pcp-broker")
                            1

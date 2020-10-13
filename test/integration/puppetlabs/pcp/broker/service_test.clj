@@ -128,7 +128,12 @@
 
 (deftest connection-resets-on-crl-change
   (testing "broker closes connection when CRL file is changed"
-    (with-app-with-config app broker-services broker-config
+    (with-app-with-config
+      app
+      broker-services
+      (merge broker-config
+             {:pcp-broker {:expired-conn-throttle 1
+                           :crl-check-period 10}})
       (let [start (System/currentTimeMillis)
             timeout 10000
             should-disconnect-by (+ start (- timeout 1000))

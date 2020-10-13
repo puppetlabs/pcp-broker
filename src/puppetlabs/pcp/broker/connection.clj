@@ -22,7 +22,8 @@
 (s/defrecord Connection
              [websocket :- Websocket
               codec :- Codec
-              uri :- p/Uri]
+              uri :- p/Uri
+              expired :- s/Bool]
   ConnectionInterface
   (summarize [c] (-summarize c)))
 
@@ -35,12 +36,14 @@
   "Return the initial state for a websocket"
   [websocket :- Websocket
    codec :- Codec
-   uri :- p/Uri]
+   uri :- p/Uri
+   expired :- s/Bool]
   ;; NOTE(ale): the 'map->...' constructor comes from schema.core's defrecord
   (map->Connection
    {:websocket      websocket
     :codec          codec
-    :uri            uri}))
+    :uri            uri
+    :expired        expired}))
 
 (s/defn -summarize :- ConnectionLog
   [connection :- Connection]

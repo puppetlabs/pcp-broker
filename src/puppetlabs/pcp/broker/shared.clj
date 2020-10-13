@@ -44,18 +44,20 @@
    :subscriptions      {p/Uri Subscription}})
 
 (def Broker
-  {:broker-name         (s/maybe s/Str)
-   :authorization-check IFn
-   :max-connections     s/Int
-   :max-message-size    s/Int
-   :idle-timeout        s/Int
-   :database            (s/atom BrokerDatabase)
-   :controllers         (s/atom {p/Uri Connection})
-   :should-stop         Object                              ;; Promise used to signal the inventory updates should stop
-   :metrics-registry    Object
-   :metrics             {s/Keyword Object}
-   :state               (s/atom BrokerState)
-   :handlers            (s/atom [ContextHandler])})
+  {:broker-name           (s/maybe s/Str)
+   :authorization-check   IFn
+   :max-connections       s/Int
+   :max-message-size      s/Int
+   :idle-timeout          s/Int
+   :crl-check-period      s/Int
+   :expired-conn-throttle s/Int
+   :database              (s/atom BrokerDatabase)
+   :controllers           (s/atom {p/Uri Connection})
+   :should-stop           Object                        ;; Promise used to signal the inventory updates should stop
+   :metrics-registry      Object
+   :metrics               {s/Keyword Object}
+   :state                 (s/atom BrokerState)
+   :handlers              (s/atom [ContextHandler])})
 
 (s/defn get-connection :- (s/maybe Connection)
   [broker :- Broker uri :- p/Uri]

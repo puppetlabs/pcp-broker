@@ -18,18 +18,20 @@
 (s/defn make-test-broker :- Broker
   "Return a minimal clean broker state"
   []
-  (let [broker {:broker-name         nil
-                :authorization-check (constantly true)
-                :database            (atom (inventory/init-database))
-                :controllers         (atom {})
-                :max-connections     0
-                :max-message-size    65536
-                :idle-timeout        360000
-                :should-stop         (promise)
-                :metrics             {}
-                :metrics-registry    metrics.core/default-registry
-                :state               (atom :running)
-                :handlers            (atom [])}
+  (let [broker {:broker-name           nil
+                :authorization-check   (constantly true)
+                :database              (atom (inventory/init-database))
+                :controllers           (atom {})
+                :max-connections       0
+                :max-message-size      65536
+                :idle-timeout          360000
+                :crl-check-period      60000
+                :expired-conn-throttle 60
+                :should-stop           (promise)
+                :metrics               {}
+                :metrics-registry      metrics.core/default-registry
+                :state                 (atom :running)
+                :handlers              (atom [])}
         metrics (build-and-register-metrics broker)
         broker (assoc broker :metrics metrics)]
     broker))
@@ -63,7 +65,7 @@
 (deftest send-error-message-test
   (with-redefs [ws->uri mock-ws->uri]
     (let [error-msg (atom nil)
-          connection (connection/make-connection :dummy-ws message/v2-codec mock-uri)]
+          connection (connection/make-connection :dummy-ws message/v2-codec mock-uri false)]
       (with-redefs [ws->common-name (fn [_] "host_x")
                     puppetlabs.experimental.websockets.client/send!
                     (fn [_ raw-message]
