@@ -85,7 +85,7 @@ connections in the `pcp-broker` section. These options are:
 
 * controller-uris: An array of Websocket URIs to which the broker will attempt
   to establish outbound connections.
-* controller-whitelist: An array of message types the broker will accept from
+* controller-allowlist: An array of message types the broker will accept from
   connected controllers. Defaults to accepting only inventory requests.
 * controller-disconnection-graceperiod: The number of milliseconds after losing
   connectivity to all configured controllers that the broker will wait before
@@ -97,7 +97,7 @@ connections in the `pcp-broker` section. These options are:
 ```
 pcp-broker: {
     controller-uris: ["wss://broker.example.com:8143/server", "wss://broker2.example.com:8143/server"],
-    controller-whitelist: ["http://puppetlabs.com/inventory_request",
+    controller-allowlist: ["http://puppetlabs.com/inventory_request",
                            "http://puppetlabs.com/rpc_blocking_request"],
     controller-disconnection-graceperiod: "90s"
     max-connections: 10000
