@@ -1,3 +1,10 @@
+# 1.5.7
+This is a maintenance release
+* (PCP-900) Close connections after CRL update. Connections closes are throttled to prevent a thundering herd of reconnection requests.
+* (PE-30041) Remove harmful term from pcp-broker config (controller-whitelist -> controller-allowlist)
+* Lower default idle-timeout from 15 minutes to 6
+* Allow configuration websocket idle-timeout
+
 # 1.5.6
 
 This is a maintenance release
