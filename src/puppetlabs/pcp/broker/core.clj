@@ -703,7 +703,7 @@
     (doseq [[uri client-connection] inventory-snapshot]
       (when (:expired client-connection)
         (do
-          (sl/maplog :debug {:uri uri} #(i18n/trs "Closing expired connection for {0}." (:uri %)))
+          (sl/maplog :debug {:uri (str uri)} #(i18n/trs "Closing expired connection for {0}." (:uri %)))
           (Thread/sleep throttle-duration)
           (websockets-client/close!
             (:websocket client-connection)
