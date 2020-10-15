@@ -517,7 +517,7 @@
      :else
      ;; Generate an implicit association request and authorize association.
      (let [uri (ws->uri ws)
-           connection (connection/make-connection ws codec uri)
+           connection (connection/make-connection ws codec uri false)
            message (message/make-message
                      {:target "pcp:///server"
                       :sender uri
@@ -692,17 +692,26 @@
       :info {}
       (fn [_] (i18n/trs "Evicted all clients as there is no controller connection.")))))
 
-(defn restart-client-connections!
+(defn close-expired-connections!
   "Forces clients to reconnect because the broker's CRL is out of date"
   [broker]
-  (doseq [[_ client-connection] (:inventory @(:database broker))]
-    (websockets-client/close!
-      (:websocket client-connection)
-      1012 ;; code SERVER_RESTART, client *should* reconnect soon
-      (i18n/trs "CRL reloaded"))
-    (sl/maplog
-      :info {}
-      (fn [_] (i18n/trs "Evicted all clients because of CRL reload")))))
+  (let [inventory-snapshot (:inventory @(:database broker))
+        throttle-duration (:expired-conn-throttle broker)]
+    (sl/maplog :debug
+               {:count (count inventory-snapshot)}
+               #(i18n/trs "Checking the existing {0} connections for expired CRLs." (:count %)))
+    (doseq [[uri client-connection] inventory-snapshot]
+      (when (:expired client-connection)
+        (do
+          (sl/maplog :debug {:uri uri} #(i18n/trs "Closing expired connection for {0}." (:uri %)))
+          (Thread/sleep throttle-duration)
+          (websockets-client/close!
+            (:websocket client-connection)
+            1012 ;; code SERVER_RESTART, client *should* reconnect soon
+            (i18n/trs "CRL reloaded"))
+          (sl/maplog
+            :info {}
+            (fn [_] (i18n/trs "Evicted stale client connections because of CRL reload."))))))))
 
 (defn on-controller-connect!
   [broker controller-uri ws]
@@ -760,7 +769,7 @@
                ;; 0 : uri identifying connection
                ;; 1 : url to connect to
                #(i18n/trs "Connecting to {0} at {1}." (:pcpuri %) (:uri %)))
-    [pcp-uri (connection/make-connection client identity-codec pcp-uri)]))
+    [pcp-uri (connection/make-connection client identity-codec pcp-uri false)]))
 
 (s/defn initiate-controller-connections :- {p/Uri Connection}
   "Create PCP Clients for each controller URI"
@@ -772,6 +781,29 @@
   (into {} (pmap (partial start-client broker ssl-context
                           controller-allowlist controller-disconnection-ms)
                  controller-uris)))
+
+(s/defn start-crl-monitoring!
+  "Start periodic refreshing of connections using outdated crls"
+  [broker :- Broker]
+  (future
+    (let [should-stop (:should-stop broker)
+          check-interval (:crl-check-period broker)]
+      (loop []
+        (close-expired-connections! broker)
+        (if (nil? (deref should-stop check-interval nil))
+          (recur))))))
+
+(s/defn expire-ssl-connections*
+  [inventory :- shared/Inventory]
+  (sl/maplog :info
+             {:count (count inventory)}
+             #(i18n/trs "Expiring existing {0} connections due to CRL update." (:count %)))
+  (into {} (for [[k {:keys [websocket codec uri]}] inventory]
+             [k (connection/make-connection websocket codec uri true)])))
+
+(s/defn expire-ssl-connections
+  [broker :- Broker]
+  (swap! (:database broker) update :inventory expire-ssl-connections* ))
 
 (s/defn watch-crl
   [watcher :- (s/protocol watch/Watcher)
@@ -788,7 +820,7 @@
                        (= (.getCanonicalPath (:changed-path %))
                           crl-path))
                      events)
-           (restart-client-connections! broker)))))))
+           (expire-ssl-connections broker)))))))
 
 ;;
 ;; Broker service lifecycle, status service
@@ -802,6 +834,8 @@
    :max-connections s/Int
    :max-message-size s/Int
    :idle-timeout s/Int
+   :crl-check-period s/Int
+   :expired-conn-throttle s/Int
    (s/optional-key :broker-name) s/Str})
 
 (s/defn init :- Broker
@@ -813,19 +847,23 @@
                 get-metrics-registry
                 max-connections
                 max-message-size
-                idle-timeout]} options
-        broker  {:broker-name         broker-name
-                 :max-connections     max-connections
-                 :max-message-size    max-message-size
-                 :idle-timeout        idle-timeout
-                 :authorization-check authorization-check
-                 :database            (atom (inventory/init-database))
-                 :controllers         (atom {})
-                 :should-stop         (promise)
-                 :metrics             {}
-                 :metrics-registry    (get-metrics-registry)
-                 :state               (atom :starting)
-                 :handlers            (atom [])}
+                idle-timeout
+                crl-check-period
+                expired-conn-throttle]} options
+        broker  {:broker-name           broker-name
+                 :max-connections       max-connections
+                 :max-message-size      max-message-size
+                 :idle-timeout          idle-timeout
+                 :crl-check-period      crl-check-period
+                 :expired-conn-throttle expired-conn-throttle
+                 :authorization-check   authorization-check
+                 :database              (atom (inventory/init-database))
+                 :controllers           (atom {})
+                 :should-stop           (promise)
+                 :metrics               {}
+                 :metrics-registry      (get-metrics-registry)
+                 :state                 (atom :starting)
+                 :handlers              (atom [])}
         metrics (shared/build-and-register-metrics broker)
         broker  (assoc broker :metrics metrics)]
     (swap! (:handlers broker) conj
@@ -846,6 +884,7 @@
     (when (all-controllers-disconnected? broker)
       (stop-handlers broker)))
   (inventory/start-inventory-updates! broker)
+  (start-crl-monitoring! broker)
   (-> broker :state (reset! :running)))
 
 (s/defn stop

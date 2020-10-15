@@ -94,6 +94,9 @@ connections in the `pcp-broker` section. These options are:
 * max-connections: The maximum number of clients that can connect to the
   broker. Defaults to 0, which is interpreted as unlimited.
 * max-message-size: The maximum message size, specified in bytes. Defaults to 64 MB. This value can be overriden and reduced to something smaller as desired.
+* idle-timeout: The time, in milliseconds, to wait for an idle connection before closing it. The default is 360,000 (6 minutes) which is 3 times the client's default ping interval. Changing this setting should be coordinated with changes to the client's ping interval.
+* crl-check-period: The time, in milliseconds, that pcp-broker will check to see if any connections in its inventory have been expired (currently, connections may be expired due to a CRL update). Default is 60,000 (1 minute).
+* expired-conn-throttle: The time, in milliseconds, to wait between closing each expired connection. Default is 30. For example, a broker with 1,000 expired connections closing these connections will be spread out across at least 30 seconds.
 ```
 pcp-broker: {
     controller-uris: ["wss://broker.example.com:8143/server", "wss://broker2.example.com:8143/server"],
@@ -101,5 +104,8 @@ pcp-broker: {
                            "http://puppetlabs.com/rpc_blocking_request"],
     controller-disconnection-graceperiod: "90s"
     max-connections: 10000
+    idle-timeout: 360000
+    crl-check-period: 60000
+    expired-conn-throttle: 30
 }
 ```

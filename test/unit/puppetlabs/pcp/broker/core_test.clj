@@ -20,7 +20,7 @@
    :decode identity})
 
 (def dummy-connection
-  (connection/make-connection :dummy-ws message/v2-codec mock-uri))
+  (connection/make-connection :dummy-ws message/v2-codec mock-uri false))
 
 (s/defn make-mock-ssl-context-factory :- InternalSslContextFactory
   "Return an instance of the SslContextFactory with only a minimal configuration
@@ -72,18 +72,41 @@
   (testing "It should add a connection to the connection map"
     (with-redefs [ws->uri mock-ws->uri]
       (let [broker (make-test-broker)]
-        (add-connection! broker (connection/make-connection :dummy-ws identity-codec mock-uri))
+        (add-connection! broker (connection/make-connection :dummy-ws identity-codec mock-uri false))
         (is (s/validate Connection (-> broker :database deref :inventory (get mock-uri))))))))
 
 (deftest remove-connecton-test
   (testing "It should remove a connection from the inventory map"
     (with-redefs [ws->uri mock-ws->uri]
       (let [broker (make-test-broker)
-            connection (connection/make-connection :dummy-ws identity-codec mock-uri)]
+            connection (connection/make-connection :dummy-ws identity-codec mock-uri false)]
         (swap! (:database broker) update :inventory assoc mock-uri connection)
         (is (not= {} (-> broker :database deref :inventory)))
         (remove-connection! broker mock-uri)
         (is (= {} (-> broker :database deref :inventory)))))))
+
+(deftest expire-connection-test
+  (testing "It should expire connections in the inventory"
+    (with-redefs [ws->uri mock-ws->uri]
+      (let [broker (make-test-broker)
+            connection (connection/make-connection :dummy-ws identity-codec mock-uri false)]
+        (add-connection! broker connection)
+        (expire-ssl-connections broker)
+        (= true (-> broker :database deref :inventory (get mock-uri) :expired))))))
+
+(deftest close-expired-connection-test
+  (testing "It should close expired connections in the inventory after :expired-conn-throttle time"
+    (let [closed (promise)]
+      (with-redefs [ws->uri mock-ws->uri
+                    puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver closed true))]
+        (let [broker (assoc (make-test-broker) :expired-conn-throttle 1000)
+              connection (connection/make-connection :dummy-ws identity-codec mock-uri false)]
+          (add-connection! broker connection)
+          (expire-ssl-connections broker)
+          (future (close-expired-connections! broker))
+          (Thread/sleep 100)
+          (is (not (realized? closed)))
+          (is (true? (deref closed 1000 false))))))))
 
 (deftest make-ring-request-test
   (testing "it should return a ring request - one target"
@@ -152,7 +175,7 @@
         (testing "It should return an associated Connection if there's no reason to deny association"
           (reset! closed (promise))
           (let [broker     (make-test-broker)
-                connection (connection/make-connection :dummy-ws identity-codec mock-uri)
+                connection (connection/make-connection :dummy-ws identity-codec mock-uri false)
                 _ (add-connection! broker connection)
                 connection-uri (:uri (process-associate-request! broker message connection))]
             (is (not (realized? @closed)))
@@ -164,7 +187,7 @@
         message (message/make-message
                  {:sender "pcp://test.example.com/test"
                   :data {:query ["pcp://*/*"]}})
-        connection (connection/make-connection :dummy-ws identity-codec mock-uri)
+        connection (connection/make-connection :dummy-ws identity-codec mock-uri false)
         accepted (atom nil)]
     (with-redefs
      [puppetlabs.pcp.broker.shared/deliver-server-message (fn [_ message _]
@@ -178,7 +201,7 @@
     (let [broker (make-test-broker)
           message (message/make-message
                    {:message_type "http://puppetlabs.com/associate_request"})
-          connection (connection/make-connection :dummy-ws identity-codec mock-uri)
+          connection (connection/make-connection :dummy-ws identity-codec mock-uri false)
           associate-request (atom nil)]
       (with-redefs
        [puppetlabs.pcp.broker.core/process-associate-request! (fn [_ message connection]
@@ -360,7 +383,7 @@
                 :target "pcp://gangoffour/entity"})]
       (testing "v1-codec survives roundtrip"
         (let [sent-message (atom nil)
-              connection (connection/make-connection :dummy-ws message/v1-codec mock-uri)]
+              connection (connection/make-connection :dummy-ws message/v1-codec mock-uri false)]
           (with-redefs [puppetlabs.pcp.broker.shared/get-connection
                         (fn [_ _] connection)
                         puppetlabs.experimental.websockets.client/send!
@@ -370,7 +393,7 @@
               (is (nil? outcome))))))
       (testing "v2-codec survives roundtrip"
         (let [sent-message (atom nil)
-              connection (connection/make-connection :dummy-ws message/v2-codec mock-uri)]
+              connection (connection/make-connection :dummy-ws message/v2-codec mock-uri false)]
           (with-redefs [puppetlabs.pcp.broker.shared/get-connection
                         (fn [_ _] connection)
                         puppetlabs.experimental.websockets.client/send!
