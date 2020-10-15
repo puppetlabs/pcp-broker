@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.pcp_broker \n"
-"X-Git-Ref: 8791f46357c887c03dddda11437041e9ae3e0874\n"
+"X-Git-Ref: 3284aad481d0173887c06c411447fe5bcd08a48a\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -211,13 +211,21 @@ msgstr ""
 msgid "Evicted all clients as there is no controller connection."
 msgstr ""
 
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Checking the existing {0} connections for expired CRLs."
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Closing expired connection for {0}."
+msgstr ""
+
 #. code SERVER_RESTART, client *should* reconnect soon
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "CRL reloaded"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
-msgid "Evicted all clients because of CRL reload"
+msgid "Evicted stale client connections because of CRL reload."
 msgstr ""
 
 #. 0 : connection uri
@@ -239,6 +247,10 @@ msgstr ""
 #. 1 : url to connect to
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Connecting to {0} at {1}."
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Expiring existing {0} connections due to CRL update."
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
