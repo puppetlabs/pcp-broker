@@ -86,7 +86,7 @@ connections in the `pcp-broker` section. These options are:
 * controller-uris: An array of Websocket URIs to which the broker will attempt
   to establish outbound connections.
 * controller-allowlist: An array of message types the broker will accept from
-  connected controllers. Defaults to accepting only inventory requests.
+  connected controllers. Defaults to accepting  inventory requests, blocking and non blocking rpc requests.
 * controller-disconnection-graceperiod: The number of milliseconds after losing
   connectivity to all configured controllers that the broker will wait before
   dropping all connected clients (to allow them to redistribute to other
