@@ -1,3 +1,7 @@
+# 1.5.8
+This is a maintenance release
+* Add rpc_blocking_request and rpc_non_blocking_request to default allowed message types
+
 # 1.5.7
 This is a maintenance release
 * (PCP-900) Close connections after CRL update. Connections closes are throttled to prevent a thundering herd of reconnection requests.
