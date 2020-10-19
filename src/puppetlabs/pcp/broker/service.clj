@@ -51,7 +51,9 @@
                                                ks/parse-interval
                                                t/in-millis)
                controller-allowlist (set (get-in-config [:pcp-broker :controller-allowlist]
-                                                        ["http://puppetlabs.com/inventory_request"]))
+                                                        ["http://puppetlabs.com/inventory_request"
+                                                         "http://puppetlabs.com/rpc_blocking_request"
+                                                         "http://puppetlabs.com/rpc_non_blocking_request"]))
                broker (:broker context)
                server-context (some-> (get-service this :WebserverService)
                                       service-context
