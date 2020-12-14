@@ -81,7 +81,8 @@
                                       {:injections [(do
                                                      (require 'schema.core)
                                                      (schema.core/set-fn-validation! true))]}]
-             :uberjar {:aot [puppetlabs.pcp.broker.service
+             :uberjar {:dependencies [[org.bouncycastle/bcpkix-jdk15on]]
+                       :aot [puppetlabs.pcp.broker.service
                              puppetlabs.trapperkeeper.services.authorization.authorization-service
                              puppetlabs.trapperkeeper.services.metrics.metrics-service
                              puppetlabs.trapperkeeper.services.scheduler.scheduler-service
