@@ -1,15 +1,33 @@
-# 1.5.8
+## 1.6.3
+This is a maintenance release
+* update clj-parent to 4.6.20
+* update pcp-client to 1.3.3
+
+## 1.6.2
+This is a maintenance release
+* update clj-parent to 4.6.17
+* update pcp-client to 1.3.2
+
+## 1.6.1
+This is a maintenance release
+* update clj-parent to 4.6.14
+
+## 1.6.0
+This is a maintenance release
+* Add bouncycastle dependency to uberjar profile
+
+## 1.5.8
 This is a maintenance release
 * Add rpc_blocking_request and rpc_non_blocking_request to default allowed message types
 
-# 1.5.7
+## 1.5.7
 This is a maintenance release
 * (PCP-900) Close connections after CRL update. Connections closes are throttled to prevent a thundering herd of reconnection requests.
 * (PE-30041) Remove harmful term from pcp-broker config (controller-whitelist -> controller-allowlist)
 * Lower default idle-timeout from 15 minutes to 6
 * Allow configuration websocket idle-timeout
 
-# 1.5.6
+## 1.5.6
 
 This is a maintenance release
 * Update deploy repositories
