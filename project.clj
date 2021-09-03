@@ -93,10 +93,6 @@
                     {:test-paths ^:replace ["test/unit"]}]
              :integration [:test-base
                            {:test-paths ^:replace ["test/integration"]}]
-             :cljfmt {:plugins [[lein-cljfmt "0.5.7" :exclusions [org.clojure/clojure]]
-                                [lein-parent "0.3.4"]]
-                      :parent-project {:path "../pl-clojure-style/project.clj"
-                                       :inherit [:cljfmt]}}
              :internal-mirrors {:mirrors [["releases" {:name "internal-releases"
                                                        :url "https://artifactory.delivery.puppetlabs.net/artifactory/clojure-releases__local/"}]
                                           ["central" {:name "internal-central-mirror"
@@ -116,9 +112,6 @@
             ;; runs trapperkeeper with schema validations enabled
             "tkv" ["with-profile" "dev-schema-validation" "tk"]
             "certs" ["trampoline" "run" "-m" "puppetlabs.pcp.testutils.certs" "--config" "test-resources/conf.d" "--"]
-            ;; cljfmt requires pl-clojure-style's root dir as per above profile;
-            ;; run with 'check' then 'fix' with args (refer to the project docs)
-            "cljfmt" ["with-profile" "+cljfmt" "cljfmt"]
             "coverage" ["cloverage" "-e" "puppetlabs.puppetdb.*" "-e" "user"]
             "test-all" ["with-profile" "test-base:test-schema-validation" "test"]}
 
