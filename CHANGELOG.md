@@ -1,3 +1,14 @@
+## 1.6.5
+This is a maintenance release
+* update clj-parent to 4.9.1
+* update pcp-client to 1.3.4
+
+## 1.6.4
+This is a maintenance release
+* update clj-parent to 4.8.3
+* update clj-parent to 4.6.28
+* Remove pl-clojure-style linter
+
 ## 1.6.3
 This is a maintenance release
 * update clj-parent to 4.6.20
