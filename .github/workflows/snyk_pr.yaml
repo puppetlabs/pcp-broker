@@ -17,10 +17,9 @@ jobs:
         persist-credentials: false
     - name: Run Clojure Snyk Scan
       id: scan
-      uses: puppetlabs/security-snyk-clojure-action@v1
+      uses: puppetlabs/security-snyk-clojure-action@v2
       with:
         snykToken: ${{ secrets.SNYK_FOSS_KEY }}
-        rproxyKey: ${{ secrets.SEC_PUBLIC_RPROXY_KEY }}
         snykOrg: 'puppet-foss'
         snykProject: 'pcp-broker'
     - name: Check output
