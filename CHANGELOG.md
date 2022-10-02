@@ -1,3 +1,8 @@
+## 1.8.0
+This is a maintenance release
+* update clj-parent to 5.2.9
+* update pcp-client to 1.4.0
+
 ## 1.6.5
 This is a maintenance release
 * update clj-parent to 4.9.1
