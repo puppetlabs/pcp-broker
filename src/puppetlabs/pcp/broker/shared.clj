@@ -1,6 +1,6 @@
 (ns puppetlabs.pcp.broker.shared
   (:require [metrics.gauges :as gauges]
-            [puppetlabs.experimental.websockets.client :as websockets-client]
+            [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.broker.websocket]
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
@@ -109,7 +109,7 @@
              ;; 0 : connection uri
              ;; 1 : raw message
              #(i18n/trs "Sending PCP message to {0}: {1}" (:uri %) (:rawmsg %)))
-  (websockets-client/send! (:websocket connection)
+  (websocket-session/send! (:websocket connection)
                            ((get-in connection [:codec :encode]) message))
   nil)
 

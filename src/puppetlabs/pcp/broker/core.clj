@@ -1,5 +1,5 @@
 (ns puppetlabs.pcp.broker.core
-  (:require [puppetlabs.experimental.websockets.client :as websockets-client]
+  (:require [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
             [puppetlabs.pcp.broker.shared :as shared :refer
              [Broker get-connection get-controller summarize send-error-message send-message deliver-message deliver-server-message]]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
@@ -16,7 +16,7 @@
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
-            [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
+            [puppetlabs.trapperkeeper.services.webserver.jetty10-core :as jetty10-core]
             [puppetlabs.trapperkeeper.services.protocols.filesystem-watch-service :as watch]
             [schema.core :as s]
             [slingshot.slingshot :refer [throw+ try+]]
@@ -26,13 +26,13 @@
            [puppetlabs.pcp.client Client]
            [clojure.lang IFn]
            [java.net InetAddress UnknownHostException URI]
-           [org.eclipse.jetty.util.ssl SslContextFactory]
+           [org.eclipse.jetty.util.ssl SslContextFactory$Server]
            [javax.net.ssl SSLContext]
            [java.security KeyStore]))
 
 (defn get-certificate-chain
   "Return the first non-empty certificate chain encountered while scanning the
-  entries in the key store of the specified org.eclipse.jetty.util.ssl.SslContextFactory
+  entries in the key store of the specified org.eclipse.jetty.util.ssl.SslContextFactory$Server
   instance - `ssl-context-factory`."
   [ssl-context-factory]
   (let [^KeyStore key-store (.getKeyStore ssl-context-factory)]
@@ -46,11 +46,11 @@
   context - `webserver-context` - will use when establishing SSL connections
   or nil if there was a problem finding out the certificate (for instance
   when the webserver is not SSL enabled)."
-  [webserver-context :- jetty9-core/ServerContext]
+  [webserver-context :- jetty10-core/ServerContext]
   (some-> webserver-context
           :state
           deref
-          :ssl-context-factory
+          :ssl-context-server-factory
           get-certificate-chain
           first
           ssl-utils/get-cn-from-x509-certificate))
@@ -181,7 +181,7 @@
           ;; 0 : reason to deny request
           ;; 1 : uri of connection
           #(i18n/trs "Invalid associate_request ({0}). Closing {1} WebSocket." (:reason %) (:uri %)))
-         (websockets-client/close! (:websocket connection) 4002 (i18n/trs "Association unsuccessful."))
+         (websocket-session/close! (:websocket connection) 4002 (i18n/trs "Association unsuccessful."))
          nil)
        (assoc connection :uri requester-uri)))))
 
@@ -275,7 +275,7 @@
         (if connection
           (let [websocket (:websocket connection)
                 remote-addr (ws->remote-address websocket)
-                ssl-client-cert (first (websockets-client/peer-certs websocket))]
+                ssl-client-cert (first (websocket-session/peer-certs websocket))]
             (assoc request :remote-addr remote-addr
                    :ssl-client-cert ssl-client-cert))
           request)))))
@@ -443,7 +443,7 @@
   (time!
    (:on-message (:metrics broker))
    (if-not (= :running @(:state broker))
-     (websockets-client/close! ws 1011 (i18n/trs "Broker is not running."))
+     (websocket-session/close! ws 1011 (i18n/trs "Broker is not running."))
      (process-message! broker bytes ws))))
 
 (defn- on-text!
@@ -468,7 +468,7 @@
   (doseq [handler @(:handlers broker)]
     (when (.isRunning handler)
       (sl/maplog :info {:handler (.getContextPath handler)
-                         :type :rejecting-connections}
+                        :type :rejecting-connections}
                  ;; 0 : remote address of connection
                  #(i18n/trs "Stopping handler {0}, connections will be rejected." (:handler %)))
       (.stop handler))))
@@ -498,37 +498,37 @@
    (:on-connect (:metrics broker))
    (cond
      (not= :running @(:state broker))
-     (websockets-client/close! ws 1011 (i18n/trs "Broker is not running."))
+     (websocket-session/close! ws 1011 (i18n/trs "Broker is not running."))
 
      (nil? (ws->common-name ws))
      (do (sl/maplog :warn {:remoteaddress (ws->remote-address ws)
                            :type :connection-no-peer-certificate}
                     ;; 0 : remote address of connection
                     #(i18n/trs "No client certificate. Closing {0}." (:remoteaddress %)))
-         (websockets-client/close! ws 4003 (i18n/trs "No client certificate.")))
+         (websocket-session/close! ws 4003 (i18n/trs "No client certificate.")))
 
      ;; Should no longer happen
      (all-controllers-disconnected? broker)
-     (websockets-client/close! ws 1011 (i18n/trs "All controllers disconnected."))
+     (websocket-session/close! ws 1011 (i18n/trs "All controllers disconnected."))
 
      (and (pos? max-connections) (>= (count (:inventory @(:database broker))) max-connections))
-     (websockets-client/close! ws 1011 (i18n/trs "Connection limit exceeded."))
+     (websocket-session/close! ws 1011 (i18n/trs "Connection limit exceeded."))
 
      :else
      ;; Generate an implicit association request and authorize association.
      (let [uri (ws->uri ws)
            connection (connection/make-connection ws codec uri false)
            message (message/make-message
-                     {:target "pcp:///server"
-                      :sender uri
-                      :message_type "http://puppetlabs.com/associate_request"})]
+                    {:target "pcp:///server"
+                     :sender uri
+                     :message_type "http://puppetlabs.com/associate_request"})]
        ;; Also prevent association as "server" type. Reserved for outgoing connections.
        (if (or (not (authorized? broker message connection))
                (= (ws->client-type ws) "server"))
          (let [message-data (merge (connection/summarize connection)
                                    (summarize message))]
            (log-access :warn (assoc message-data :accessoutcome "AUTHORIZATION_FAILURE"))
-           (websockets-client/close! ws 4002 (i18n/trs "Association unsuccessful.")))
+           (websocket-session/close! ws 4002 (i18n/trs "Association unsuccessful.")))
 
          (do
            (when-let [old-conn (get-connection broker uri)]
@@ -539,9 +539,9 @@
                         ;; 1 : common name of connection
                         ;; 2 : remote address of connection
                         #(i18n/trs "Node with URI {0} already associated with connection {1} {2}."
-                          (:uri %) (:commonname %) (:remoteaddress %)))
-             (websockets-client/disconnect (:websocket old-conn)))
-           (websockets-client/idle-timeout! ws idle-timeout)
+                                   (:uri %) (:commonname %) (:remoteaddress %)))
+             (websocket-session/disconnect (:websocket old-conn)))
+           (websocket-session/idle-timeout! ws idle-timeout)
            (let [policy (.. ws getSession getPolicy)]
              ;; Support both v1 and v2 agents
              (.setMaxTextMessageSize policy (:max-message-size broker))
@@ -554,7 +554,7 @@
                       ;; 0 : uri
                       ;; 1 : remote address
                       #(i18n/trs "{0} connected from {1}"
-                        (:uri %) (:remoteaddress %)))))))))
+                                 (:uri %) (:remoteaddress %)))))))))
 
 (defn- on-error
   "OnError WebSocket event handler. Just log the event."
@@ -685,7 +685,7 @@
       (when (all-controllers-disconnected? broker)
         (stop-handlers broker)))
     (doseq [[_ client-connection] (:inventory @(:database broker))]
-      (websockets-client/close!
+      (websocket-session/close!
         (:websocket client-connection)
         1011 (i18n/trs "All controllers disconnected.")))
     (sl/maplog
@@ -705,7 +705,7 @@
         (do
           (sl/maplog :debug {:uri (str uri)} #(i18n/trs "Closing expired connection for {0}." (:uri %)))
           (Thread/sleep throttle-duration)
-          (websockets-client/close!
+          (websocket-session/close!
             (:websocket client-connection)
             1012 ;; code SERVER_RESTART, client *should* reconnect soon
             (i18n/trs "CRL reloaded"))
@@ -808,7 +808,7 @@
 (s/defn watch-crl
   [watcher :- (s/protocol watch/Watcher)
    broker :- Broker
-   ssl-context-factory :- SslContextFactory]
+   ssl-context-factory :- SslContextFactory$Server]
   (when-let [crl-config-path (.getCrlPath ssl-context-factory)]
     (let [crl-path (.getCanonicalPath (fs/file crl-config-path))]
       (watch/add-watch-dir! watcher (fs/parent crl-path))

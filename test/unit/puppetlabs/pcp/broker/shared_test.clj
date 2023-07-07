@@ -67,7 +67,7 @@
     (let [error-msg (atom nil)
           connection (connection/make-connection :dummy-ws message/v2-codec mock-uri false)]
       (with-redefs [ws->common-name (fn [_] "host_x")
-                    puppetlabs.experimental.websockets.client/send!
+                    puppetlabs.trapperkeeper.services.websocket-session/send!
                     (fn [_ raw-message]
                       (reset! error-msg (message/v2-decode raw-message)))]
         (testing "sends error_message correctly and returns nil if received msg is NOT given"

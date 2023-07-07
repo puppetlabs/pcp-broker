@@ -1,9 +1,7 @@
 (ns puppetlabs.pcp.broker.websocket
-  (:require [clojure.string :as str]
-            [puppetlabs.experimental.websockets.client :as websockets-client]
+  (:require [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
             [puppetlabs.kitchensink.core :as ks]
-            [puppetlabs.pcp.client :as pcp-client]
-            [schema.core :as s])
+            [puppetlabs.pcp.client :as pcp-client])
   (:import (puppetlabs.pcp.client Client)
            (java.net InetSocketAddress InetAddress)
            (org.eclipse.jetty.websocket.api WebSocketAdapter)))
@@ -12,7 +10,7 @@
   "Schema for a websocket session"
   Object)
 
-(extend-protocol websockets-client/WebSocketProtocol
+(extend-protocol websocket-session/WebSocketProtocol
   Client
   (send!         [c msg]      (pcp-client/send! c msg))
   (close!        [c code msg] (pcp-client/close c))
@@ -32,14 +30,14 @@
   WebSocketAdapter
   (ws->common-name [ws]
     (try
-      (when-let [cert (first (websockets-client/peer-certs ws))]
+      (when-let [cert (first (websocket-session/peer-certs ws))]
         (ks/cn-for-cert cert))
       (catch Exception _
         nil)))
 
   Client
   (ws->common-name [c]
-    (let [uri (-> c :websocket-client (.getOpenSessions) first (.getRequestURI))]
+    (let [uri (-> c :websocket-client (.getOpenSessions) first (.getUpgradeRequest) (.getRequestURI))]
       (.getAuthority uri))))
 
 (defn ws->remote-address
@@ -47,7 +45,7 @@
   out of the InetSocketAddress object."
   [ws]
   (try
-    (let [^InetSocketAddress socket-address (websockets-client/remote-addr ws)
+    (let [^InetSocketAddress socket-address (websocket-session/remote-addr ws)
           ^InetAddress inet-address (.getAddress socket-address)]
       (str (if (nil? inet-address)
              (.getHostName socket-address)
@@ -59,7 +57,7 @@
 
 (defn ws->client-path
   [ws]
-  (let [path (websockets-client/request-path ws)]
+  (let [path (websocket-session/request-path ws)]
     (if (or (empty? path) (= "/" path))
       "/agent"
       path)))

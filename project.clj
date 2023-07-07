@@ -1,6 +1,6 @@
 (def http-async-client-version "1.3.0")
 
-(defproject puppetlabs/pcp-broker "1.8.1-SNAPSHOT"
+(defproject puppetlabs/pcp-broker "2.0.0-SNAPSHOT"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name "Apache License, Version 2.0"
@@ -13,7 +13,8 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "5.2.9"]
+  :parent-project {:coords [puppetlabs/clj-parent "7.0.1"]
+
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -21,8 +22,10 @@
                  [puppetlabs/kitchensink]
                  [puppetlabs/trapperkeeper]
                  [puppetlabs/trapperkeeper-authorization]
-                 [puppetlabs/trapperkeeper-metrics]
-                 [puppetlabs/trapperkeeper-webserver-jetty9]
+                 [puppetlabs/trapperkeeper-metrics "2.0.0"]
+                 [com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.1" :exclusions [org.ow2.asm/asm]]
+                 [org.eclipse.jetty.websocket/websocket-jetty-client "10.0.15"]
+                 [org.eclipse.jetty.websocket/websocket-jetty-api "10.0.15"]
                  [puppetlabs/trapperkeeper-status]
                  [puppetlabs/trapperkeeper-filesystem-watcher]
 
@@ -33,7 +36,7 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "1.4.0"]
+                 [puppetlabs/pcp-client "2.0.0" :exclusions [org.ow2.asm/asm]]
 
                  [puppetlabs/i18n]]
 
@@ -88,7 +91,7 @@
                              puppetlabs.trapperkeeper.services.scheduler.scheduler-service
                              puppetlabs.trapperkeeper.services.status.status-service
                              puppetlabs.trapperkeeper.services.webrouting.webrouting-service
-                             puppetlabs.trapperkeeper.services.webserver.jetty9-service]}
+                             puppetlabs.trapperkeeper.services.webserver.jetty10-service]}
              :unit [:test-base
                     {:test-paths ^:replace ["test/unit"]}]
              :integration [:test-base
