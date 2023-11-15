@@ -13,7 +13,7 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "7.0.1"]
+  :parent-project {:coords [puppetlabs/clj-parent "7.2.7"]
 
                    :inherit [:managed-dependencies]}
 
@@ -23,9 +23,7 @@
                  [puppetlabs/trapperkeeper]
                  [puppetlabs/trapperkeeper-authorization]
                  [puppetlabs/trapperkeeper-metrics "2.0.0"]
-                 [com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.1" :exclusions [org.ow2.asm/asm]]
-                 [org.eclipse.jetty.websocket/websocket-jetty-client "10.0.15"]
-                 [org.eclipse.jetty.websocket/websocket-jetty-api "10.0.15"]
+                 [com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.3"]
                  [puppetlabs/trapperkeeper-status]
                  [puppetlabs/trapperkeeper-filesystem-watcher]
 
@@ -36,7 +34,7 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "2.0.0" :exclusions [org.ow2.asm/asm]]
+                 [puppetlabs/pcp-client "2.0.0"]
 
                  [puppetlabs/i18n]]
 
@@ -66,9 +64,10 @@
                    :dependencies [[http.async.client ~http-async-client-version]
                                   [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink :classifier "test" :scope "test"]
-                                  [org.bouncycastle/bcpkix-jdk15on]
+                                  [org.bouncycastle/bcpkix-jdk18on]
                                   [org.clojure/tools.namespace]
-                                  [org.clojure/tools.nrepl]]
+                                  [org.clojure/tools.nrepl]
+                                  [hato "0.9.0"]]
                    :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
              :dev-schema-validation [:dev
                                      {:injections [(do

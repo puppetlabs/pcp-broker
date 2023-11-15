@@ -5,7 +5,8 @@
             [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
             [puppetlabs.trapperkeeper.services.webserver.jetty10-service :refer [jetty10-service]]
-            [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]))
+            [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]])
+  (:import (java.nio.channels AsynchronousCloseException)))
 
 ;; These handlers exist to be redefined.
 (defn on-connect [server ws])
@@ -38,9 +39,10 @@
   (stop [this context]
         (doseq [ws @(:inventory context)]
           (try
-            ;; Close may encounter a null pointer if the underlying session has already closed.
+            ;; Close may encounter an async exception if the underlying session has already closed.
             (websocket-session/close! ws)
-            (catch NullPointerException _)))
+            (catch AsynchronousCloseException _
+              (println "Caught async stopping MockServer!"))))
         ;; TODO: this pause is necessary to allow a successful reconnection
         ;; from the broker. We need to understand why and eliminate the
         ;; problem. This is covered in PCP-720.

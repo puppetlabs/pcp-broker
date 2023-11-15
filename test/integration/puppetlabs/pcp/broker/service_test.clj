@@ -1,25 +1,24 @@
 (ns puppetlabs.pcp.broker.service-test
   (:require [clojure.test :refer :all]
-            [http.async.client :as http]
             [me.raynes.fs :as fs]
             [puppetlabs.pcp.testutils :refer [dotestseq received? retry-until-true]]
             [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.message-v1 :as m1]
             [puppetlabs.kitchensink.core :as ks]
+            [puppetlabs.trapperkeeper.services.websocket-session :as ws-session]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]))
 
 (deftest it-talks-websockets-test
   (with-app-with-config app broker-services broker-config
-    (let [connected (promise)]
-      (with-open [client (client/http-client-with-cert "client01.example.com")
-                  ws     (http/websocket client
-                                         "wss://localhost:58142/pcp/v2.0"
-                                         :close (fn [ws code reason])
-                                         :text (fn [ws msg])
-                                         :error (fn [ws e])
-                                         :open (fn [ws] (deliver connected true)))]
+    (let [connected (promise)
+          handlers {:on-close (fn [ws code reason])
+                    :on-text (fn [ws msg last?])
+                    :on-error (fn [ws e])
+                    :on-connect (fn [ws] (deliver connected true))}]
+      (with-open [_client (client/connect :certname "client01.example.com"
+                                          :override-handlers handlers)]
         (is (= true (deref connected (* 2 1000) false)) "Connected within 2 seconds")))))
 
 (defn connect-and-close
@@ -30,21 +29,22 @@
   (let [close-code (promise)
         connected (promise)]
     (try
-     (with-open [client (client/http-client-with-cert "client01.example.com")
-                 ws (http/websocket client
-                                    "wss://localhost:58142/pcp/v2.0"
-                                    :open (fn [ws] (deliver connected true))
-                                    :text (fn [ws msg])
-                                    :error (fn [ws e])
-                                    :close (fn [ws code reason]
-                                             (deliver connected false)
-                                             (deliver close-code code)))]
-       (deref connected)
-       ;; We were connected, sleep a while to see if the broker
-       ;; disconnects the client.
-       (deref close-code delay nil))
-     (catch Exception _
-       (deliver close-code :refused)))
+      (let [handlers {:on-connect (fn [ws] (deliver connected true))
+                      :on-text (fn [ws msg])
+                      :on-error (fn [ws e])
+                      :on-close (fn [ws code reason]
+                                  (deliver connected false)
+                                  (deliver close-code code)
+                                  (ws-session/close! ws code reason))}]
+        (with-open [_client (client/connect :certname "client01.example.com"
+                                            :uri "wss://localhost:58142/pcp/v2.0"
+                                            :override-handlers handlers)]
+          (deref connected)
+          ;; We were connected, sleep a while to see if the broker
+          ;; disconnects the client.
+          (deref close-code delay nil)))
+      (catch Exception e
+        (deliver close-code :refused)))
     @close-code))
 
 (defn conj-unique
@@ -72,9 +72,9 @@
           (is (:in_reply_to message)))
         (is (= expected-description data))))))
 
-(defn is-association_response
-  [message version success reason]
+(defn is-association-response
   "Assert that the message is an association_response with the specified success and reason entries."
+  [message version success reason]
   (is (= "http://puppetlabs.com/associate_response" (:message_type message)))
   (if (= "v1.0" version)
     (is (= nil (:in_reply_to message)))
@@ -96,8 +96,7 @@
     (try
       (while (and (not (future-done? broker)) (< (- (System/currentTimeMillis) start) (* 120 1000)))
         (let [code (connect-and-close (* 20 1000))]
-          (when-not (= 1006 code) ;; netty 1006 codes are very racy. Filter out
-            (swap! close-codes conj-unique code))
+          (swap! close-codes conj-unique code)
           (if (= 1000 code)
             ;; we were _probably_ able to connect to the broker (or the broker was
             ;; soooo slow to close the connection even though it was not running
@@ -115,12 +114,12 @@
       ;; tests like this it might be worth using ztellman/automat to
       ;; match with a FSM rather than hand-generation of cases.
       (is (contains? #{[:refused 1011 1000 1011 :refused]
-                        [:refused 1000 1011 :refused]
-                        [:refused 1011 1000 :refused]
-                        [:refused 1000 :refused]
-                        [:refused 1011 :refused]
-                        [:refused]}
-                      @close-codes))
+                       [:refused 1000 1011 :refused]
+                       [:refused 1011 1000 :refused]
+                       [:refused 1000 :refused]
+                       [:refused 1011 :refused]
+                       [:refused]}
+                     @close-codes))
       (finally
         ; security measure to ensure the broker is stopped and wait for it to shutdown
         (deliver should-stop true)
@@ -140,22 +139,21 @@
             closed-connection (future (connect-and-close timeout))
             crl-path (get-in broker-config [:webserver :ssl-crl-path])
             crl-content (slurp crl-path)]
-          (Thread/sleep 1000) ;; Wait to ensure the connection is established
-          (fs/delete crl-path)
-          (spit crl-path crl-content)
-          (deref closed-connection)
-          (let [disconnected-by (System/currentTimeMillis)]
-            (is (> should-disconnect-by disconnected-by)))))))
+        (Thread/sleep 1000) ;; Wait to ensure the connection is established
+        (fs/delete crl-path)
+        (spit crl-path crl-content)
+        (deref closed-connection)
+        (let [disconnected-by (System/currentTimeMillis)]
+          (is (> should-disconnect-by disconnected-by)))))))
 
 (deftest poorly-encoded-message-test
-  (testing "a 0-length byte array cannot be decoded by the v1.0 API"
+  (testing "an empty byte array cannot be decoded by the v1.0 API"
     (with-app-with-config app broker-services broker-config
       (with-open [client (client/connect :certname "client01.example.com"
                                          :version "v1.0")]
-        ;; At time of writing, it's deemed very unlikely that any valid
-        ;; encoding of a pcp message is a 0-length array.  Sorry future people.
-        (client/sendbytes! client (byte-array 0))
-        (let [response (client/recv! client)]
+        (with-redefs [client/encode-pcp-message (fn [_] (byte-array 250))]
+          (.send client (byte-array 250)))
+        (let [response (.await-message-received client)]
           (is-error-message response "v1.0" "Could not decode message" false))))))
 
 ;; Session association tests
@@ -170,7 +168,7 @@
                                          (fn [_] (byte-array [0]))
                                          :check-association false
                                          :version "v1.0")]
-        (let [response (client/recv! client)]
+        (let [response (.await-message-received client)]
           (is-error-message response "v1.0" "Could not decode message" false))))))
 
 (deftest certificate-must-match-for-authentication-test
@@ -182,15 +180,15 @@
                                                     :force-association true
                                                     :check-association false
                                                     :version version)]
-                   (let [pcp-response (client/recv! client)
-                         close-websocket-msg (client/recv! client)]
-                     (is-association_response pcp-response version false "Message not authenticated.")
+                   (let [pcp-response (.await-message-received client)
+                         close-websocket-msg (.await-close-received client)]
+                     (is-association-response pcp-response version false "Message not authenticated.")
                      (is (= [4002 "Association unsuccessful."] close-websocket-msg))))))))
 
 (deftest basic-session-association-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
-       ;; NB(ale): client/connect checks associate_response for both clients
+              ;; client/connect checks associate_response for both clients
                (with-open [client (client/connect :certname "client01.example.com"
                                                   :version version)]))))
 
@@ -203,9 +201,9 @@
                                                     :force-association true
                                                     :check-association false
                                                     :version version)]
-                   (let [pcp-response (client/recv! client)
-                         close-websocket-msg (client/recv! client)]
-                     (is-association_response pcp-response version false "Session already associated.")
+                   (let [pcp-response (.await-message-received client)
+                         close-websocket-msg (.await-close-received client)]
+                     (is-association-response pcp-response version false "Session already associated.")
                      (is (= [4002 "Association unsuccessful."] close-websocket-msg))))))))
 
 (deftest second-association-new-connection-closes-first-test
@@ -214,12 +212,12 @@
                (with-open [first-client (client/connect :certname "client01.example.com"
                                                         :force-association true
                                                         :version version)
-                           second-client (client/connect :certname "client01.example.com"
-                                                         :force-association true
-                                                         :version version)]
-                 ;; NB(ale): client/connect checks associate_response for both clients
-                 (let [close-websocket-msg1 (client/recv! first-client)]
-                   (is (= [1006 "Connection was closed abnormally (that is, with no close frame being sent)."] close-websocket-msg1)))))))
+                           _second-client (client/connect :certname "client01.example.com"
+                                                          :force-association true
+                                                          :version version)]
+                 ;; client/connect will check associate_response for both v1 and v2 clients
+                 (let [close-websocket-msg1 (.await-close-received first-client)]
+                   (is (= [1006 "Session Closed"] close-websocket-msg1)))))))
 
 (deftest second-association-same-connection-is-accepted-test
   (with-app-with-config app broker-services broker-config
@@ -228,9 +226,9 @@
                                                   :force-association true
                                                   :version version)]
                  (let [request (client/make-association-request "pcp://client01.example.com/agent" version)]
-                   (client/send! client request)
-                   (let [response (client/recv! client)]
-                     (is-association_response response version true nil)))))))
+                   (.send client request)
+                   (let [response (.await-message-received client)]
+                     (is-association-response response version true nil)))))))
 
 (def no-assoc-broker-config
   "A broker that allows no association requests"
@@ -250,11 +248,11 @@
                                                   :version version
                                                   :check-association false)]
                  (testing "cannot associate - closes connection"
-                   (let [response (client/recv! client)]
+                   (let [response (.await-close-received client)]
                      (is (or (= [4002 "Association unsuccessful."] response)
                              ;; the response can also be 1006; this may happen because we close the connection during the on-connect callback
                              ;; since this isn't an issue when things are set up correctly, just accept the 1006
-                             (= [1006 "Connection was closed abnormally (that is, with no close frame being sent)."] response)))))
+                             (= [1006 "Session Closed"] response)))))
                  (testing "cannot request inventory"
                    (let [request (client/make-message
                                   version
@@ -262,8 +260,11 @@
                                    :target "pcp:///server"
                                    :sender "pcp://client01.example.com/test"
                                    :data {:query ["pcp://client01.example.com/test"]}})]
-                     (client/send! client request)
-                     (let [response (client/recv! client 1000)]
+                     (.send client request)
+                     ;; CODEREVIEW: sendString in pcp-client throws an IOException here, apparently 
+                     ;; this didn't used to happen? We're using the blocking send so 
+                     ;; perhaps this needs to be addressed in pcp-client.
+                     (let [response (.await-message-received client)]
                        (is (= nil response)))))
                  (testing "cannot send messages"
                    (let [message (client/make-message
@@ -272,8 +273,8 @@
                                    :target "pcp://client01.example.com/test"
                                    :message_type "greeting"
                                    :data "Hello"})]
-                     (client/send! client message)
-                     (let [message (client/recv! client 1000)]
+                     (.send client message)
+                     (let [message (.await-message-received client)]
                        (is (= nil message)))))))))
 
 ;; Inventory service
@@ -289,8 +290,8 @@
                                  :target "pcp:///server"
                                  :sender "pcp://client01.example.com/agent"
                                  :data {:query ["pcp://client01.example.com/agent"]}})]
-                   (client/send! client request)
-                   (let [response (client/recv! client)
+                   (.send client request)
+                   (let [response (.await-message-received client)
                          data (client/get-data response version)]
                      (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
                      (if (= version "v1.0")
@@ -309,8 +310,8 @@
                                  :target "pcp:///server"
                                  :sender "pcp://client01.example.com/agent"
                                  :data {:query ["pcp://*/agent"]}})]
-                   (client/send! client request)
-                   (let [response (client/recv! client)
+                   (.send client request)
+                   (let [response (.await-message-received client)
                          data (client/get-data response version)]
                      (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
                      (is (= ["pcp://client01.example.com/agent"] (:uris data)))))))))
@@ -328,8 +329,8 @@
                                  :target "pcp:///server"
                                  :sender "pcp://client01.example.com/agent"
                                  :data {:query ["pcp://client02.example.com/agent"]}})]
-                   (client/send! client request))
-                 (let [response (client/recv! client)
+                   (.send client request))
+                 (let [response (.await-message-received client)
                        data (client/get-data response version)]
                    (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
                    (is (= [] (:uris data))))))))
@@ -362,8 +363,8 @@
                                    :target "pcp:///server"
                                    :sender "pcp://client01.example.com/agent"
                                    :data {:query ["pcp://client01.example.com/agent"]}})]
-                     (client/send! client request)
-                     (let [response (client/recv! client)]
+                     (.send client request)
+                     (let [response (.await-message-received client)]
                        (is (is-error-message response version "Message not authorized." true)))))))))
 
 (deftest invalid-message-types-not-authorized
@@ -378,8 +379,8 @@
                                     {:message_type "http://puppetlabs.com/inventory_request\u0000"
                                      :target "pcp:///server"
                                      :sender "pcp://client01.example.com/agent"})]
-                       (client/send! client request)
-                       (let [response (client/recv! client)]
+                       (.send client request)
+                       (let [response (.await-message-received client)]
                          (is (is-error-message response version "Message not authorized." true))
                          (is (logged? #"Illegal message type: 'http://puppetlabs.com/inventory_request" :warn))))))))))
 
@@ -395,8 +396,8 @@
                                     {:message_type "http://puppetlabs.com/inventory_request"
                                      :target "pcp:///server\u0000"
                                      :sender "pcp://client01.example.com/agent"})]
-                       (client/send! client request)
-                       (let [response (client/recv! client)]
+                       (.send client request)
+                       (let [response (.await-message-received client)]
                          (is (is-error-message response version "Message not authorized." true))
                          (is (logged? #"Illegal message target: 'pcp:///server" :warn))))))))))
 
@@ -413,8 +414,8 @@
                                  :target "pcp://client01.example.com/agent"
                                  :message_type "greeting"
                                  :data "Hello"})]
-                   (client/send! client message)
-                   (let [message (client/recv! client)]
+                   (.send client message)
+                   (let [message (.await-message-received client)]
                      (is (= "greeting" (:message_type message)))
                      (is (= "Hello" (client/get-data message version)))))))))
 
@@ -429,8 +430,8 @@
                                  :target "pcp://*/agent"
                                  :message_type "greeting"
                                  :data "Hello"})]
-                   (client/send! client message)
-                   (let [response (client/recv! client)]
+                   (.send client message)
+                   (let [response (.await-message-received client)]
                      (is-error-message response version "Multiple recipients no longer supported." false)))))))
 
 (deftest send-with-destination-report-ignored-test
@@ -445,8 +446,8 @@
                           :destination_report true
                           :message_type "greeting"})
                         (m1/set-json-data "Hello"))]
-        (client/send! sender message)
-        (let [received (client/recv! receiver)]
+        (.send sender message)
+        (let [received (.await-message-received receiver)]
           (is (= "greeting" (:message_type received)))
           (is (= "Hello" (m1/get-json-data received))))))))
 
@@ -461,27 +462,26 @@
                                  :target "pcp://client02.example.com/agent"
                                  :message_type "greeting"
                                  :data "Hello"})]
-                   (client/send! client message)
-                   (let [response (client/recv! client)]
+                   (.send client message)
+                   (let [response (.await-message-received client)]
                      (is-error-message response version "Not connected." false)))))))
 
 (deftest send-disconnect-connect-not-delivered-test
   (with-app-with-config app broker-services broker-config
     (dotestseq
      [version protocol-versions]
-     (with-open [client1 (client/connect :certname "client01.example.com"
-                                         :version version)]
+     (with-open [client1 (client/connect :certname "client01.example.com" :version version)]
        (let [message (client/make-message
                       version
                       {:sender "pcp://client01.example.com/agent"
                        :target "pcp://client02.example.com/agent"
                        :message_type "greeting"
                        :data "Hello"})]
-         (client/send! client1 message))
+         (.send client1 message))
        (with-open [client2 (client/connect :certname "client02.example.com")]
-         (let [response (client/recv! client1)]
+         (let [response (.await-message-received client1)]
            (is-error-message response version "Not connected." false))
-         (let [response (client/recv! client2 1000)]
+         (let [response (.await-message-received client2 1000)]
            (is (= nil response))))))))
 
 (def strict-broker-config
@@ -513,8 +513,8 @@
                                   {:sender "pcp://client01.example.com/agent"
                                    :message_type "test/sensitive"
                                    :target "pcp://client02.example.com/agent"})]
-                     (client/send! client01 message)
-                     (let [received (client/recv! client02)]
+                     (.send client01 message)
+                     (let [received (.await-message-received client02)]
                        (is (= (:id message) (:id received))))))
                  (testing "client02 -> client01 should not work"
                    (let [message (-> (client/make-message
@@ -522,8 +522,8 @@
                                       {:sender "pcp://client02.example.com/agent"
                                        :message_type "test/sensitive"
                                        :target "pcp://client01.example.com/agent"}))]
-                     (client/send! client02 message)
-                     (let [received (client/recv! client01 1000)]
+                     (.send client02 message)
+                     (let [received (.await-message-received client01 1000)]
                        (is (= nil received)))))))))
 
 (deftest max-connections-is-respected
@@ -539,7 +539,7 @@
       (with-open [client1 (client/connect :certname "client01.example.com")
                   client2 (client/connect :certname "client02.example.com")]
         (is (client/connected? client1))
-        (is (received? (client/recv! client2)
+        (is (received? (.await-close-received client2)
                        [1011 "Connection limit exceeded."]))
         ;; Allow time for the websocket object to be closed.
         (is (retry-until-true 10 #(not (client/connected? client2))))))))
@@ -560,8 +560,8 @@
                                  :in_reply_to (ks/uuid)
                                  :message_type "greeting"
                                  :data "Hello"})]
-                   (client/send! sender message)
-                   (let [received-msg (client/recv! receiver)]
+                   (.send sender message)
+                   (let [received-msg (.await-message-received receiver)]
                      (is (= (case receiver-version
                               "v1.0" nil
                               (:in_reply_to message))

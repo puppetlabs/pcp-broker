@@ -1,5 +1,6 @@
 (ns puppetlabs.pcp.broker.websocket
-  (:require [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
+  (:require [clojure.tools.logging :as log]
+            [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.pcp.client :as pcp-client])
   (:import (puppetlabs.pcp.client Client)
@@ -31,7 +32,7 @@
   (ws->common-name [ws]
     (try
       (when-let [cert (first (websocket-session/peer-certs ws))]
-        (ks/cn-for-cert cert))
+        (puppetlabs.ssl-utils.core/get-cn-from-x509-certificate cert))
       (catch Exception _
         nil)))
 
@@ -45,14 +46,16 @@
   out of the InetSocketAddress object."
   [ws]
   (try
-    (let [^InetSocketAddress socket-address (websocket-session/remote-addr ws)
-          ^InetAddress inet-address (.getAddress socket-address)]
-      (str (if (nil? inet-address)
-             (.getHostName socket-address)
-             (.getHostAddress inet-address))
-           \:
-           (.getPort socket-address)))
-    (catch Exception _
+    (if-let [^InetSocketAddress socket-address (websocket-session/remote-addr ws)]
+      (let [^InetAddress inet-address (.getAddress socket-address)]
+        (str (if (nil? inet-address)
+               (.getHostName socket-address)
+               (.getHostAddress inet-address))
+             \:
+             (.getPort socket-address)))
+      "")
+    (catch Exception e
+      (log/trace e "Failure trying to get remote address")
       "")))
 
 (defn ws->client-path
