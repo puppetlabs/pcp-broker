@@ -5,15 +5,15 @@
             [puppetlabs.pcp.broker.shared :refer [Broker]]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
-            [puppetlabs.pcp.broker.websocket :refer [ws->uri ws->common-name]]
+            [puppetlabs.pcp.broker.websocket :refer [ws->uri ws->common-name ws->remote-address]]
             [puppetlabs.pcp.broker.message :as message]
-            [puppetlabs.pcp.broker.shared-test :refer [mock-uri mock-ws->uri make-test-broker]]
-            [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
-            [puppetlabs.trapperkeeper.services.webserver.jetty9-config :as jetty9-config]
+            [puppetlabs.pcp.broker.shared-test :refer [mock-uri mock-ws->uri make-test-broker mock-ws->remote-address]]
+            [puppetlabs.trapperkeeper.services.webserver.jetty10-core :as jetty10-core]
+            [puppetlabs.trapperkeeper.services.webserver.jetty10-config :as jetty10-config]
             [schema.core :as s]
             [slingshot.test])
   (:import [puppetlabs.pcp.broker.connection Connection]
-           [com.puppetlabs.trapperkeeper.services.webserver.jetty9.utils InternalSslContextFactory]))
+           [com.puppetlabs.trapperkeeper.services.webserver.jetty10.utils InternalSslContextFactory]))
 
 (s/def identity-codec :- Codec
   {:encode identity
@@ -33,13 +33,13 @@
         pem-config (if (nil? certificate-chain)
                      pem-config
                      (assoc pem-config :ssl-cert-chain certificate-chain))
-        keystore-config (jetty9-config/pem-ssl-config->keystore-ssl-config pem-config)]
+        keystore-config (jetty10-config/pem-ssl-config->keystore-ssl-config pem-config)]
     (doto (InternalSslContextFactory.)
       (.setKeyStore (:keystore keystore-config))
       (.setKeyStorePassword (:key-password keystore-config))
       (.setTrustStore (:truststore keystore-config)))))
 
-(s/defn make-mock-webserver-context :- jetty9-core/ServerContext
+(s/defn make-mock-webserver-context :- jetty10-core/ServerContext
   "Return a mock webserver context including the specfied `ssl-context-factory`."
   [ssl-context-factory :- InternalSslContextFactory]
   {:server   nil
@@ -48,7 +48,7 @@
                     :overrides-read-by-webserver true
                     :overrides                   nil
                     :endpoints                   {}
-                    :ssl-context-factory         ssl-context-factory})})
+                    :ssl-context-server-factory ssl-context-factory})})
 
 (deftest get-webserver-cn-test
   (testing "It returns the correct cn"
@@ -77,7 +77,8 @@
 
 (deftest remove-connecton-test
   (testing "It should remove a connection from the inventory map"
-    (with-redefs [ws->uri mock-ws->uri]
+    (with-redefs [ws->uri mock-ws->uri
+                  ws->remote-address mock-ws->remote-address]
       (let [broker (make-test-broker)
             connection (connection/make-connection :dummy-ws identity-codec mock-uri false)]
         (swap! (:database broker) update :inventory assoc mock-uri connection)
@@ -98,7 +99,7 @@
   (testing "It should close expired connections in the inventory after :expired-conn-throttle time"
     (let [closed (promise)]
       (with-redefs [ws->uri mock-ws->uri
-                    puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver closed true))]
+                    puppetlabs.trapperkeeper.services.websocket-session/close! (fn [& args] (deliver closed true))]
         (let [broker (assoc (make-test-broker) :expired-conn-throttle 1000)
               connection (connection/make-connection :dummy-ws identity-codec mock-uri false)]
           (add-connection! broker connection)
@@ -165,8 +166,8 @@
 
 (deftest process-associate-request!-test
   (let [closed (atom (promise))]
-    (with-redefs [puppetlabs.experimental.websockets.client/close! (fn [& args] (deliver @closed args))
-                  puppetlabs.experimental.websockets.client/send! (constantly false)
+    (with-redefs [puppetlabs.trapperkeeper.services.websocket-session/close! (fn [& args] (deliver @closed args))
+                  puppetlabs.trapperkeeper.services.websocket-session/send! (constantly false)
                   puppetlabs.pcp.broker.websocket/ws->client-type (fn [_] "controller")
                   ws->uri (fn [_] "pcp://localhost/controller")]
       (let [message (-> (message/make-message
@@ -386,7 +387,7 @@
               connection (connection/make-connection :dummy-ws message/v1-codec mock-uri false)]
           (with-redefs [puppetlabs.pcp.broker.shared/get-connection
                         (fn [_ _] connection)
-                        puppetlabs.experimental.websockets.client/send!
+                        puppetlabs.trapperkeeper.services.websocket-session/send!
                         (fn [_ message] (reset! sent-message message))]
             (let [outcome (process-message! broker (message/v1-encode msg) :dummy-ws)]
               (is (= msg (message/v1-decode @sent-message)))
@@ -396,7 +397,7 @@
               connection (connection/make-connection :dummy-ws message/v2-codec mock-uri false)]
           (with-redefs [puppetlabs.pcp.broker.shared/get-connection
                         (fn [_ _] connection)
-                        puppetlabs.experimental.websockets.client/send!
+                        puppetlabs.trapperkeeper.services.websocket-session/send!
                         (fn [_ message] (reset! sent-message message))]
             (let [outcome (process-message! broker (message/v2-encode msg) :dummy-ws)]
               (is (= msg (message/v2-decode @sent-message)))

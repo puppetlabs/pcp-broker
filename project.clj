@@ -1,6 +1,6 @@
 (def http-async-client-version "1.3.0")
 
-(defproject puppetlabs/pcp-broker "1.8.1-SNAPSHOT"
+(defproject puppetlabs/pcp-broker "2.0.0-SNAPSHOT"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name "Apache License, Version 2.0"
@@ -13,7 +13,8 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "5.2.9"]
+  :parent-project {:coords [puppetlabs/clj-parent "7.2.7"]
+
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -21,8 +22,8 @@
                  [puppetlabs/kitchensink]
                  [puppetlabs/trapperkeeper]
                  [puppetlabs/trapperkeeper-authorization]
-                 [puppetlabs/trapperkeeper-metrics]
-                 [puppetlabs/trapperkeeper-webserver-jetty9]
+                 [puppetlabs/trapperkeeper-metrics "2.0.0"]
+                 [com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.4"]
                  [puppetlabs/trapperkeeper-status]
                  [puppetlabs/trapperkeeper-filesystem-watcher]
 
@@ -33,7 +34,7 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "1.4.0"]
+                 [puppetlabs/pcp-client "2.0.0"]
 
                  [puppetlabs/i18n]]
 
@@ -63,9 +64,10 @@
                    :dependencies [[http.async.client ~http-async-client-version]
                                   [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink :classifier "test" :scope "test"]
-                                  [org.bouncycastle/bcpkix-jdk15on]
+                                  [org.bouncycastle/bcpkix-jdk18on]
                                   [org.clojure/tools.namespace]
-                                  [org.clojure/tools.nrepl]]
+                                  [org.clojure/tools.nrepl]
+                                  [hato "0.9.0"]]
                    :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
              :dev-schema-validation [:dev
                                      {:injections [(do
@@ -88,7 +90,7 @@
                              puppetlabs.trapperkeeper.services.scheduler.scheduler-service
                              puppetlabs.trapperkeeper.services.status.status-service
                              puppetlabs.trapperkeeper.services.webrouting.webrouting-service
-                             puppetlabs.trapperkeeper.services.webserver.jetty9-service]}
+                             puppetlabs.trapperkeeper.services.webserver.jetty10-service]}
              :unit [:test-base
                     {:test-paths ^:replace ["test/unit"]}]
              :integration [:test-base

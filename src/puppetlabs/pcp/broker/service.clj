@@ -7,7 +7,7 @@
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
             [puppetlabs.trapperkeeper.services :refer [service-context get-service maybe-get-service]]
             [puppetlabs.trapperkeeper.services.status.status-core :as status-core]
-            [puppetlabs.trapperkeeper.services.webserver.jetty9-core :as jetty9-core]
+            [puppetlabs.trapperkeeper.services.webserver.jetty10-core :as jetty10-core]
             [puppetlabs.trapperkeeper.services.protocols.filesystem-watch-service :as watch-protocol]
             [puppetlabs.i18n.core :as i18n]))
 
@@ -57,15 +57,14 @@
                broker (:broker context)
                server-context (some-> (get-service this :WebserverService)
                                       service-context
-                                      (jetty9-core/get-server-context (keyword (get-server this :v1))))
+                                      (jetty10-core/get-server-context (keyword (get-server this :v1))))
                broker-name (or (:broker-name broker)
                                (core/get-webserver-cn server-context)
                                (core/get-localhost-hostname))
                ssl-context-factory (-> server-context
                                        :state
                                        deref
-                                       :ssl-context-factory)
-
+                                       :ssl-context-server-factory)
                ssl-context (.getSslContext ssl-context-factory)
                broker (assoc broker :broker-name broker-name)
                context (assoc context :broker broker)

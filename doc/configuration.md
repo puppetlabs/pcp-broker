@@ -14,7 +14,7 @@ service, a Status service, and a Metrics service.
 puppetlabs.pcp.broker.service/broker-service
 puppetlabs.trapperkeeper.services.authorization.authorization-service/authorization-service
 puppetlabs.trapperkeeper.services.webrouting.webrouting-service/webrouting-service
-puppetlabs.trapperkeeper.services.webserver.jetty9-service/jetty9-service
+puppetlabs.trapperkeeper.services.webserver.jetty10-service/jetty10-service
 puppetlabs.trapperkeeper.services.metrics.metrics-service/metrics-service
 puppetlabs.trapperkeeper.services.status.status-service/status-service
 ```
@@ -48,7 +48,7 @@ authorization: {
 
 The webserver needs to be configured for ssl against the puppet CA for
 your install (see [authentication](authentication.md)), with
-[client-auth](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9/blob/master/doc/jetty-config.md#client-auth)
+[client-auth](https://github.com/puppetlabs/trapperkeeper-webserver-jetty10/blob/master/doc/jetty-config.md#client-auth)
 set to `need` or `want`
 
 ```
@@ -65,7 +65,7 @@ webserver: {
 ```
 
 The brokers protocol handlers and the status service will need to be mounted using a
-[webrouting](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9/blob/master/doc/webrouting-config.md)
+[webrouting](https://github.com/puppetlabs/trapperkeeper-webserver-jetty10/blob/master/doc/webrouting-config.md)
 configuration.
 
 The v2 webroute is optional.

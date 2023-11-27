@@ -8,7 +8,7 @@
             [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
             [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
-            [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]))
+            [puppetlabs.trapperkeeper.services.webserver.jetty10-service :refer [jetty10-service]]))
 
 (def broker-config
   "A broker with ssl"
@@ -43,7 +43,7 @@
 
 (def broker-services
   "The trapperkeeper services the broker needs"
-  [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service scheduler-service filesystem-watch-service])
+  [authorization-service broker-service jetty10-service webrouting-service metrics-service status-service scheduler-service filesystem-watch-service])
 
 (defn get-context
   [app svc]
