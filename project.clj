@@ -77,13 +77,13 @@
                          :dependencies [[http.async.client ~http-async-client-version]
                                        [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                        [puppetlabs/kitchensink :classifier "test" :scope "test"]
-                                       [org.bouncycastle/bcpkix-jdk15on]]
+                                       [org.bouncycastle/bcpkix-jdk18on]]
                          :test-paths ^:replace ["test/unit" "test/integration"]}
              :test-schema-validation [:test-base
                                       {:injections [(do
                                                      (require 'schema.core)
                                                      (schema.core/set-fn-validation! true))]}]
-             :uberjar {:dependencies [[org.bouncycastle/bcpkix-jdk15on]]
+             :uberjar {:dependencies [[org.bouncycastle/bcpkix-jdk18on]]
                        :aot [puppetlabs.pcp.broker.service
                              puppetlabs.trapperkeeper.services.authorization.authorization-service
                              puppetlabs.trapperkeeper.services.metrics.metrics-service
