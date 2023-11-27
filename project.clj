@@ -40,6 +40,7 @@
   :plugins [[lein-parent "0.3.7"]
             [puppetlabs/lein-ezbake "1.9.0"]
             [puppetlabs/i18n "0.8.0"]
+            [jonase/eastwood "1.4.2" :exclusions [org.clojure/clojure]]
             [lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
 
   :lein-release {:scm :git
