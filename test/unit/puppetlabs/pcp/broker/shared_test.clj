@@ -14,6 +14,7 @@
 
 (def mock-uri "pcp://foo.com/agent")
 (defn mock-ws->uri [_] mock-uri)
+(defn mock-ws->remote-address [_] "localhost:1")
 
 (s/defn make-test-broker :- Broker
   "Return a minimal clean broker state"

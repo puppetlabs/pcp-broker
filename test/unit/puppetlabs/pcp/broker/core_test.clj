@@ -5,9 +5,9 @@
             [puppetlabs.pcp.broker.shared :refer [Broker]]
             [puppetlabs.pcp.broker.core :refer :all]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
-            [puppetlabs.pcp.broker.websocket :refer [ws->uri ws->common-name]]
+            [puppetlabs.pcp.broker.websocket :refer [ws->uri ws->common-name ws->remote-address]]
             [puppetlabs.pcp.broker.message :as message]
-            [puppetlabs.pcp.broker.shared-test :refer [mock-uri mock-ws->uri make-test-broker]]
+            [puppetlabs.pcp.broker.shared-test :refer [mock-uri mock-ws->uri make-test-broker mock-ws->remote-address]]
             [puppetlabs.trapperkeeper.services.webserver.jetty10-core :as jetty10-core]
             [puppetlabs.trapperkeeper.services.webserver.jetty10-config :as jetty10-config]
             [schema.core :as s]
@@ -77,7 +77,8 @@
 
 (deftest remove-connecton-test
   (testing "It should remove a connection from the inventory map"
-    (with-redefs [ws->uri mock-ws->uri]
+    (with-redefs [ws->uri mock-ws->uri
+                  ws->remote-address mock-ws->remote-address]
       (let [broker (make-test-broker)
             connection (connection/make-connection :dummy-ws identity-codec mock-uri false)]
         (swap! (:database broker) update :inventory assoc mock-uri connection)

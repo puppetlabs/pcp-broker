@@ -1,5 +1,6 @@
 (ns puppetlabs.pcp.broker.core
-  (:require [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
+  (:require [clojure.tools.logging :as log]
+            [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
             [puppetlabs.pcp.broker.shared :as shared :refer
              [Broker get-connection get-controller summarize send-error-message send-message deliver-message deliver-server-message]]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
@@ -74,21 +75,37 @@
   (let [database (:database broker)
         uri (:uri connection)
         change {:client uri :change 1}]
+    (log/tracef "add-connection for %s %s" uri (ws->remote-address (:websocket connection)))
     (swap! database #(-> %
                          (update :inventory assoc uri connection)
                          (update :updates conj change)))))
+
+(defn maybe-update-database
+  [uri ws change entry]
+  (let [found-ws (get-in entry [:inventory uri :websocket])
+        remote-addr (ws->remote-address ws)
+        found-addr (and found-ws (ws->remote-address found-ws))]
+    (if (= remote-addr found-addr)
+      (do
+        (log/tracef "update database because remote ids match \"%s\" \"%s\"" remote-addr found-addr)
+        (-> entry
+            (update :inventory dissoc uri)
+            (update :subscriptions dissoc uri)
+            (update :updates conj change)))
+      (do
+        (log/tracef "not updating database because remote ids don't match \"%s\" \"%s\"." remote-addr found-addr)
+        entry))))
 
 (s/defn remove-connection! :- shared/BrokerDatabase
   "Remove a Connection from ':inventory' and possibly ':subscriptions' and
   add a corresponding change record the ':updates' vector."
   [broker :- Broker
-   uri :- p/Uri]
-  (let [database (:database broker)
+   ws :- Websocket]
+  (let [uri (ws->uri ws)
+        database (:database broker)
         change {:client uri :change -1}]
-    (swap! database #(-> %
-                         (update :inventory dissoc uri)
-                         (update :subscriptions dissoc uri)
-                         (update :updates conj change)))))
+    (log/tracef "remove-connection for \"%s\"" uri)
+    (swap! database (partial maybe-update-database uri ws change))))
 
 ;;
 ;; Message processing
@@ -218,6 +235,7 @@
    message :- Message
    connection :- Connection]
   (let [message-type (:message_type message)]
+    (log/tracef "process-server-message: %s" message-type)
     (case message-type
       "http://puppetlabs.com/associate_request" (process-associate-request! broker message connection)
       "http://puppetlabs.com/inventory_request" (process-inventory-request broker message connection)
@@ -348,7 +366,7 @@
   function name), otherwise nil.
   Also, log the message validation outcome via 'pcp-access' logger."
   [broker :- Broker
-   bytes :- (s/either bytes s/Str)
+   bytes :- (s/conditional bytes? bytes string? s/Str)
    ws :- Websocket]
   (let [uri (ws->uri ws)]
     (if-let [connection (get-connection broker uri)]
@@ -591,7 +609,7 @@
             ;; 2 : reason close occurred
             #(i18n/trs "{0} disconnected {1} {2}"
               (:uri %) (str (:statuscode %)) (:reason %)))
-           (remove-connection! broker uri))))
+           (remove-connection! broker ws))))
 
 (s/defn build-websocket-handlers :- {s/Keyword IFn}
   [broker :- Broker codec :- Codec]
@@ -714,7 +732,7 @@
             (fn [_] (i18n/trs "Evicted stale client connections because of CRL reload."))))))))
 
 (defn on-controller-connect!
-  [broker controller-uri ws]
+  [broker controller-uri _ws]
   ;; lock to ensure that updating connected controllers and restarting handlers happen together
   (locking broker
     (swap! (:database broker) update :warning-bin dissoc controller-uri)

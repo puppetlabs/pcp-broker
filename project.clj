@@ -23,7 +23,7 @@
                  [puppetlabs/trapperkeeper]
                  [puppetlabs/trapperkeeper-authorization]
                  [puppetlabs/trapperkeeper-metrics "2.0.0"]
-                 [com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.3"]
+                 [com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.4"]
                  [puppetlabs/trapperkeeper-status]
                  [puppetlabs/trapperkeeper-filesystem-watcher]
 
