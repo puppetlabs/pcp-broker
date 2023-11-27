@@ -35,7 +35,6 @@
                  [slingshot]
 
                  [puppetlabs/pcp-client "2.0.0"]
-                 [puppetlabs/pcp-common "1.3.6"]
                  [puppetlabs/i18n]]
 
   :plugins [[lein-parent "0.3.7"]
@@ -69,6 +68,8 @@
                                   [org.clojure/tools.nrepl]
                                   [hato "0.9.0"]]
                    :plugins [[lein-cloverage "1.0.6" :excludes [org.clojure/clojure org.clojure/tools.cli]]]}
+             :ci {:plugins [[lein-pprint "1.1.1"]
+                            [lein-exec "0.3.7"]]}
              :dev-schema-validation [:dev
                                      {:injections [(do
                                                     (require 'schema.core)
