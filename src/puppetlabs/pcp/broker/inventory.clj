@@ -2,10 +2,8 @@
   (:require [puppetlabs.pcp.protocol :as p]
             [puppetlabs.pcp.broker.shared :refer [Broker deliver-server-message] :as shared]
             [puppetlabs.pcp.broker.message :as message]
-            [clojure.set :refer [intersection union]]
             [schema.core :as s])
-  (:import [clojure.lang Numbers]
-           [puppetlabs.pcp.broker.connection Connection]))
+  (:import [clojure.lang Numbers]))
 
 (s/defn init-database :- shared/BrokerDatabase
   []
@@ -82,7 +80,7 @@
                                 filtered-updates))
                             (transient []))
                           persistent!)]
-        (if (seq filtered)
+        (when (seq filtered)
           {:changes filtered})))
 
 (s/defn subscribe-client! :- shared/BrokerDatabase
@@ -132,7 +130,7 @@
                         (fn [database]
                           (if (identical? (-> database :subscriptions (get subscriber)) subscription) ;; is the subscription in the live database still the same?
                             (do
-                              (if (nil? @processed-count-atom) ;; have we not sent the update to this subscriber yet?
+                              (when (nil? @processed-count-atom) ;; have we not sent the update to this subscriber yet?
                                 (let [data (-> (subvec updates next-update-offset) ;; skip updates which have already been sent to this subscriber
                                                (build-update-data (:pattern-sets subscription)))]
                                   (if (or (nil? data) ;; there are no updates for this subscriber
@@ -171,7 +169,7 @@
     (let [should-stop (:should-stop broker)]
       (loop []
         (send-updates broker)
-        (if (nil? (deref should-stop batch-update-interval-ms nil))
+        (when (nil? (deref should-stop batch-update-interval-ms nil))
           (recur))))))
 
 (s/defn stop-inventory-updates!

@@ -1,13 +1,14 @@
 (ns puppetlabs.pcp.broker.controllers-test
   (:require [clojure.test :refer :all]
             [hato.websocket :as ws-client]
-            [puppetlabs.pcp.testutils :refer [dotestseq received? retry-until-true]]
+            [puppetlabs.pcp.testutils :refer [received? retry-until-true]]
             [puppetlabs.pcp.client :as pcp-client]
-            [puppetlabs.pcp.testutils.service :refer [protocol-versions broker-services get-broker get-context]]
+            [puppetlabs.pcp.testutils.service :refer [broker-services get-broker get-context]]
             [puppetlabs.pcp.testutils.client :as client]
             [puppetlabs.pcp.testutils.server :as server]
             [puppetlabs.pcp.broker.core :as core]
             [puppetlabs.pcp.broker.inventory :as inventory]
+            [puppetlabs.pcp.broker.shared]
             [puppetlabs.pcp.message-v2 :as message]
             [puppetlabs.trapperkeeper.services.websocket-session :as ws-session]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]))
@@ -41,7 +42,7 @@
 
 (deftest controller-connection-test
   (let [connected (promise)]
-    (with-redefs [server/on-connect (fn [_ ws] (deliver connected true))]
+    (with-redefs [server/on-connect (fn [_ _ws] (deliver connected true))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (is (deref connected 10000 nil))))))
 
@@ -142,7 +143,7 @@
                     (try
                       (ws-session/send! ws (message/encode self-request))
                       (catch Exception e (println "controller-allowlist-test exception:" (.getMessage e)))))
-                  server/on-text (fn [_ ws text] (deliver response (message/decode text)))]
+                  server/on-text (fn [_ _ws text] (deliver response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (let [answer (deref response 10000 nil)]
           (is answer)
@@ -161,7 +162,7 @@
                     (try
                       (ws-session/send! ws (message/encode spoof-sender-request))
                       (catch Exception e (println "controller-prevent-spoofed-sender-test exception:" (.getMessage e)))))
-                  server/on-text (fn [_ ws text] (deliver response (message/decode text)))]
+                  server/on-text (fn [_ _ws text] (deliver response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (let [answer (deref response 10000 nil)]
           (is answer)
@@ -217,7 +218,7 @@
                     (try
                       (ws-session/send! ws (message/encode inventory-subscribe))
                       (catch Exception e (println "controllers-subscribe exception:" (.getMessage e)))))
-                  server/on-text (fn [_ ws text]
+                  server/on-text (fn [_ _ws text]
                     (let [msg (message/decode text)]
                       (case (:message_type msg)
                         "http://puppetlabs.com/inventory_response" (deliver inventory-response msg)
@@ -258,7 +259,7 @@
                                    (maybe-purge-clients! b t)
                                    (deliver clients-purged? true))
        inventory/send-updates (fn [broker]
-                                (when (or (not (empty? (:inventory @(:database broker))))
+                                (when (or (seq (:inventory @(:database broker)))
                                           (realized? first-update-sent?))
                                   (send-updates broker)
                                   (deliver first-update-sent? true)))
@@ -276,11 +277,11 @@
                              (try
                                (ws-session/send! ws (message/encode inventory-subscribe))
                                (catch Exception e (println "controllers-unsubscribe exception:" (.getMessage e))))))
-       server/on-text (fn [_ ws text] (deliver inventory-response (message/decode text)))]
+       server/on-text (fn [_ _ws text] (deliver inventory-response (message/decode text)))]
       (with-app-with-config app (conj broker-services server/mock-server) broker-config
         (let [broker (:broker (get-context app :BrokerService))]
           (server/wait-for-inbound-connection (get-context app :MockServer))
-          (with-open [client (client/connect :certname agent-cert)]
+          (with-open [_client (client/connect :certname agent-cert)]
             (while (empty? (:inventory @(:database broker)))
               (Thread/sleep 100))
             (let [answer (deref inventory-response 10000 nil)]
@@ -294,14 +295,14 @@
             (deliver controller-timeout? true)
             (testing "updates for disconnected controllers are discarded, not sent"
               (is @clients-purged?)
-              (is (not (empty? (:updates @(:database broker)))))
+              (is (seq (:updates @(:database broker))))
               (inventory/send-updates (get-broker app))
               (is (empty? (:updates @(:database broker))))
               (is (= @server-messages-at-unsubscribe @server-message-sent)))))))))
 
 (deftest controller-disconnection
     (let [timed-out? (promise)]
-      (with-redefs [core/schedule-client-purge! (fn [b t p]
+      (with-redefs [core/schedule-client-purge! (fn [b t _p]
                                                   @timed-out?
                                                   (core/maybe-purge-clients! b t))
                     puppetlabs.pcp.broker.inventory/start-inventory-updates! (fn [_] nil)]
@@ -349,13 +350,13 @@
             (testing "controller reconnection"
               (with-app-with-config mock-server server/mock-server-services mock-server-config
                 (server/wait-for-inbound-connection (get-context mock-server :MockServer))
-                (with-open [client (client/connect :certname agent-cert)]
+                (with-open [_client (client/connect :certname agent-cert)]
                   (testing "client connections now successful"
                     (while (empty? (:inventory @database))
                       (Thread/sleep 100))
                     (testing "returns running state when brokers are disconnected"
                       (= :running (:state (core/status broker :info))))
-                    (is (not (empty? (:inventory @database)))))))))))))
+                    (is (seq(:inventory @database))))))))))))
 
 (deftest status-with-controller
   (let [start-fn core/start

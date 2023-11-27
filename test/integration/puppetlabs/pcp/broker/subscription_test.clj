@@ -1,12 +1,9 @@
 (ns puppetlabs.pcp.broker.subscription-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.pcp.message-v2 :as message]
+            [puppetlabs.pcp.broker.inventory]
             [puppetlabs.pcp.testutils :refer [dotestseq]]
-            [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services get-broker get-context]]
+            [puppetlabs.pcp.testutils.service :refer [broker-config protocol-versions broker-services get-broker]]
             [puppetlabs.pcp.testutils.client :as client]
-            [hato.client :as http]
-            [hato.websocket :as ws-client]
-            [puppetlabs.trapperkeeper.services.websocket-session :as ws-session]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]))
 
 (deftest inventory-node-recieves-updates-when-inventory-changes-when-subscribed-to-updates
@@ -26,7 +23,7 @@
                        data (client/get-data response version)]
                    (is (= "http://puppetlabs.com/inventory_response" (:message_type response)))
                    (is (= [] (:uris data))))
-                 (with-open [client2 (client/connect :certname "client02.example.com"
+                 (with-open [_client2 (client/connect :certname "client02.example.com"
                                                      :version version)]
                    (let [response (.await-message-received client)
                          data (client/get-data response version)]
@@ -73,7 +70,7 @@
                    (is (= ["pcp://client01.example.com/agent" "pcp://client02.example.com/agent"] (:uris data))))
 
                  ;; now connect a client matching only the filter client2 used for subscribing
-                 (with-open [client3 (client/connect :certname "client03.example.com"
+                 (with-open [_client3 (client/connect :certname "client03.example.com"
                                                      :version version)]
                    (let [response (.await-message-received client2)
                          data (client/get-data response version)]
@@ -82,7 +79,7 @@
                    ;; client1 doesn't receive an update at all, becuase the change doesn't match its filter
                    (let [response (.await-message-received client1 3000)]
                      (is (= nil response)))
-                   (with-open [client4 (client/connect :certname "client04.example.com"
+                   (with-open [_client4 (client/connect :certname "client04.example.com"
                                                        :version version)]
                      (let [response (.await-message-received client2)
                            data (client/get-data response version)]
@@ -124,7 +121,7 @@
         ;; subscribe to updates, but ensure message isn't delivered before sending updates
         (.send controller inventory-subscribe-agents)
         (deref subscription-finished)
-        (with-open [client (client/connect :certname "client01.example.com" :force-association true)]
+        (with-open [_client (client/connect :certname "client01.example.com" :force-association true)]
           (#'puppetlabs.pcp.broker.inventory/send-updates (get-broker app))
           (deliver finish-subscription true)
           (let [response (.await-message-received controller)]
@@ -135,7 +132,7 @@
             (is (= "http://puppetlabs.com/inventory_update" (:message_type response)))
             (is (= [{:client "pcp://client01.example.com/agent" :change 1}] (get-in response [:data :changes]))))))
       ;; ensure send updates doesn't error after subscriber has disconnected
-      (with-open [client (client/connect :certname "client01.example.com" :force-association true)]
+      (with-open [_client (client/connect :certname "client01.example.com" :force-association true)]
         (#'puppetlabs.pcp.broker.inventory/send-updates (get-broker app)))))))
 
 (deftest inventory-update-after-reconnect
@@ -163,7 +160,7 @@
           (.idle-timeout! controller 2000)
           (.send controller inventory-subscribe-agents)
           (deref @subscription-finished)
-          (with-open [client (client/connect :certname "client01.example.com"
+          (with-open [_client (client/connect :certname "client01.example.com"
                                              :force-association true)]
             (deliver finish-subscription true)
             (let [response (.await-message-received controller)]

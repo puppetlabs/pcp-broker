@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.broker.shared
   (:require [metrics.gauges :as gauges]
             [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
-            [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
+            [puppetlabs.pcp.broker.connection :as connection]
             [puppetlabs.pcp.broker.websocket]
             [puppetlabs.pcp.broker.message :as message :refer [Message multicast-message?]]
             [puppetlabs.pcp.client :as pcp-client]
@@ -69,7 +69,7 @@
   ([broker :- Broker uri :- p/Uri timeout :- s/Int]
    (when-let [controller (get @(:controllers broker) uri)]
      (pcp-client/wait-for-connection (:websocket controller) timeout)
-     (if (pcp-client/connected? (:websocket controller))
+     (when (pcp-client/connected? (:websocket controller))
        controller))))
 
 (s/defn build-and-register-metrics :- {s/Keyword Object}

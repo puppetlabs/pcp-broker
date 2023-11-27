@@ -12,7 +12,7 @@
             [puppetlabs.pcp.client :as pcp-client]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.metrics :refer [time!]]
-            [clj-time.core :refer [now plus equal?]]
+            [clj-time.core :refer [now equal?]]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.structured-logging.core :as sl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
@@ -255,12 +255,12 @@
 
 (defn- validate-message-type
   [^String message-type]
-  (if-not (re-matches #"^[\w\-.:/]*$" message-type)
+  (when-not (re-matches #"^[\w\-.:/]*$" message-type)
     (i18n/trs "Illegal message type: ''{0}''." message-type)))
 
 (defn- validate-target
   [^String target]
-  (if-not (re-matches #"^[\w\-.:/*]*$" target)
+  (when-not (re-matches #"^[\w\-.:/*]*$" target)
     (i18n/trs "Illegal message target: ''{0}''." target)))
 
 (s/defn make-ring-request :- (s/maybe ring/Request)
@@ -341,7 +341,7 @@
    in order, if the message: 1) is an associate-request as expected during
    Session Association; 2) is authenticated; 3) is authorized; 4) does not
    use multicast delivery."
-  [broker :- Broker message :- Message connection :- Connection is-association-request :- s/Bool]
+  [broker :- Broker message :- Message connection :- Connection _is-association-request :- s/Bool]
   (cond
     (not (authenticated? message connection)) :not-authenticated
     (not (authorized? broker message connection)) :not-authorized
@@ -433,7 +433,7 @@
                   message
                   (i18n/trs "Error {0} handling message: {1}" (:type m) &throw-context)
                   connection))))
-          (catch map? m
+          (catch map? _m
             (sl/maplog
               [:puppetlabs.pcp.broker.pcp_access :warn]
               (assoc (connection/summarize connection)
@@ -471,12 +471,12 @@
 
 (defn- on-bytes!
   "OnMessage (binary) websocket event handler"
-  [broker ws bytes offset len]
+  [broker ws bytes _offset _len]
   (on-message! broker ws bytes))
 
 (defn all-controllers-disconnected?
   [broker]
-  (and (not (empty? @(:controllers broker)))
+  (and (seq @(:controllers broker))
        (= (set (keys @(:controllers broker)))
           (set (keys (:warning-bin @(:database broker)))))))
 
@@ -720,16 +720,15 @@
                #(i18n/trs "Checking the existing {0} connections for expired CRLs." (:count %)))
     (doseq [[uri client-connection] inventory-snapshot]
       (when (:expired client-connection)
-        (do
-          (sl/maplog :debug {:uri (str uri)} #(i18n/trs "Closing expired connection for {0}." (:uri %)))
-          (Thread/sleep throttle-duration)
-          (websocket-session/close!
-            (:websocket client-connection)
-            1012 ;; code SERVER_RESTART, client *should* reconnect soon
-            (i18n/trs "CRL reloaded"))
-          (sl/maplog
-            :info {}
-            (fn [_] (i18n/trs "Evicted stale client connections because of CRL reload."))))))))
+        (sl/maplog :debug {:uri (str uri)} #(i18n/trs "Closing expired connection for {0}." (:uri %)))
+        (Thread/sleep throttle-duration)
+        (websocket-session/close!
+          (:websocket client-connection)
+          1012 ;; code SERVER_RESTART, client *should* reconnect soon
+          (i18n/trs "CRL reloaded"))
+        (sl/maplog
+          :info {}
+          (fn [_] (i18n/trs "Evicted stale client connections because of CRL reload.")))))))
 
 (defn on-controller-connect!
   [broker controller-uri _ws]
@@ -744,8 +743,9 @@
 
 (defn schedule-client-purge!
   [broker timestamp controller-disconnection-ms]
-  (future (do (Thread/sleep controller-disconnection-ms)
-              (maybe-purge-clients! broker timestamp)))
+  (future
+    (Thread/sleep controller-disconnection-ms)
+    (maybe-purge-clients! broker timestamp))
   (sl/maplog
     :debug {:timeout controller-disconnection-ms}
     ;; 0 : number of milliseconds
@@ -755,7 +755,7 @@
   [broker :- Broker
    uri :- s/Str
    controller-disconnection-ms :- s/Int
-   client :- Client]
+   _client :- Client]
   (let [timestamp (now)]
     (sl/maplog
       :info {:uri uri}
@@ -808,7 +808,7 @@
           check-interval (:crl-check-period broker)]
       (loop []
         (close-expired-connections! broker)
-        (if (nil? (deref should-stop check-interval nil))
+        (when (nil? (deref should-stop check-interval nil))
           (recur))))))
 
 (s/defn expire-ssl-connections*
@@ -890,7 +890,7 @@
       (when (get-route :v2)
         (swap! (:handlers broker) conj
                (add-websocket-handler (build-websocket-handlers broker message/v2-codec) {:route-id :v2})))
-      (catch IllegalArgumentException e
+      (catch IllegalArgumentException _e
         (sl/maplog :info {:type :v2-unavailable}
                    (fn [_] (i18n/trs "v2 protocol endpoint not configured.")))))
     broker))

@@ -1,4 +1,5 @@
 (ns puppetlabs.pcp.testutils.client
+  (:refer-clojure :exclude [send])
   (:require [clojure.tools.logging :as log]
             [clojure.test :refer :all]
             [hato.client :as http]
@@ -136,19 +137,19 @@
                                    (websocket-session/send! ws (modify-association-encoding
                                                                 (m1/encode association-request)))
                                    (log/tracef "%d test client v1/on-connect exiting" client-id))
-                    :on-error (fn [ws e]
+                    :on-error (fn [_ws e]
                                 (log/tracef "%d test client v1/on-error certname:%s uri:%s" client-id certname uri)
                                 (throw (Exception. e))
                                 (log/tracef "%d test client v1/on-error exiting" client-id))
-                    :on-bytes (fn [ws bytes offset len]
+                    :on-bytes (fn [_ws bytes _offset _len]
                                 (log/tracef "%d test client v1/on-bytes certname:%s uri:%s" client-id certname uri)
                                 (.add message-received-queue (m1/decode bytes))
                                 (log/tracef "%d test client v1/on-bytes exiting" client-id))
-                    :on-text  (fn [ws msg]
+                    :on-text  (fn [_ws msg]
                                 (log/tracef "%d test client v1/on-text certname:%s uri:%s" client-id certname uri)
                                 (.add message-received-queue (m1/decode msg))
                                  (log/tracef "%d test client v1/on-text exiting" client-id))
-                    :on-close (fn [ws code reason]
+                    :on-close (fn [_ws code reason]
                                 (log/tracef "%d test client v1/on-close certname:%s uri:%s" client-id certname uri)
                                 (deliver close-promise [code reason])
                                   (log/tracef "%d test client v1/on-close exiting" client-id))}
@@ -159,19 +160,19 @@
                                                               (modify-association-encoding
                                                                (m2/encode association-request))))
                                    (log/tracef "%d test client v2/on-connect exiting" client-id))
-                    :on-error (fn [ws e]
+                    :on-error (fn [_ws e]
                                 (log/tracef "%d test client v2/on-error certname:%s uri:%s" client-id certname uri)
                                 (throw (Exception. e))
                                 (log/tracef "%d test client v2/on-error exiting" client-id))
-                    :on-bytes (fn [ws bytes offset len]
+                    :on-bytes (fn [_ws bytes _offset _len]
                                 (log/tracef "%d test client v2/on-bytes certname:%s uri:%s" client-id certname uri)
                                 (.add message-received-queue (m2/decode bytes))
                                 (log/tracef "%d test client v2/on-bytes exiting" client-id))
-                    :on-text (fn [ws msg]
+                    :on-text (fn [_ws msg]
                                (log/tracef "%d test client v2/on-text certname:%s uri:%s" client-id certname uri)
                                (.add message-received-queue (m2/decode (str msg)))
                                (log/tracef "%d test client v2/on-text exiting" client-id))
-                    :on-close (fn [ws code reason]
+                    :on-close (fn [_ws code reason]
                                 (log/tracef "%d test client v2/on-close certname:%s uri:%s" client-id certname uri)
                                 (deliver close-promise [code reason])
                                 (log/tracef "%d test client v2/on-close exiting" client-id))})

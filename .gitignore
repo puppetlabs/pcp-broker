@@ -17,3 +17,4 @@ pom.xml.asc
 /eng-resources
 
 /dev-resources/i18n/bin
+.clj-kondo/.cache

@@ -1,6 +1,7 @@
 (ns puppetlabs.pcp.broker.message-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.pcp.broker.message :refer :all]))
+            [puppetlabs.pcp.broker.message :refer [make-message multicast-message? v1-decode v1-encode v2-decode
+                                                   v2-encode]]))
 
 (deftest multicast-message?-test
   (testing "returns false if target specifies a single host with no wildcards"
