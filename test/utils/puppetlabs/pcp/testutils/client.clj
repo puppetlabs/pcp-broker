@@ -9,8 +9,7 @@
             [puppetlabs.pcp.message-v1 :as m1]
             [puppetlabs.pcp.message-v2 :as m2]
             [puppetlabs.ssl-utils.core :as ssl-utils]
-            [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
-            [puppetlabs.pcp.testutils.client :as client])
+            [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session])
   (:import  (java.net URI)
             (java.util.concurrent CountDownLatch LinkedBlockingQueue TimeUnit)
             (org.eclipse.jetty.util.component LifeCycle)))
@@ -59,7 +58,7 @@
   (send [_this data]
     (log/debug "JettyWebsocketAdapterWrapper send")
     (try
-      (websocket-session/send! client-endpoint (client/encode-pcp-message data))
+      (websocket-session/send! client-endpoint (encode-pcp-message data))
       (catch Exception e ;; Doing a blocking send in Jetty 10 (i.e. sendString) can result in an IOException 
                          ;; with underlying java.nio.channels.ClosedChannelException.
                          ;; Needs more testing whether we should be catching these in production code in pcp-client.
