@@ -1,6 +1,6 @@
 (def http-async-client-version "1.3.0")
 
-(defproject puppetlabs/pcp-broker "1.7.6-SNAPSHOT"
+(defproject puppetlabs/pcp-broker "1.8.1-SNAPSHOT"
   :description "PCP fabric messaging broker"
   :url "https://github.com/puppetlabs/pcp-broker"
   :license {:name "Apache License, Version 2.0"
@@ -13,7 +13,7 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :parent-project {:coords [puppetlabs/clj-parent "4.9.1"]
+  :parent-project {:coords [puppetlabs/clj-parent "5.2.9"]
                    :inherit [:managed-dependencies]}
 
   :dependencies [[org.clojure/clojure]
@@ -33,7 +33,7 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "1.3.4"]
+                 [puppetlabs/pcp-client "1.4.0"]
 
                  [puppetlabs/i18n]]
 
