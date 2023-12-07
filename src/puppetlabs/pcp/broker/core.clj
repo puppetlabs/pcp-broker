@@ -772,22 +772,26 @@
    controller-allowlist :- #{s/Str}
    controller-disconnection-ms :- s/Int
    uri :- s/Str]
-  (let [;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
-        pcp-uri (str "pcp://" (.getAuthority (URI. uri)) "/server")
-        client (pcp-client/connect {:server uri
-                                    :ssl-context ssl-context
-                                    :type "server"
-                                    :max-message-size (:max-message-size broker)
-                                    :on-connect-cb (partial on-controller-connect! broker pcp-uri)
-                                    :on-close-cb (partial forget-controller-subscription broker pcp-uri
-                                                          controller-disconnection-ms)}
-                                    {:default (partial default-message-handler broker controller-allowlist)})
-        identity-codec {:decode identity :encode identity}]
-    (sl/maplog :info {:type :controller-connection :uri uri :pcpuri pcp-uri}
-               ;; 0 : uri identifying connection
-               ;; 1 : url to connect to
-               #(i18n/trs "Connecting to {0} at {1}." (:pcpuri %) (:uri %)))
-    [pcp-uri (connection/make-connection client identity-codec pcp-uri false)]))
+  (log/trace (i18n/trs "start-client {0}" uri))
+  (try
+    (let [;; Note that the use of getAuthority here must match how ws->common-name is computed for Clients.
+          pcp-uri (str "pcp://" (.getAuthority (URI. uri)) "/server")
+          client (pcp-client/connect {:server uri
+                                      :ssl-context ssl-context
+                                      :type "server"
+                                      :max-message-size (:max-message-size broker)
+                                      :on-connect-cb (partial on-controller-connect! broker pcp-uri)
+                                      :on-close-cb (partial forget-controller-subscription broker pcp-uri
+                                                            controller-disconnection-ms)}
+                                      {:default (partial default-message-handler broker controller-allowlist)})
+          identity-codec {:decode identity :encode identity}]
+      (sl/maplog :info {:type :controller-connection :uri uri :pcpuri pcp-uri}
+                 ;; 0 : uri identifying connection
+                 ;; 1 : url to connect to
+                 #(i18n/trs "Connecting to {0} at {1}." (:pcpuri %) (:uri %)))
+      [pcp-uri (connection/make-connection client identity-codec pcp-uri false)])
+    (catch Throwable e
+      (log/error e (i18n/trs "Failed to set up client properly")))))
 
 (s/defn initiate-controller-connections :- {p/Uri Connection}
   "Create PCP Clients for each controller URI"
@@ -796,6 +800,7 @@
    controller-uris :- [s/Str]
    controller-allowlist :- #{s/Str}
    controller-disconnection-ms :- s/Int]
+  (log/info (i18n/trs "Initiating controller connections for {0}" controller-uris))
   (into {} (pmap (partial start-client broker ssl-context
                           controller-allowlist controller-disconnection-ms)
                  controller-uris)))

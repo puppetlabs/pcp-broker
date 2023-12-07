@@ -34,7 +34,7 @@
                  ;; try+/throw+
                  [slingshot]
 
-                 [puppetlabs/pcp-client "2.0.0"]
+                 [puppetlabs/pcp-client "2.0.1"]
                  [puppetlabs/i18n]]
 
   :plugins [[lein-parent "0.3.7"]
