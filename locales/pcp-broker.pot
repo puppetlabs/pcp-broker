@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.pcp_broker \n"
-"X-Git-Ref: 3284aad481d0173887c06c411447fe5bcd08a48a\n"
+"X-Git-Ref: 3d95dee74555187a79c7c484a7087580d7102c7e\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -243,10 +243,22 @@ msgstr ""
 msgid "Lost connection to controller: {0}."
 msgstr ""
 
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "start-client {0}"
+msgstr ""
+
 #. 0 : uri identifying connection
 #. 1 : url to connect to
 #: src/puppetlabs/pcp/broker/core.clj
 msgid "Connecting to {0} at {1}."
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Failed to set up client properly"
+msgstr ""
+
+#: src/puppetlabs/pcp/broker/core.clj
+msgid "Initiating controller connections for {0}"
 msgstr ""
 
 #: src/puppetlabs/pcp/broker/core.clj
