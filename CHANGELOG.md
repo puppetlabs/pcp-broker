@@ -1,3 +1,8 @@
+## 2.0.1
+* ensure connection attempts that throw exceptions are correctly logged.
+* add additional logging to connection setup to help diagnose issues
+* update pcp-client for schema fixes
+
 ## 2.0.0
 
 This a major breaking release
