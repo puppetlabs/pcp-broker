@@ -1,3 +1,7 @@
+## 2.0.2
+* update clj-parent to 7.3.7
+* remove the pins from trapperkeeper-webserver-jetty10 and trapperkeeper-metrics to allow clj-parent to manage the versions
+
 ## 2.0.1
 * ensure connection attempts that throw exceptions are correctly logged.
 * add additional logging to connection setup to help diagnose issues
