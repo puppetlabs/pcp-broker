@@ -1,8 +1,8 @@
 (ns puppetlabs.pcp.broker.websocket
   (:require [clojure.tools.logging :as log]
             [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
-            [puppetlabs.kitchensink.core :as ks]
-            [puppetlabs.pcp.client :as pcp-client])
+            [puppetlabs.pcp.client :as pcp-client]
+            [puppetlabs.ssl-utils.core])
   (:import (puppetlabs.pcp.client Client)
            (java.net InetSocketAddress InetAddress)
            (org.eclipse.jetty.websocket.api WebSocketAdapter)))
@@ -14,12 +14,12 @@
 (extend-protocol websocket-session/WebSocketProtocol
   Client
   (send!         [c msg]      (pcp-client/send! c msg))
-  (close!        [c code msg] (pcp-client/close c))
+  (close!        [c _code _msg] (pcp-client/close c))
   (remote-addr   [c]          (-> c :websocket-client (.getOpenSessions) first (.getRemoteAddress)))
-  (ssl?          [c]          true)
-  (peer-certs    [c]          nil)
-  (request-path  [c]          "/server")
-  (idle-timeout! [c timeout]  nil)
+  (ssl?          [_c]          true)
+  (peer-certs    [_c]          nil)
+  (request-path  [_c]          "/server")
+  (idle-timeout! [_c _timeout]  nil)
   (connected?    [c]          (pcp-client/connected? c)))
 
 (defprotocol WebsocketInterface

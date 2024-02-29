@@ -13,10 +13,10 @@
 (deftest it-talks-websockets-test
   (with-app-with-config app broker-services broker-config
     (let [connected (promise)
-          handlers {:on-close (fn [ws code reason])
-                    :on-text (fn [ws msg last?])
-                    :on-error (fn [ws e])
-                    :on-connect (fn [ws] (deliver connected true))}]
+          handlers {:on-close (fn [_ws _code _reason])
+                    :on-text (fn [_ws _msg _last?])
+                    :on-error (fn [_ws _e])
+                    :on-connect (fn [_ws] (deliver connected true))}]
       (with-open [_client (client/connect :certname "client01.example.com"
                                           :override-handlers handlers)]
         (is (= true (deref connected (* 2 1000) false)) "Connected within 2 seconds")))))
@@ -29,9 +29,9 @@
   (let [close-code (promise)
         connected (promise)]
     (try
-      (let [handlers {:on-connect (fn [ws] (deliver connected true))
-                      :on-text (fn [ws msg])
-                      :on-error (fn [ws e])
+      (let [handlers {:on-connect (fn [_ws] (deliver connected true))
+                      :on-text (fn [_ws _msg])
+                      :on-error (fn [_ws _e])
                       :on-close (fn [ws code reason]
                                   (deliver connected false)
                                   (deliver close-code code)
@@ -43,7 +43,7 @@
           ;; We were connected, sleep a while to see if the broker
           ;; disconnects the client.
           (deref close-code delay nil)))
-      (catch Exception e
+      (catch Exception _e
         (deliver close-code :refused)))
     @close-code))
 
@@ -97,7 +97,7 @@
       (while (and (not (future-done? broker)) (< (- (System/currentTimeMillis) start) (* 120 1000)))
         (let [code (connect-and-close (* 20 1000))]
           (swap! close-codes conj-unique code)
-          (if (= 1000 code)
+          (when (= 1000 code)
             ;; we were _probably_ able to connect to the broker (or the broker was
             ;; soooo slow to close the connection even though it was not running
             ;; that the 20 seconds timeout expired) so let's tear it down
@@ -189,8 +189,8 @@
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
               ;; client/connect checks associate_response for both clients
-               (with-open [client (client/connect :certname "client01.example.com"
-                                                  :version version)]))))
+               (with-open [_client (client/connect :certname "client01.example.com"
+                                                   :version version)]))))
 
 (deftest client-type-must-match-for-association-test
   (testing "Unsuccessful associate_response and WebSocket closes if client requests new association"
@@ -319,8 +319,8 @@
 (deftest inventory-node-cannot-find-previously-connected-node-test
   (with-app-with-config app broker-services broker-config
     (dotestseq [version protocol-versions]
-               (with-open [client (client/connect :certname "client02.example.com"
-                                                  :version version)])
+               (with-open [_client (client/connect :certname "client02.example.com"
+                                                   :version version)])
                (with-open [client (client/connect :certname "client01.example.com"
                                                   :version version)]
                  (let [request (client/make-message

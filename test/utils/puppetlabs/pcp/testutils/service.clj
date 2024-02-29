@@ -1,6 +1,5 @@
 (ns puppetlabs.pcp.testutils.service
-  (:require [puppetlabs.trapperkeeper.core :as trapperkeeper]
-            [puppetlabs.trapperkeeper.app :as tka]
+  (:require [puppetlabs.trapperkeeper.app :as tka]
             [puppetlabs.pcp.broker.service :refer [broker-service]]
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.watcher.filesystem-watch-service :refer [filesystem-watch-service]]

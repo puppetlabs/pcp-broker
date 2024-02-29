@@ -1,10 +1,7 @@
 (ns puppetlabs.pcp.broker.connection
-  (:require [clojure.string :as str]
-            [puppetlabs.kitchensink.core :as ks]
-            [puppetlabs.pcp.broker.websocket :refer [Websocket ws->remote-address ws->common-name]]
+  (:require [puppetlabs.pcp.broker.websocket :refer [Websocket ws->remote-address ws->common-name]]
             [puppetlabs.pcp.protocol :as p]
-            [schema.core :as s]
-            [slingshot.slingshot :refer [throw+ try+]])
+            [schema.core :as s])
   (:import (clojure.lang IFn)))
 
 (def Codec

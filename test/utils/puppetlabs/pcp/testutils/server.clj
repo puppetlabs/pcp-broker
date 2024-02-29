@@ -1,19 +1,16 @@
 (ns puppetlabs.pcp.testutils.server
   (:require [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
             [puppetlabs.trapperkeeper.core :as trapperkeeper]
-            [puppetlabs.trapperkeeper.services :refer [service-context]]
-            [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
-            [puppetlabs.trapperkeeper.services.webserver.jetty10-service :refer [jetty10-service]]
-            [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]])
+            [puppetlabs.trapperkeeper.services.webserver.jetty10-service :refer [jetty10-service]])
   (:import (java.nio.channels AsynchronousCloseException)))
 
 ;; These handlers exist to be redefined.
-(defn on-connect [server ws])
-(defn on-error [server ws e])
-(defn on-close [server ws status-code reason])
-(defn on-text [server ws text])
-(defn on-bytes [server ws bytes offset len])
+(defn on-connect [_server _ws])
+(defn on-error [_server _ws _e])
+(defn on-close [_server _ws _status-code _reason])
+(defn on-text [_server _ws _text])
+(defn on-bytes [_server _ws _bytes _offset _len])
 
 (defprotocol MockServer)
 

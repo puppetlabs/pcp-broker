@@ -79,7 +79,7 @@
                                                          controller-allowlist
                                                          controller-disconnection-ms))
            (core/start broker)
-           (if-let [filesystem-watcher-service (maybe-get-service this :FilesystemWatchService)]
+           (when-let [filesystem-watcher-service (maybe-get-service this :FilesystemWatchService)]
              (let [watcher (watch-protocol/create-watcher filesystem-watcher-service {:recursive false})]
                (core/watch-crl watcher broker ssl-context-factory)))
            (sl/maplog :info {:type :broker-started :brokername broker-name}

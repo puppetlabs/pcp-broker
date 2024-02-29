@@ -1,16 +1,16 @@
 (ns puppetlabs.pcp.broker.shared-test
   (:require [clojure.test :refer :all]
             [metrics.core]
-            [puppetlabs.pcp.testutils :refer [dotestseq]]
-            [puppetlabs.pcp.broker.shared :refer :all]
-            [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
+            [puppetlabs.kitchensink.core :as ks]
+            [puppetlabs.pcp.broker.shared :refer [Broker build-and-register-metrics deliver-message
+                                                  handle-delivery-failure send-error-message]]
+            [puppetlabs.pcp.broker.connection :as connection]
             [puppetlabs.pcp.broker.inventory :as inventory]
             [puppetlabs.pcp.broker.websocket :refer [ws->uri ws->common-name]]
             [puppetlabs.pcp.broker.message :as message]
-            [puppetlabs.kitchensink.core :as ks]
+            [puppetlabs.trapperkeeper.services.websocket-session]
             [schema.core :as s]
-            [slingshot.test])
-  (:import [puppetlabs.pcp.broker.connection Connection]))
+            [slingshot.test]))
 
 (def mock-uri "pcp://foo.com/agent")
 (defn mock-ws->uri [_] mock-uri)

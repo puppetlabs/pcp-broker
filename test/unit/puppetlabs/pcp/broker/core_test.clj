@@ -1,19 +1,24 @@
 (ns puppetlabs.pcp.broker.core-test
   (:require [clojure.test :refer :all]
             [metrics.core]
-            [puppetlabs.pcp.testutils :refer [dotestseq]]
-            [puppetlabs.pcp.broker.shared :refer [Broker]]
-            [puppetlabs.pcp.broker.core :refer :all]
+            [puppetlabs.pcp.broker.shared]
+            [puppetlabs.pcp.broker.core :refer [add-connection! authenticated? authorized? close-expired-connections!
+                                                expire-ssl-connections get-webserver-cn initiate-controller-connections
+                                                make-ring-request process-associate-request! process-inventory-request
+                                                process-message! process-server-message! remove-connection!
+                                                session-association-request? validate-message] ]
             [puppetlabs.pcp.broker.connection :as connection :refer [Codec]]
             [puppetlabs.pcp.broker.websocket :refer [ws->uri ws->common-name ws->remote-address]]
             [puppetlabs.pcp.broker.message :as message]
             [puppetlabs.pcp.broker.shared-test :refer [mock-uri mock-ws->uri make-test-broker mock-ws->remote-address]]
+            [puppetlabs.pcp.client]
             [puppetlabs.trapperkeeper.services.webserver.jetty10-core :as jetty10-core]
             [puppetlabs.trapperkeeper.services.webserver.jetty10-config :as jetty10-config]
+            [puppetlabs.trapperkeeper.services.websocket-session]
             [schema.core :as s]
             [slingshot.test])
-  (:import [puppetlabs.pcp.broker.connection Connection]
-           [com.puppetlabs.trapperkeeper.services.webserver.jetty10.utils InternalSslContextFactory]))
+  (:import (com.puppetlabs.trapperkeeper.services.webserver.jetty9.utils InternalSslContextFactory)
+           (puppetlabs.pcp.broker.connection Connection)))
 
 (s/def identity-codec :- Codec
   {:encode identity
@@ -99,7 +104,7 @@
   (testing "It should close expired connections in the inventory after :expired-conn-throttle time"
     (let [closed (promise)]
       (with-redefs [ws->uri mock-ws->uri
-                    puppetlabs.trapperkeeper.services.websocket-session/close! (fn [& args] (deliver closed true))]
+                    puppetlabs.trapperkeeper.services.websocket-session/close! (fn [& _args] (deliver closed true))]
         (let [broker (assoc (make-test-broker) :expired-conn-throttle 1000)
               connection (connection/make-connection :dummy-ws identity-codec mock-uri false)]
           (add-connection! broker connection)
@@ -405,7 +410,7 @@
 
 (deftest initiate-controllers-test
   (let [is-connecting (promise)]
-    (with-redefs [puppetlabs.pcp.client/connect (fn [params handlers] (deliver is-connecting true) :client)
+    (with-redefs [puppetlabs.pcp.client/connect (fn [_params _handlers] (deliver is-connecting true) :client)
                   ws->uri mock-ws->uri]
       (let [broker (assoc (make-test-broker)
                           :authorization-check yes-authorization-check)

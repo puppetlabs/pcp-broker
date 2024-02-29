@@ -3,7 +3,7 @@
             [puppetlabs.pcp.message-v2 :as m2]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.pcp.broker.util :refer [update-when assoc-when ensure-vec]]
-            [clojure.set :refer [rename-keys intersection]]
+            [clojure.set :refer [rename-keys]]
             [schema.core :as s]))
 
 ;; Allow an extra multicast-message parameter for flagging multicast messages.

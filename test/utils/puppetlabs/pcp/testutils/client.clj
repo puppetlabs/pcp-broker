@@ -1,4 +1,5 @@
 (ns puppetlabs.pcp.testutils.client
+  (:refer-clojure :exclude [send])
   (:require [clojure.tools.logging :as log]
             [clojure.test :refer :all]
             [hato.client :as http]
@@ -8,8 +9,7 @@
             [puppetlabs.pcp.message-v1 :as m1]
             [puppetlabs.pcp.message-v2 :as m2]
             [puppetlabs.ssl-utils.core :as ssl-utils]
-            [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session]
-            [puppetlabs.pcp.testutils.client :as client])
+            [puppetlabs.trapperkeeper.services.websocket-session :as websocket-session])
   (:import  (java.net URI)
             (java.util.concurrent CountDownLatch LinkedBlockingQueue TimeUnit)
             (org.eclipse.jetty.util.component LifeCycle)))
@@ -58,7 +58,7 @@
   (send [_this data]
     (log/debug "JettyWebsocketAdapterWrapper send")
     (try
-      (websocket-session/send! client-endpoint (client/encode-pcp-message data))
+      (websocket-session/send! client-endpoint (encode-pcp-message data))
       (catch Exception e ;; Doing a blocking send in Jetty 10 (i.e. sendString) can result in an IOException 
                          ;; with underlying java.nio.channels.ClosedChannelException.
                          ;; Needs more testing whether we should be catching these in production code in pcp-client.
@@ -136,19 +136,19 @@
                                    (websocket-session/send! ws (modify-association-encoding
                                                                 (m1/encode association-request)))
                                    (log/tracef "%d test client v1/on-connect exiting" client-id))
-                    :on-error (fn [ws e]
+                    :on-error (fn [_ws e]
                                 (log/tracef "%d test client v1/on-error certname:%s uri:%s" client-id certname uri)
                                 (throw (Exception. e))
                                 (log/tracef "%d test client v1/on-error exiting" client-id))
-                    :on-bytes (fn [ws bytes offset len]
+                    :on-bytes (fn [_ws bytes _offset _len]
                                 (log/tracef "%d test client v1/on-bytes certname:%s uri:%s" client-id certname uri)
                                 (.add message-received-queue (m1/decode bytes))
                                 (log/tracef "%d test client v1/on-bytes exiting" client-id))
-                    :on-text  (fn [ws msg]
+                    :on-text  (fn [_ws msg]
                                 (log/tracef "%d test client v1/on-text certname:%s uri:%s" client-id certname uri)
                                 (.add message-received-queue (m1/decode msg))
                                  (log/tracef "%d test client v1/on-text exiting" client-id))
-                    :on-close (fn [ws code reason]
+                    :on-close (fn [_ws code reason]
                                 (log/tracef "%d test client v1/on-close certname:%s uri:%s" client-id certname uri)
                                 (deliver close-promise [code reason])
                                   (log/tracef "%d test client v1/on-close exiting" client-id))}
@@ -159,19 +159,19 @@
                                                               (modify-association-encoding
                                                                (m2/encode association-request))))
                                    (log/tracef "%d test client v2/on-connect exiting" client-id))
-                    :on-error (fn [ws e]
+                    :on-error (fn [_ws e]
                                 (log/tracef "%d test client v2/on-error certname:%s uri:%s" client-id certname uri)
                                 (throw (Exception. e))
                                 (log/tracef "%d test client v2/on-error exiting" client-id))
-                    :on-bytes (fn [ws bytes offset len]
+                    :on-bytes (fn [_ws bytes _offset _len]
                                 (log/tracef "%d test client v2/on-bytes certname:%s uri:%s" client-id certname uri)
                                 (.add message-received-queue (m2/decode bytes))
                                 (log/tracef "%d test client v2/on-bytes exiting" client-id))
-                    :on-text (fn [ws msg]
+                    :on-text (fn [_ws msg]
                                (log/tracef "%d test client v2/on-text certname:%s uri:%s" client-id certname uri)
                                (.add message-received-queue (m2/decode (str msg)))
                                (log/tracef "%d test client v2/on-text exiting" client-id))
-                    :on-close (fn [ws code reason]
+                    :on-close (fn [_ws code reason]
                                 (log/tracef "%d test client v2/on-close certname:%s uri:%s" client-id certname uri)
                                 (deliver close-promise [code reason])
                                 (log/tracef "%d test client v2/on-close exiting" client-id))})

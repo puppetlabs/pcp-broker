@@ -1,0 +1,8 @@
+{:linters {:refer-all {:exclude [clojure.test]}
+           :unused-referred-var {:level :warning :exclude {slingshot.slingshot [try+ throw+]}}
+           :unresolved-symbol {:level :warning :exclude [(puppetlabs.trapperkeeper.core/defservice)
+                                                         (slingshot.slingshot/try+ [&throw-context])
+                                                         (puppetlabs.trapperkeeper.testutils.bootstrap/with-app-with-config)]}}
+ :lint-as {slingshot.slingshot/try+ clojure.core/try
+           puppetlabs.trapperkeeper.core/defservice clojure.core/def}
+ :output {:linter-name true}}
